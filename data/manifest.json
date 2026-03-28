@@ -4,6 +4,11 @@
       "name": "callowhill",
       "label": "Callowhill",
       "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "southern",
+      "label": "Southern",
+      "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
 }
