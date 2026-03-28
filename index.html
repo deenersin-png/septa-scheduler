@@ -28,13 +28,10 @@
   --bright: #e8ecf4;
   --amber: #f5a623;
   --amber-dim: rgba(245,166,35,0.12);
-  --amber-glow: rgba(245,166,35,0.25);
   --green: #3dd68c;
   --green-dim: rgba(61,214,140,0.1);
-  --green-glow: rgba(61,214,140,0.25);
   --blue: #4d9fff;
   --blue-dim: rgba(77,159,255,0.1);
-  --blue-glow: rgba(77,159,255,0.25);
   --red: #ff6b6b;
   --red-dim: rgba(255,107,107,0.1);
   --violet: #a78bfa;
@@ -81,11 +78,11 @@ header {
 .hd-dot {
   width:8px;height:8px;border-radius:50%;
   background:var(--amber);
-  box-shadow: 0 0 8px var(--amber-glow);
+  opacity: 0.7;
   animation: pulse 2.5s ease-in-out infinite;
 }
 
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
 
 .hd-depot-select {
   font-family:var(--mono);
@@ -128,7 +125,6 @@ header {
 
 .day-btn {
   background:var(--ink3);
-  border:1px solid var(--line2);
   color:var(--mid);
   font-family:var(--mono);
   font-size:13px;
@@ -138,50 +134,39 @@ header {
   cursor:pointer;
   transition:all .15s;
   white-space:nowrap;
+  border: none;
 }
 
 .day-btn:hover {
-  border-color:var(--line3);
   color:var(--text);
+  background: var(--ink2);
 }
 
 .day-btn.sunday {
-  border-color: var(--green);
   color: var(--green);
-  background: var(--green-dim);
 }
 
 .day-btn.weekday {
-  border-color: var(--amber);
   color: var(--amber);
-  background: var(--amber-dim);
 }
 
 .day-btn.saturday {
-  border-color: var(--blue);
   color: var(--blue);
-  background: var(--blue-dim);
 }
 
 .day-btn.active.sunday {
-  border-color: var(--green);
-  color: white;
-  background: var(--green);
-  box-shadow: 0 0 12px var(--green-glow);
+  background: var(--green-dim);
+  color: var(--green);
 }
 
 .day-btn.active.weekday {
-  border-color: var(--amber);
-  color: var(--ink);
-  background: var(--amber);
-  box-shadow: 0 0 12px var(--amber-glow);
+  background: var(--amber-dim);
+  color: var(--amber);
 }
 
 .day-btn.active.saturday {
-  border-color: var(--blue);
-  color: white;
-  background: var(--blue);
-  box-shadow: 0 0 12px var(--blue-glow);
+  background: var(--blue-dim);
+  color: var(--blue);
 }
 
 .search-row {
@@ -703,14 +688,13 @@ header {
   <div class="filter-row" id="route-filters"></div>
 
   <select class="sort-sel" id="sort-sel" onchange="render()">
-    <option value="run-asc">Run ↑</option>
-    <option value="run-desc">Run ↓</option>
-    <option value="pay-desc">Pay ↓</option>
-    <option value="pay-asc">Pay ↑</option>
-    <option value="start-asc">Start ↑</option>
-    <option value="start-desc">Start ↓</option>
-    <option value="finish-asc">Finish ↑</option>
-    <option value="finish-desc">Finish ↓</option>
+    <option value="run-asc">Run</option>
+    <option value="pay-desc">Pay (Highest)</option>
+    <option value="pay-asc">Pay (Lowest)</option>
+    <option value="start-asc">Earliest Start</option>
+    <option value="start-desc">Latest Start</option>
+    <option value="finish-asc">Earliest Finish</option>
+    <option value="finish-desc">Latest Finish</option>
   </select>
 
   <div class="result-line"><strong id="res-n">0</strong> runs</div>
@@ -756,21 +740,26 @@ function parseCSV(csvText) {
     });
 }
 
-// Parse time to comparable number
-function parseTimeForSort(timeStr) {
-  if (!timeStr) return 0;
+// Parse full datetime (handles dates properly)
+function parseFullDateTime(dateTimeStr) {
+  if (!dateTimeStr) return new Date(0);
   try {
-    const timePart = timeStr.split(' ').slice(-2).join(' ');
-    const [time, ampm] = timePart.split(' ');
-    const [hours, minutes] = time.split(':').map(Number);
+    // Format: "2023-10-11 12:29 AM"
+    const parts = dateTimeStr.split(' ');
+    const datePart = parts[0]; // "2023-10-11"
+    const timePart = parts[1]; // "12:29"
+    const ampm = parts[2]; // "AM" or "PM"
+    
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes] = timePart.split(':').map(Number);
     
     let hour = hours;
     if (ampm === 'AM' && hours === 12) hour = 0;
     if (ampm === 'PM' && hours !== 12) hour += 12;
     
-    return hour * 100 + (minutes || 0);
+    return new Date(year, month - 1, day, hour, minutes);
   } catch (e) {
-    return 0;
+    return new Date(0);
   }
 }
 
@@ -966,19 +955,20 @@ function render() {
 
   const [sk, sd] = sort.split('-');
   filtered.sort((a, b) => {
-    let av = 0, bv = 0;
+    let av, bv;
     if (sk === 'run') {
       av = parseInt(a.runno) || 0;
       bv = parseInt(b.runno) || 0;
+      return av - bv;
     } else if (sk === 'pay') {
       av = parseFloat(a.pay) || 0;
       bv = parseFloat(b.pay) || 0;
     } else if (sk === 'start') {
-      av = parseTimeForSort(a.start);
-      bv = parseTimeForSort(b.start);
+      av = parseFullDateTime(a.start).getTime();
+      bv = parseFullDateTime(b.start).getTime();
     } else if (sk === 'finish') {
-      av = parseTimeForSort(a.finish);
-      bv = parseTimeForSort(b.finish);
+      av = parseFullDateTime(a.finish).getTime();
+      bv = parseFullDateTime(b.finish).getTime();
     }
     return sd === 'asc' ? av - bv : bv - av;
   });
@@ -1025,6 +1015,7 @@ function render() {
       `;
     }
 
+    // Extract time only from full datetime
     const startTime = (run.start || '').split(' ').slice(1, 3).join(' ');
     const finishTime = (run.finish || '').split(' ').slice(1, 3).join(' ');
 
