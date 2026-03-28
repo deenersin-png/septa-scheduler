@@ -1,4 +1,4 @@
-myid,runno,depot,page_1,page,day,mobilelink,pclink,Trip Sheet
+myid,runno,depot,page_1,page,day,moblink,pclink,Trip Sheet
 MidvaleWeekday1,1,Midvale,1 of 2,1,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page1.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page=1.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/trip-sheets/weekday-trip-sheets.pdf
 MidvaleWeekday2,2,Midvale,1 of 2,3,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page3.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page=3.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/trip-sheets/weekday-trip-sheets.pdf
 MidvaleWeekday3,3,Midvale,1 of 4,5,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page5.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/paddles/weekday-paddles#page=5.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/midvale/trip-sheets/weekday-trip-sheets.pdf
