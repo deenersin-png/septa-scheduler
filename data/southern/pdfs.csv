@@ -1,4 +1,4 @@
-myid,runno,depot,page_1,page,day,Paddle,Paddle PC,Trip Sheet
+myid,runno,depot,page_1,page,day,moblink,pclink,Trip Sheet
 SouthernWeekday1,1,Southern,1 of 2,1,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page1.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page=1.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/trip-sheets/weekday-trip-sheets.pdf
 SouthernWeekday2,2,Southern,1 of 2,3,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page3.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page=3.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/trip-sheets/weekday-trip-sheets.pdf
 SouthernWeekday3,3,Southern,1 of 1,5,Weekday,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page5.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/paddles/weekday-paddles#page=5.pdf,https://www4.septa.org/picking/pdf/spring-a-2026/southern/trip-sheets/weekday-trip-sheets.pdf
