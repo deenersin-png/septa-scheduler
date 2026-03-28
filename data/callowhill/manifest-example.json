@@ -1,0 +1,9 @@
+{
+  "districts": [
+    {
+      "name": "callowhill",
+      "label": "Callowhill",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    }
+  ]
+}

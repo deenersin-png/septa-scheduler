@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEPTA Admin Panel - Upload Districts</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ink: #0a0b0d;
+  --ink2: #13151a;
+  --ink3: #1d2028;
+  --line: rgba(255,255,255,0.07);
+  --line2: rgba(255,255,255,0.13);
+  --line3: rgba(255,255,255,0.22);
+  --dim: #4a4f5e;
+  --mid: #8a909f;
+  --text: #c8cdd8;
+  --bright: #e8ecf4;
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --green: #3dd68c;
+  --green-dim: rgba(61,214,140,0.1);
+  --red: #ff6b6b;
+  --red-dim: rgba(255,107,107,0.1);
+  --sans: 'IBM Plex Sans Condensed', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+html { font-size: 14px; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+}
+
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events:none;z-index:1000;
+}
+
+header {
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line2);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  color: var(--bright);
+}
+
+.subtitle {
+  color: var(--dim);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.section {
+  background: var(--ink2);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.section h2 {
+  font-size: 18px;
+  color: var(--bright);
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.form-group input[type="text"],
+.form-group select {
+  width: 100%;
+  background: var(--ink3);
+  border: 1px solid var(--line2);
+  color: var(--bright);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--amber);
+}
+
+.file-upload {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.file-upload input[type="file"] {
+  display: none;
+}
+
+.file-upload-label {
+  display: block;
+  background: var(--ink3);
+  border: 2px dashed var(--amber);
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.file-upload-label:hover {
+  background: rgba(245,166,35,0.05);
+  border-color: var(--amber);
+}
+
+.file-upload-label.active {
+  background: rgba(245,166,35,0.1);
+  border-color: var(--green);
+}
+
+.file-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  margin-top: 8px;
+}
+
+.btn {
+  background: var(--amber);
+  color: var(--ink);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn:hover {
+  background: #f5a623cc;
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  background: var(--dim);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: var(--ink3);
+  color: var(--text);
+  border: 1px solid var(--line2);
+}
+
+.btn-secondary:hover {
+  background: var(--line2);
+}
+
+.btn-danger {
+  background: var(--red);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #ff5252;
+}
+
+.districts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.district-card {
+  background: var(--ink3);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 16px;
+  position: relative;
+}
+
+.district-name {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bright);
+  margin-bottom: 12px;
+}
+
+.district-files {
+  font-size: 12px;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.file-badge {
+  display: inline-block;
+  background: var(--green-dim);
+  color: var(--green);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.district-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.district-actions button {
+  flex: 1;
+  padding: 8px;
+  font-size: 11px;
+}
+
+.status {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.status.success {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
+.status.error {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+
+.status.info {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border: 1px solid var(--blue);
+}
+
+.day-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.day-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.day-checkbox label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.instructions {
+  background: rgba(61,214,140,0.05);
+  border: 1px solid var(--green-dim);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.instructions h3 {
+  color: var(--green);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.instructions ol {
+  margin-left: 20px;
+  line-height: 1.6;
+}
+
+.instructions li {
+  margin-bottom: 6px;
+}
+
+.info-box {
+  background: rgba(77,159,255,0.05);
+  border: 1px solid var(--blue-dim);
+  border-radius: 4px;
+  padding: 16px;
+  margin: 20px 0;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.info-box strong {
+  color: var(--blue);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+table th {
+  background: var(--ink3);
+  padding: 12px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  border-bottom: 1px solid var(--line2);
+}
+
+table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+table tr:hover {
+  background: rgba(245,166,35,0.05);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--line2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.3s;
+}
+
+@media (max-width: 768px) {
+  .districts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .day-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 SEPTA Admin Panel</h1>
+  <p class="subtitle">Upload and manage district schedules</p>
+</header>
+
+<div class="container">
+
+  <div id="status-message"></div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="section">
+    <h2>📋 How to Use</h2>
+    <div class="instructions">
+      <h3>Step 1: Add New District</h3>
+      <ol>
+        <li>Enter district name (e.g., "callowhill", "frontier")</li>
+        <li>Select which CSV files you have (Weekday, Saturday, Sunday)</li>
+        <li>Upload the CSV files</li>
+        <li>Click "Add District"</li>
+      </ol>
+    </div>
+    
+    <div class="instructions">
+      <h3>Step 2: Upload CSV Files</h3>
+      <ol>
+        <li>Click the upload area to select your CSV file</li>
+        <li>Only CSV files are accepted</li>
+        <li>File should match your SEPTA format</li>
+        <li>Upload one file at a time</li>
+      </ol>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Tip:</strong> Your CSV files can have any column names. The app will automatically detect and parse them correctly based on content.
+    </div>
+  </div>
+
+  <!-- ADD NEW DISTRICT -->
+  <div class="section">
+    <h2>➕ Add New District</h2>
+    
+    <div class="form-group">
+      <label>District Name</label>
+      <input type="text" id="districtName" placeholder="e.g., callowhill, frontier, allegheny" autocomplete="off">
+      <small style="color: var(--dim); font-size: 11px; margin-top: 4px; display: block;">Use lowercase, no spaces</small>
+    </div>
+
+    <div class="form-group">
+      <label>Which CSV Files Do You Have?</label>
+      <div class="day-selector">
+        <div class="day-checkbox">
+          <input type="checkbox" id="hasWeekday" checked>
+          <label for="hasWeekday">Weekday</label>
+        </div>
+        <div class="day-checkbox">
+          <input type="checkbox" id="hasSaturday">
+          <label for="hasSaturday">Saturday</label>
+        </div>
+        <div class="day-checkbox">
+          <input type="checkbox" id="hasSunday">
+          <label for="hasSunday">Sunday</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload Weekday CSV</label>
+      <div class="file-upload" id="weekdayUpload">
+        <input type="file" accept=".csv" id="weekdayFile">
+        <label class="file-upload-label" for="weekdayFile">
+          <div>📁 Click to upload or drag & drop</div>
+          <div class="file-name" id="weekdayName"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload Saturday CSV (Optional)</label>
+      <div class="file-upload" id="saturdayUpload">
+        <input type="file" accept=".csv" id="saturdayFile">
+        <label class="file-upload-label" for="saturdayFile">
+          <div>📁 Click to upload or drag & drop</div>
+          <div class="file-name" id="saturdayName"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload Sunday CSV (Optional)</label>
+      <div class="file-upload" id="sundayUpload">
+        <input type="file" accept=".csv" id="sundayFile">
+        <label class="file-upload-label" for="sundayFile">
+          <div>📁 Click to upload or drag & drop</div>
+          <div class="file-name" id="sundayName"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload PDF Links CSV (Optional)</label>
+      <div class="file-upload" id="pdfsUpload">
+        <input type="file" accept=".csv" id="pdfsFile">
+        <label class="file-upload-label" for="pdfsFile">
+          <div>📁 Click to upload or drag & drop</div>
+          <div class="file-name" id="pdfsName"></div>
+        </label>
+      </div>
+    </div>
+
+    <button class="btn" onclick="addDistrict()">✅ Add District & Upload Files</button>
+  </div>
+
+  <!-- EXISTING DISTRICTS -->
+  <div class="section">
+    <h2>📍 Your Districts</h2>
+    <div id="districtsContainer">
+      <p style="color: var(--dim); text-align: center; padding: 40px 20px;">
+        No districts yet. Add one above! ⬆️
+      </p>
+    </div>
+  </div>
+
+  <!-- DATA PREVIEW -->
+  <div class="section">
+    <h2>👀 Data Preview</h2>
+    <div id="previewContainer" style="color: var(--dim); text-align: center; padding: 40px 20px;">
+      <p>Add a district to see data preview here</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Initialize storage
+let districtData = JSON.parse(localStorage.getItem('septaDistricts')) || {};
+let manifest = JSON.parse(localStorage.getItem('septaManifest')) || { districts: [] };
+
+// Load districts on page load
+function loadDistricts() {
+  const container = document.getElementById('districtsContainer');
+  
+  if (manifest.districts.length === 0) {
+    container.innerHTML = `
+      <p style="color: var(--dim); text-align: center; padding: 40px 20px;">
+        No districts yet. Add one above! ⬆️
+      </p>
+    `;
+    return;
+  }
+
+  container.innerHTML = manifest.districts.map(district => `
+    <div class="district-card">
+      <div class="district-name">${district}</div>
+      <div class="district-files">
+        ${districtData[district]?.weekday ? '<span class="file-badge">✓ Weekday</span>' : '<span class="file-badge" style="background: var(--red-dim); color: var(--red);">✗ Weekday</span>'}
+        ${districtData[district]?.saturday ? '<span class="file-badge">✓ Saturday</span>' : '<span class="file-badge" style="background: var(--red-dim); color: var(--red);">✗ Saturday</span>'}
+        ${districtData[district]?.sunday ? '<span class="file-badge">✓ Sunday</span>' : '<span class="file-badge" style="background: var(--red-dim); color: var(--red);">✗ Sunday</span>'}
+        ${districtData[district]?.pdfs ? '<span class="file-badge">✓ PDFs</span>' : ''}
+      </div>
+      <div class="district-actions">
+        <button class="btn btn-secondary" onclick="viewDistrict('${district}')">View Data</button>
+        <button class="btn btn-danger" onclick="deleteDistrict('${district}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// File upload handlers
+const fileInputs = [
+  { id: 'weekdayFile', name: 'weekdayName', type: 'weekday' },
+  { id: 'saturdayFile', name: 'saturdayName', type: 'saturday' },
+  { id: 'sundayFile', name: 'sundayName', type: 'sunday' },
+  { id: 'pdfsFile', name: 'pdfsName', type: 'pdfs' }
+];
+
+fileInputs.forEach(input => {
+  const fileEl = document.getElementById(input.id);
+  const nameEl = document.getElementById(input.name);
+  
+  if (fileEl) {
+    fileEl.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        nameEl.textContent = '✓ ' + e.target.files[0].name;
+        nameEl.parentElement.parentElement.classList.add('active');
+      }
+    });
+  }
+});
+
+// Add drag & drop
+fileInputs.forEach(input => {
+  const upload = document.getElementById(input.id.replace('File', 'Upload'));
+  if (upload) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      upload.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    upload.addEventListener('dragover', () => {
+      upload.querySelector('.file-upload-label').style.background = 'rgba(245,166,35,0.1)';
+    });
+
+    upload.addEventListener('dragleave', () => {
+      upload.querySelector('.file-upload-label').style.background = '';
+    });
+
+    upload.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById(input.id).files = files;
+        document.getElementById(input.id).dispatchEvent(new Event('change'));
+      }
+    });
+  }
+});
+
+// Add district
+function addDistrict() {
+  const name = document.getElementById('districtName').value.trim().toLowerCase();
+  
+  if (!name) {
+    showStatus('Please enter a district name', 'error');
+    return;
+  }
+
+  if (manifest.districts.includes(name)) {
+    showStatus('District already exists!', 'error');
+    return;
+  }
+
+  // Get files
+  const weekdayFile = document.getElementById('weekdayFile').files[0];
+  const saturdayFile = document.getElementById('saturdayFile').files[0];
+  const sundayFile = document.getElementById('sundayFile').files[0];
+  const pdfsFile = document.getElementById('pdfsFile').files[0];
+
+  if (!weekdayFile) {
+    showStatus('Please upload at least a Weekday CSV file', 'error');
+    return;
+  }
+
+  // Read files
+  Promise.all([
+    readFile(weekdayFile),
+    saturdayFile ? readFile(saturdayFile) : Promise.resolve(null),
+    sundayFile ? readFile(sundayFile) : Promise.resolve(null),
+    pdfsFile ? readFile(pdfsFile) : Promise.resolve(null)
+  ]).then(([weekday, saturday, sunday, pdfs]) => {
+    districtData[name] = {
+      weekday,
+      saturday,
+      sunday,
+      pdfs
+    };
+
+    manifest.districts.push(name);
+    
+    localStorage.setItem('septaDistricts', JSON.stringify(districtData));
+    localStorage.setItem('septaManifest', JSON.stringify(manifest));
+
+    showStatus(`✅ District "${name}" added successfully!`, 'success');
+    
+    // Reset form
+    document.getElementById('districtName').value = '';
+    document.getElementById('weekdayFile').value = '';
+    document.getElementById('saturdayFile').value = '';
+    document.getElementById('sundayFile').value = '';
+    document.getElementById('pdfsFile').value = '';
+    fileInputs.forEach(input => {
+      const nameEl = document.getElementById(input.name);
+      nameEl.textContent = '';
+      nameEl.parentElement.parentElement.classList.remove('active');
+    });
+
+    loadDistricts();
+  });
+}
+
+function readFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve(e.target.result);
+    };
+    reader.readAsText(file);
+  });
+}
+
+// Delete district
+function deleteDistrict(name) {
+  if (confirm(`Delete district "${name}"? This cannot be undone.`)) {
+    delete districtData[name];
+    manifest.districts = manifest.districts.filter(d => d !== name);
+    
+    localStorage.setItem('septaDistricts', JSON.stringify(districtData));
+    localStorage.setItem('septaManifest', JSON.stringify(manifest));
+    
+    showStatus(`✅ District "${name}" deleted`, 'success');
+    loadDistricts();
+  }
+}
+
+// View district
+function viewDistrict(name) {
+  const data = districtData[name];
+  const preview = document.getElementById('previewContainer');
+  
+  let html = `<h3 style="color: var(--bright); margin-bottom: 16px;">${name}</h3>`;
+  
+  if (data.weekday) {
+    const lines = data.weekday.split('\n');
+    html += `<p style="color: var(--green); margin: 8px 0;">✓ Weekday: ${lines.length - 1} runs</p>`;
+  }
+  if (data.saturday) {
+    const lines = data.saturday.split('\n');
+    html += `<p style="color: var(--green); margin: 8px 0;">✓ Saturday: ${lines.length - 1} runs</p>`;
+  }
+  if (data.sunday) {
+    const lines = data.sunday.split('\n');
+    html += `<p style="color: var(--green); margin: 8px 0;">✓ Sunday: ${lines.length - 1} runs</p>`;
+  }
+  if (data.pdfs) {
+    const lines = data.pdfs.split('\n');
+    html += `<p style="color: var(--green); margin: 8px 0;">✓ PDFs: ${lines.length - 1} links</p>`;
+  }
+
+  preview.innerHTML = html;
+}
+
+// Show status message
+function showStatus(message, type) {
+  const el = document.getElementById('status-message');
+  el.className = `status ${type}`;
+  el.textContent = message;
+  setTimeout(() => {
+    el.textContent = '';
+    el.className = '';
+  }, 5000);
+}
+
+// Load on start
+loadDistricts();
+</script>
+</body>
+</html>

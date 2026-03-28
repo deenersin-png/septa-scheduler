@@ -1,0 +1,9 @@
+{
+  "name": "septa-scheduler",
+  "version": "1.0.0",
+  "description": "SEPTA Bus Schedule Viewer",
+  "main": "index.html",
+  "scripts": {
+    "start": "open index.html"
+  }
+}
