@@ -42,7 +42,7 @@
   --card-w: 340px;
 }
 
-html { font-size: 14px; }
+html { font-size: 16px; }
 body {
   background: var(--ink);
   color: var(--text);
@@ -65,16 +65,18 @@ header {
   display: flex;
   align-items: stretch;
   gap: 0;
-  height: 56px;
+  height: auto;
+  min-height: 56px;
   position: sticky;
   top: 0;
   z-index: 200;
+  flex-wrap: wrap;
 }
 
 .hd-depot {
   display:flex;align-items:center;gap:12px;
   border-right: 1px solid var(--line2);
-  padding-right: 20px;
+  padding: 12px 20px;
   margin-right: 20px;
 }
 
@@ -89,7 +91,7 @@ header {
 
 .hd-depot-select {
   font-family:var(--mono);
-  font-size:13px;
+  font-size:15px;
   background:none;border:none;
   color:var(--bright);
   padding:0;
@@ -103,7 +105,7 @@ header {
 }
 
 .hd-pick { 
-  font-size:11px;
+  font-size:12px;
   color:var(--dim);
   margin-top:1px; 
 }
@@ -114,6 +116,7 @@ header {
   gap:2px;
   flex:1;
   overflow-x: auto;
+  min-height: 56px;
 }
 
 .hd-tab {
@@ -121,10 +124,10 @@ header {
   border:none;
   cursor:pointer;
   font-family:var(--sans);
-  font-size:12px;
+  font-size:14px;
   font-weight:500;
   color:var(--dim);
-  padding:0 12px;
+  padding:0 14px;
   position:relative;
   border-bottom:2px solid transparent;
   transition:color .15s, border-color .15s;
@@ -138,11 +141,11 @@ header {
 .hd-tab.active { color:var(--amber); border-bottom-color:var(--amber); }
 
 .hd-tab .tab-cnt {
-  font-size:9px;
+  font-size:11px;
   font-family:var(--mono);
   background:var(--ink3);
   color:var(--mid);
-  padding:1px 4px;
+  padding:2px 6px;
   border-radius:3px;
 }
 
@@ -154,17 +157,24 @@ header {
 .toolbar {
   background:var(--ink2);
   border-bottom:1px solid var(--line);
-  padding:10px 24px;
+  padding:14px;
   display:flex;
   align-items:center;
   gap:10px;
   flex-wrap:wrap;
 }
 
+.search-row {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 280px;
+}
+
 .search-wrap {
   position:relative;
-  flex:0 0 auto;
-  min-width:140px;
+  flex: 1 1 auto;
+  min-width: 100px;
 }
 
 .search-wrap svg {
@@ -182,8 +192,8 @@ header {
   border:1px solid var(--line2);
   color:var(--bright);
   font-family:var(--mono);
-  font-size:12px;
-  padding:7px 10px 7px 30px;
+  font-size:14px;
+  padding:10px 10px 10px 30px;
   border-radius:4px;
   outline:none;
   transition:border-color .15s;
@@ -195,7 +205,8 @@ header {
 .filter-row { 
   display:flex;
   gap:6px;
-  flex-wrap:wrap; 
+  flex-wrap:wrap;
+  flex: 1 1 auto;
 }
 
 .fchip {
@@ -203,8 +214,8 @@ header {
   border:1px solid var(--line2);
   color:var(--mid);
   font-family:var(--mono);
-  font-size:11px;
-  padding:5px 10px;
+  font-size:12px;
+  padding:7px 12px;
   border-radius:3px;
   cursor:pointer;
   transition:all .15s;
@@ -219,19 +230,19 @@ header {
   border:1px solid var(--line2);
   color:var(--text);
   font-family:var(--mono);
-  font-size:11px;
-  padding:6px 8px;
+  font-size:13px;
+  padding:8px 10px;
   border-radius:4px;
   outline:none;
   cursor:pointer;
-  margin-left:auto;
 }
 
 .result-line {
-  font-size:11px;
+  font-size:13px;
   color:var(--dim);
   font-family:var(--mono);
   white-space:nowrap;
+  flex: 0 0 auto;
 }
 
 .result-line strong { color:var(--amber); }
@@ -274,14 +285,14 @@ header {
   display:flex;
   align-items:center;
   gap:0;
-  padding:10px 14px 10px 17px;
+  padding:12px 14px 12px 17px;
   border-bottom:1px solid var(--line);
   background:var(--ink3);
 }
 
 .run-num {
   font-family:var(--mono);
-  font-size:26px;
+  font-size:28px;
   font-weight:600;
   color:var(--amber);
   line-height:1;
@@ -291,7 +302,7 @@ header {
 .run-meta { flex:1;min-width:0; }
 
 .run-day {
-  font-size:10px;
+  font-size:11px;
   font-weight:600;
   letter-spacing:.08em;
   text-transform:uppercase;
@@ -301,7 +312,7 @@ header {
 
 .run-routes {
   font-family:var(--mono);
-  font-size:14px;
+  font-size:16px;
   font-weight:500;
   color:var(--bright);
   white-space:nowrap;
@@ -318,19 +329,23 @@ header {
 
 .btn-paddle {
   font-family:var(--mono);
-  font-size:10px;
+  font-size:11px;
   background:none;
   border:1px solid var(--line2);
   color:var(--mid);
-  padding:4px 8px;
+  padding:6px 10px;
   border-radius:3px;
   cursor:pointer;
   text-decoration:none;
-  display:inline-flex;
+  display:none;
   align-items:center;
   gap:4px;
   transition:all .15s;
   white-space:nowrap;
+}
+
+.btn-paddle.show {
+  display: inline-flex;
 }
 
 .btn-paddle:hover{
@@ -346,14 +361,14 @@ header {
 }
 
 .stat {
-  padding:8px 14px;
+  padding:10px 14px;
   border-right:1px solid var(--line);
 }
 
 .stat:last-child{border-right:none;}
 
 .stat-label {
-  font-size:9px;
+  font-size:10px;
   font-weight:600;
   letter-spacing:.08em;
   text-transform:uppercase;
@@ -363,7 +378,7 @@ header {
 
 .stat-val {
   font-family:var(--mono);
-  font-size:14px;
+  font-size:15px;
   font-weight:600;
   color:var(--bright);
 }
@@ -374,14 +389,14 @@ header {
   display:inline-flex;
   align-items:center;
   gap:3px;
-  font-size:9px;
+  font-size:10px;
   font-family:var(--mono);
   background:var(--violet-dim);
   color:var(--violet);
   border:1px solid rgba(167,139,250,0.2);
-  padding:2px 6px;
+  padding:3px 7px;
   border-radius:2px;
-  margin-top:2px;
+  margin-top:3px;
 }
 
 .timeline { 
@@ -392,7 +407,7 @@ header {
   display:flex;
   align-items:stretch;
   gap:0;
-  margin-bottom:4px;
+  margin-bottom:5px;
   position:relative;
 }
 
@@ -440,11 +455,12 @@ header {
   align-items:baseline;
   gap:6px;
   margin-bottom:2px;
+  flex-wrap: wrap;
 }
 
 .seg-route {
   font-family:var(--mono);
-  font-size:13px;
+  font-size:14px;
   font-weight:600;
   color:var(--bright);
   min-width:36px;
@@ -452,13 +468,13 @@ header {
 
 .seg-block {
   font-family:var(--mono);
-  font-size:10px;
+  font-size:11px;
   color:var(--dim);
 }
 
 .seg-sched {
   font-family:var(--mono);
-  font-size:10px;
+  font-size:11px;
   color:var(--mid);
   margin-left:auto;
 }
@@ -468,12 +484,13 @@ header {
   align-items:center;
   gap:4px;
   font-family:var(--mono);
-  font-size:11px;
+  font-size:12px;
   color:var(--mid);
+  flex-wrap: wrap;
 }
 
 .seg-time-tag {
-  font-size:9px;
+  font-size:10px;
   font-weight:600;
   letter-spacing:.05em;
   padding:1px 4px;
@@ -495,12 +512,13 @@ header {
   color:var(--dim);
 }
 
-.empty p { font-size:14px; }
+.empty p { font-size:15px; }
 
 #route-filters { 
   display:flex;
   flex-wrap:wrap;
-  gap:4px; 
+  gap:4px;
+  min-width: 200px;
 }
 
 .loading {
@@ -517,7 +535,104 @@ header {
   border-radius: 4px;
   margin: 20px;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  html { font-size: 16px; }
+  
+  header {
+    flex-direction: column;
+  }
+  
+  .hd-depot {
+    border-right: none;
+    border-bottom: 1px solid var(--line2);
+    margin-right: 0;
+    padding-bottom: 8px;
+    width: 100%;
+  }
+  
+  .hd-tabs {
+    width: 100%;
+    order: 3;
+  }
+  
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .search-row {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .search-wrap {
+    flex: 1;
+    min-width: unset;
+  }
+  
+  .filter-row {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .sort-sel {
+    width: 100%;
+  }
+  
+  .result-line {
+    width: 100%;
+  }
+  
+  :root { --card-w: 100%; }
+  
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .run-num {
+    font-size: 24px;
+  }
+  
+  .run-routes {
+    font-size: 15px;
+  }
+  
+  .stat-val {
+    font-size: 14px;
+  }
+  
+  .seg-route {
+    font-size: 13px;
+  }
+  
+  .fchip {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 16px; }
+  
+  .search-wrap input {
+    font-size: 16px;
+  }
+  
+  .run-num {
+    font-size: 22px;
+  }
+  
+  .stat-val {
+    font-size: 13px;
+  }
+  
+  .seg-times {
+    font-size: 11px;
+  }
 }
 </style>
 </head>
@@ -539,14 +654,16 @@ header {
 </header>
 
 <div class="toolbar">
-  <div class="search-wrap">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" id="search-run" placeholder="Run #" maxlength="3" oninput="render()" inputmode="numeric">
-  </div>
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-run" placeholder="Run #" maxlength="3" oninput="render()" inputmode="numeric">
+    </div>
 
-  <div class="search-wrap">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" id="search-block" placeholder="Block #" maxlength="4" oninput="render()" inputmode="numeric">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-block" placeholder="Block #" maxlength="4" oninput="render()" inputmode="numeric">
+    </div>
   </div>
 
   <div class="filter-row" id="route-filters"></div>
@@ -558,6 +675,8 @@ header {
     <option value="pay-asc">Pay ↑</option>
     <option value="start-asc">Start ↑</option>
     <option value="start-desc">Start ↓</option>
+    <option value="finish-asc">Finish ↑</option>
+    <option value="finish-desc">Finish ↓</option>
   </select>
 
   <div class="result-line"><strong id="res-n">0</strong> runs</div>
@@ -568,6 +687,9 @@ header {
 </div>
 
 <script>
+// Detect device type
+const isMobile = window.innerWidth <= 768;
+
 // STATE
 let STATE = {
   manifest: null,
@@ -595,6 +717,24 @@ function parseCSV(csvText) {
       });
       return obj;
     });
+}
+
+// Parse time to comparable number (handles dates and AM/PM)
+function parseTimeForSort(timeStr) {
+  if (!timeStr) return 0;
+  try {
+    const timePart = timeStr.split(' ').slice(-2).join(' ');
+    const [time, ampm] = timePart.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour = hours;
+    if (ampm === 'AM' && hours === 12) hour = 0;
+    if (ampm === 'PM' && hours !== 12) hour += 12;
+    
+    return hour * 100 + (minutes || 0);
+  } catch (e) {
+    return 0;
+  }
 }
 
 // Load manifest
@@ -640,13 +780,11 @@ async function changeDistrict() {
     STATE.availableDays = [];
     STATE.pdfLinks = {};
     
-    // Find district config
     const districtConfig = STATE.manifest.districts.find(d => d.name === STATE.currentDistrict);
     if (!districtConfig || !districtConfig.days) {
       throw new Error('District configuration not found');
     }
     
-    // Load CSV files for each day
     for (const day of districtConfig.days) {
       const dayLower = day.toLowerCase();
       try {
@@ -775,6 +913,17 @@ function render() {
     return true;
   });
 
+  // Remove duplicate run numbers - keep only first occurrence
+  const seenRuns = new Set();
+  filtered = filtered.filter(r => {
+    const runno = r.runno || '';
+    if (seenRuns.has(runno)) {
+      return false;
+    }
+    seenRuns.add(runno);
+    return true;
+  });
+
   const [sk, sd] = sort.split('-');
   filtered.sort((a, b) => {
     let av = 0, bv = 0;
@@ -784,6 +933,12 @@ function render() {
     } else if (sk === 'pay') {
       av = parseFloat(a.pay) || 0;
       bv = parseFloat(b.pay) || 0;
+    } else if (sk === 'start') {
+      av = parseTimeForSort(a.start);
+      bv = parseTimeForSort(b.start);
+    } else if (sk === 'finish') {
+      av = parseTimeForSort(a.finish);
+      bv = parseTimeForSort(b.finish);
     }
     return sd === 'asc' ? av - bv : bv - av;
   });
@@ -798,7 +953,10 @@ function render() {
 
   grid.innerHTML = filtered.map(run => {
     const pdfLink = STATE.pdfLinks[run.runno] || {};
-    const paddleBtn = pdfLink.pclink ? `<a class="btn-paddle" href="${pdfLink.pclink}" target="_blank">PADDLE ↗</a>` : '';
+    const paddleLink = isMobile ? pdfLink.moblink : pdfLink.pclink;
+    const paddleBtn = paddleLink
+      ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE ↗</a>`
+      : '';
 
     let segsHtml = '';
     for (let i = 1; i <= 10; i++) {
