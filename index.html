@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SEPTA Paddles Scheduler</title>
+<title>Paddle App</title>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -142,32 +142,13 @@ header {
   background: var(--ink2);
 }
 
-.day-btn.sunday {
-  color: var(--green);
-}
+.day-btn.sunday { color: var(--green); }
+.day-btn.weekday { color: var(--amber); }
+.day-btn.saturday { color: var(--blue); }
 
-.day-btn.weekday {
-  color: var(--amber);
-}
-
-.day-btn.saturday {
-  color: var(--blue);
-}
-
-.day-btn.active.sunday {
-  background: var(--green-dim);
-  color: var(--green);
-}
-
-.day-btn.active.weekday {
-  background: var(--amber-dim);
-  color: var(--amber);
-}
-
-.day-btn.active.saturday {
-  background: var(--blue-dim);
-  color: var(--blue);
-}
+.day-btn.active.sunday { background: var(--green-dim); color: var(--green); }
+.day-btn.active.weekday { background: var(--amber-dim); color: var(--amber); }
+.day-btn.active.saturday { background: var(--blue-dim); color: var(--blue); }
 
 .search-row {
   display: flex;
@@ -290,74 +271,77 @@ header {
 .card.day-Saturday::before { background:var(--blue); }
 
 .card-head {
-  display:flex;
-  align-items:center;
-  gap:0;
-  padding:14px 14px 14px 17px;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 0;
   border-bottom:1px solid var(--line);
   background:var(--ink3);
 }
 
-.run-num {
-  font-family:var(--mono);
-  font-size:36px;
-  font-weight:700;
-  color:var(--amber);
-  line-height:1;
-  min-width:66px;
+.card-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
 }
-
-.card.day-Sunday .run-num { color:var(--green); }
-.card.day-Weekday .run-num { color:var(--amber); }
-.card.day-Saturday .run-num { color:var(--blue); }
-
-.run-meta { flex:1;min-width:0; }
 
 .run-day {
   font-size:11px;
   font-weight:600;
   letter-spacing:.08em;
   text-transform:uppercase;
-  margin-bottom:4px;
   color:var(--amber);
+  flex-shrink: 0;
 }
 
 .card.day-Sunday .run-day { color:var(--green); }
 .card.day-Weekday .run-day { color:var(--amber); }
 .card.day-Saturday .run-day { color:var(--blue); }
 
-.run-routes {
+.run-num-label {
   font-family:var(--mono);
-  font-size:17px;
+  font-size:11px;
   font-weight:600;
   color:var(--bright);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  letter-spacing:.02em;
+  flex-shrink: 0;
+  display: none;
 }
 
-.run-actions { 
-  display:flex;
-  gap:6px;
-  align-items:center; 
+.run-num {
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:700;
+  color:var(--amber);
+  line-height:1;
+  flex-shrink: 0;
+}
+
+.card.day-Sunday .run-num { color:var(--green); }
+.card.day-Weekday .run-num { color:var(--amber); }
+.card.day-Saturday .run-num { color:var(--blue); }
+
+.run-actions {
+  margin-left: auto;
 }
 
 .btn-paddle {
   font-family:var(--mono);
-  font-size:11px;
+  font-size:9px;
   background:none;
   border:1px solid var(--line2);
   color:var(--mid);
-  padding:6px 10px;
+  padding:3px 6px;
   border-radius:3px;
   cursor:pointer;
   text-decoration:none;
   display:none;
   align-items:center;
-  gap:4px;
+  gap:3px;
   transition:all .15s;
   white-space:nowrap;
+  flex-shrink: 0;
 }
 
 .btn-paddle.show {
@@ -370,6 +354,23 @@ header {
   background:var(--amber-dim);
 }
 
+.card-head-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+}
+
+.run-routes {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  color:var(--bright);
+  letter-spacing:.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .stats-row {
   display:grid;
   grid-template-columns:1fr 1fr 1fr;
@@ -377,43 +378,54 @@ header {
 }
 
 .stat {
-  padding:12px 14px;
+  padding:10px 12px;
   border-right:1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .stat:last-child{border-right:none;}
 
 .stat-label {
-  font-size:11px;
+  font-size:10px;
   font-weight:600;
   letter-spacing:.08em;
   text-transform:uppercase;
   color:var(--dim);
-  margin-bottom:4px;
+  margin-bottom:3px;
 }
 
 .stat-val {
   font-family:var(--mono);
-  font-size:18px;
+  font-size:16px;
   font-weight:700;
   color:var(--bright);
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .stat-val.pay { color:var(--amber); }
 
-.swing-badge {
-  display:inline-flex;
-  align-items:center;
-  gap:3px;
-  font-size:10px;
+.swing-section {
+  padding:6px 12px;
+  border-top:1px solid var(--line);
+  background:var(--ink3);
   font-family:var(--mono);
-  background:var(--violet-dim);
+  font-size:10px;
+  color:var(--mid);
+  display: flex;
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+.swing-label {
+  color:var(--dim);
+  font-weight: 600;
+}
+
+.swing-value {
   color:var(--violet);
-  border:1px solid rgba(167,139,250,0.2);
-  padding:3px 7px;
-  border-radius:2px;
-  margin-top:4px;
   font-weight: 600;
 }
 
@@ -550,7 +562,7 @@ header {
   font-size: 14px;
 }
 
-/* Mobile Responsiveness */
+/* ===== MOBILE RESPONSIVENESS ===== */
 @media (max-width: 768px) {
   html { font-size: 16px; }
   
@@ -605,15 +617,69 @@ header {
   .cards-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  /* --- CARD HEADER FIX: two clear rows, no overlap --- */
+  .card-head {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-head-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 4px 10px;
+    flex-wrap: nowrap;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  .run-day {
+    font-size: 12px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+
+  .run-num-label {
+    display: none;
+  }
+
   .run-num {
-    font-size: 32px;
+    font-size: 20px;
+    flex-shrink: 0;
   }
-  
+
+  .run-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .btn-paddle {
+    font-size: 9px;
+    padding: 3px 6px;
+    flex-shrink: 0;
+  }
+
+  .card-head-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
   .run-routes {
-    font-size: 16px;
+    font-size: 11px;
+    text-align: right;
   }
-  
+  /* --- END CARD HEADER FIX --- */
+
+  .swing-section {
+    font-size: 12px;
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
   .stat-val {
     font-size: 17px;
   }
@@ -641,7 +707,7 @@ header {
   }
   
   .run-num {
-    font-size: 28px;
+    font-size: 18px;
   }
   
   .stat-val {
@@ -649,6 +715,14 @@ header {
   }
   
   .seg-times {
+    font-size: 11px;
+  }
+
+  .run-routes {
+    font-size: 10px;
+  }
+
+  .run-day {
     font-size: 11px;
   }
 }
@@ -669,9 +743,7 @@ header {
 </header>
 
 <div class="toolbar">
-  <div class="day-selector" id="day-selector">
-    <!-- Day buttons generated here -->
-  </div>
+  <div class="day-selector" id="day-selector"></div>
 
   <div class="search-row">
     <div class="search-wrap">
@@ -695,6 +767,7 @@ header {
     <option value="start-desc">Latest Start</option>
     <option value="finish-asc">Earliest Finish</option>
     <option value="finish-desc">Latest Finish</option>
+    <option value="swing-desc">Swing (Longest)</option>
   </select>
 
   <div class="result-line"><strong id="res-n">0</strong> runs</div>
@@ -705,65 +778,56 @@ header {
 </div>
 
 <script>
-// Detect device type
 const isMobile = window.innerWidth <= 768;
-
-// Day order: Sunday, Weekday, Saturday
 const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
 
-// STATE
 let STATE = {
   manifest: null,
   currentDistrict: null,
-  currentDay: 'Weekday', // Default to Weekday
+  currentDay: 'Weekday',
   activeRoutes: new Set(),
   runs: [],
   availableDays: [],
   pdfLinks: {}
 };
 
-// Parse CSV
 function parseCSV(csvText) {
   const lines = csvText.trim().split('\n');
   if (lines.length < 2) return [];
-  
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   return lines.slice(1)
     .filter(line => line.trim())
     .map(line => {
       const values = line.split(',').map(v => v.trim());
       const obj = {};
-      headers.forEach((header, i) => {
-        obj[header] = values[i] || '';
-      });
+      headers.forEach((header, i) => { obj[header] = values[i] || ''; });
       return obj;
     });
 }
 
-// Parse full datetime (handles dates properly)
 function parseFullDateTime(dateTimeStr) {
   if (!dateTimeStr) return new Date(0);
   try {
-    // Format: "2023-10-11 12:29 AM"
     const parts = dateTimeStr.split(' ');
-    const datePart = parts[0]; // "2023-10-11"
-    const timePart = parts[1]; // "12:29"
-    const ampm = parts[2]; // "AM" or "PM"
-    
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hours, minutes] = timePart.split(':').map(Number);
-    
+    const [year, month, day] = parts[0].split('-').map(Number);
+    const [hours, minutes] = parts[1].split(':').map(Number);
+    const ampm = parts[2];
     let hour = hours;
     if (ampm === 'AM' && hours === 12) hour = 0;
     if (ampm === 'PM' && hours !== 12) hour += 12;
-    
     return new Date(year, month - 1, day, hour, minutes);
-  } catch (e) {
-    return new Date(0);
-  }
+  } catch (e) { return new Date(0); }
 }
 
-// Load manifest
+function getRunRoutes(run) {
+  const routes = [];
+  for (let i = 1; i <= 10; i++) {
+    const route = run['r' + i];
+    if (route && route.trim()) routes.push(route.trim());
+  }
+  return routes;
+}
+
 async function loadManifest() {
   try {
     const response = await fetch('data/manifest.json');
@@ -775,70 +839,52 @@ async function loadManifest() {
   }
 }
 
-// Initialize districts dropdown
 function initializeDistricts() {
   const select = document.getElementById('district-select');
-  
   if (!STATE.manifest || !STATE.manifest.districts || STATE.manifest.districts.length === 0) {
     select.innerHTML = '<option>No districts available</option>';
     return;
   }
-
   select.innerHTML = STATE.manifest.districts
     .map(d => `<option value="${d.name}">${d.label || d.name}</option>`)
     .join('');
-  
   if (STATE.manifest.districts.length > 0) {
     select.value = STATE.manifest.districts[0].name;
     changeDistrict();
   }
 }
 
-// Change district
 async function changeDistrict() {
   const select = document.getElementById('district-select');
   STATE.currentDistrict = select.value;
-  
   if (!STATE.currentDistrict) return;
   
   try {
     STATE.runs = [];
     STATE.availableDays = [];
     STATE.pdfLinks = {};
-    STATE.currentDay = 'Weekday'; // Reset to Weekday on district change
+    STATE.currentDay = 'Weekday';
     
     const districtConfig = STATE.manifest.districts.find(d => d.name === STATE.currentDistrict);
-    if (!districtConfig || !districtConfig.days) {
-      throw new Error('District configuration not found');
-    }
+    if (!districtConfig || !districtConfig.days) throw new Error('District configuration not found');
     
     for (const day of districtConfig.days) {
       const dayLower = day.toLowerCase();
       try {
         const response = await fetch(`data/${STATE.currentDistrict}/${dayLower}.csv`);
         if (!response.ok) continue;
-        
         const csvText = await response.text();
         const dayRuns = parseCSV(csvText);
-        
         if (dayRuns.length > 0) {
           STATE.availableDays.push(day);
-          dayRuns.forEach(run => {
-            run.day = day;
-          });
+          dayRuns.forEach(run => { run.day = day; });
           STATE.runs.push(...dayRuns);
         }
-      } catch (e) {
-        console.log(`${day}.csv not found for ${STATE.currentDistrict}`);
-      }
+      } catch (e) { console.log(`${day}.csv not found for ${STATE.currentDistrict}`); }
     }
     
-    // Sort available days in custom order
-    STATE.availableDays.sort((a, b) => {
-      return DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b);
-    });
+    STATE.availableDays.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
     
-    // Load PDFs
     try {
       const response = await fetch(`data/${STATE.currentDistrict}/pdfs.csv`);
       if (response.ok) {
@@ -846,17 +892,11 @@ async function changeDistrict() {
         const pdfData = parseCSV(csvText);
         pdfData.forEach(row => {
           const runno = row.runno || '';
-          if (runno) {
-            STATE.pdfLinks[runno] = {
-              moblink: row.moblink || '',
-              pclink: row.pclink || ''
-            };
-          }
+          const day = row.day || '';
+          if (runno && day) STATE.pdfLinks[day + '-' + runno] = { moblink: row.moblink || '', pclink: row.pclink || '' };
         });
       }
-    } catch (e) {
-      console.log('pdfs.csv not found');
-    }
+    } catch (e) { console.log('pdfs.csv not found'); }
     
     initializeDayButtons();
     render();
@@ -865,45 +905,32 @@ async function changeDistrict() {
   }
 }
 
-// Initialize day buttons
 function initializeDayButtons() {
   const selectorContainer = document.getElementById('day-selector');
-  
   const dayCounts = {};
-  STATE.runs.forEach(r => {
-    dayCounts[r.day] = (dayCounts[r.day] || 0) + 1;
-  });
+  STATE.runs.forEach(r => { dayCounts[r.day] = (dayCounts[r.day] || 0) + 1; });
   
   let buttonsHtml = '';
   STATE.availableDays.forEach(day => {
     const count = dayCounts[day] || 0;
     const dayLower = day.toLowerCase();
     const isActive = STATE.currentDay === day ? 'active' : '';
-    buttonsHtml += `
-      <button class="day-btn ${dayLower} ${isActive}" onclick="changeDay('${day}')" title="${day}: ${count} runs">
-        ${day} (${count})
-      </button>
-    `;
+    buttonsHtml += `<button class="day-btn ${dayLower} ${isActive}" onclick="changeDay('${day}')" title="${day}: ${count} runs">${day} (${count})</button>`;
   });
   
   selectorContainer.innerHTML = buttonsHtml;
   buildRouteChips();
 }
 
-// Change day
 function changeDay(day) {
   STATE.currentDay = day;
   STATE.activeRoutes.clear();
-  
-  // Update active button
   document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
   event.target.classList.add('active');
-  
   buildRouteChips();
   render();
 }
 
-// Build route chips
 function buildRouteChips() {
   const routes = getRoutes(STATE.currentDay);
   const wrap = document.getElementById('route-filters');
@@ -928,7 +955,6 @@ function toggleRoute(r) {
   render();
 }
 
-// Render
 function render() {
   const searchRun = document.getElementById('search-run').value.trim();
   const searchBlock = document.getElementById('search-block').value.trim();
@@ -936,19 +962,20 @@ function render() {
 
   let filtered = STATE.runs.filter(r => {
     if (r.day !== STATE.currentDay) return false;
-    if (STATE.activeRoutes.size > 0 && !STATE.activeRoutes.has((r.r1 || '').trim())) return false;
     if (searchRun && String(r.runno || '').trim() !== searchRun) return false;
     if (searchBlock && String(r.b1 || '').trim() !== searchBlock) return false;
+    if (STATE.activeRoutes.size > 0) {
+      const runRoutes = getRunRoutes(r);
+      const allRoutesMatch = runRoutes.length > 0 && runRoutes.every(route => STATE.activeRoutes.has(route));
+      if (!allRoutesMatch) return false;
+    }
     return true;
   });
 
-  // Remove duplicate run numbers
   const seenRuns = new Set();
   filtered = filtered.filter(r => {
     const runno = r.runno || '';
-    if (seenRuns.has(runno)) {
-      return false;
-    }
+    if (seenRuns.has(runno)) return false;
     seenRuns.add(runno);
     return true;
   });
@@ -956,20 +983,11 @@ function render() {
   const [sk, sd] = sort.split('-');
   filtered.sort((a, b) => {
     let av, bv;
-    if (sk === 'run') {
-      av = parseInt(a.runno) || 0;
-      bv = parseInt(b.runno) || 0;
-      return av - bv;
-    } else if (sk === 'pay') {
-      av = parseFloat(a.pay) || 0;
-      bv = parseFloat(b.pay) || 0;
-    } else if (sk === 'start') {
-      av = parseFullDateTime(a.start).getTime();
-      bv = parseFullDateTime(b.start).getTime();
-    } else if (sk === 'finish') {
-      av = parseFullDateTime(a.finish).getTime();
-      bv = parseFullDateTime(b.finish).getTime();
-    }
+    if (sk === 'run') { av = parseInt(a.runno) || 0; bv = parseInt(b.runno) || 0; return av - bv; }
+    else if (sk === 'pay') { av = parseFloat(a.pay) || 0; bv = parseFloat(b.pay) || 0; }
+    else if (sk === 'start') { av = parseFullDateTime(a.start).getTime(); bv = parseFullDateTime(b.start).getTime(); }
+    else if (sk === 'finish') { av = parseFullDateTime(a.finish).getTime(); bv = parseFullDateTime(b.finish).getTime(); }
+    else if (sk === 'swing') { av = parseInt(a.swingdursec) || 0; bv = parseInt(b.swingdursec) || 0; }
     return sd === 'asc' ? av - bv : bv - av;
   });
 
@@ -982,18 +1000,21 @@ function render() {
   }
 
   grid.innerHTML = filtered.map(run => {
-    const pdfLink = STATE.pdfLinks[run.runno] || {};
+    const pdfLink = STATE.pdfLinks[run.day + '-' + run.runno] || {};
     const paddleLink = isMobile ? pdfLink.moblink : pdfLink.pclink;
     const paddleBtn = paddleLink
       ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE ↗</a>`
       : '';
+
+    const runRoutes = getRunRoutes(run);
+    const uniqueRoutes = [...new Set(runRoutes)];
+    const routesDisplay = uniqueRoutes.join(' | ');
 
     let segsHtml = '';
     for (let i = 1; i <= 10; i++) {
       const r = run['r' + i];
       const b = run['b' + i];
       if (!r || !b) break;
-      
       segsHtml += `
         <div class="seg">
           <div class="seg-connector"><div class="seg-dot"></div><div class="seg-line"></div></div>
@@ -1011,46 +1032,40 @@ function render() {
               <span>${run['pit' + i] || ''}</span>
             </div>
           </div>
-        </div>
-      `;
+        </div>`;
     }
 
-    // Extract time only from full datetime
     const startTime = (run.start || '').split(' ').slice(1, 3).join(' ');
     const finishTime = (run.finish || '').split(' ').slice(1, 3).join(' ');
+
+    let swingHtml = '';
+    if (run.pullout2) {
+      swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '—'}</div></div>`;
+    }
 
     return `
       <div class="card day-${run.day}">
         <div class="card-head">
-          <div class="run-num">${run.runno}</div>
-          <div class="run-meta">
+          <div class="card-head-top">
             <div class="run-day">${run.day}</div>
-            <div class="run-routes">${run.r1 || '—'}</div>
+            <div class="run-num">${run.runno}</div>
+            <div class="run-actions">${paddleBtn}</div>
           </div>
-          <div class="run-actions">${paddleBtn}</div>
+          <div class="card-head-bottom">
+            <div class="run-routes">${routesDisplay || '—'}</div>
+          </div>
         </div>
         <div class="stats-row">
-          <div class="stat">
-            <div class="stat-label">Start</div>
-            <div class="stat-val">${startTime || '—'}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Finish</div>
-            <div class="stat-val">${finishTime || '—'}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Pay hrs</div>
-            <div class="stat-val pay">${run.pay || '—'}</div>
-            ${run.pullout2 ? `<div class="swing-badge">⇌ swing</div>` : ''}
-          </div>
+          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '—'}</div></div>
+          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '—'}</div></div>
+          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '—'}</div></div>
         </div>
+        ${swingHtml}
         ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
-      </div>
-    `;
+      </div>`;
   }).join('');
 }
 
-// Initialize on load
 loadManifest();
 </script>
 </body>
