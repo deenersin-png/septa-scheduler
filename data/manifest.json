@@ -6,13 +6,28 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "midvale",
-      "label": "Midvale",
+      "name": "elmwood",
+      "label": "Elmwood",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "southern",
-      "label": "Southern",
+      "name": "comly",
+      "label": "Comly",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankford-bus",
+      "label": "Frankford Bus",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankford-rail",
+      "label": "Frankford Rail",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "midvale",
+      "label": "Midvale",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
