@@ -68,6 +68,7 @@ header {
   position: sticky;
   top: 0;
   z-index: 200;
+  justify-content: space-between;
 }
 
 .hd-depot {
@@ -103,6 +104,27 @@ header {
   font-size:12px;
   color:var(--dim);
   margin-top:2px; 
+}
+
+.btn-live {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--red);
+  color: var(--bright);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+  letter-spacing: .04em;
+  flex: 0 0 auto;
+}
+
+.btn-live:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
 }
 
 .toolbar {
@@ -567,8 +589,14 @@ header {
   html { font-size: 16px; }
   
   header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .btn-live {
+    padding: 8px 12px;
+    font-size: 12px;
   }
   
   .toolbar {
@@ -725,6 +753,11 @@ header {
   .run-day {
     font-size: 11px;
   }
+  
+  .btn-live {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
 }
 </style>
 </head>
@@ -740,6 +773,7 @@ header {
       <div class="hd-pick">Spring 2026 A-Pick</div>
     </div>
   </div>
+  <a href="https://deenersin-png.github.io/live-tracker/" target="_blank" class="btn-live">LIVE</a>
 </header>
 
 <div class="toolbar">
