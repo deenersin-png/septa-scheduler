@@ -80,13 +80,6 @@
   .loading{text-align:center;padding:60px 20px;color:var(--w40);}
   .loading-spinner{width:40px;height:40px;border:3px solid var(--w10);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
   @keyframes spin{to{transform:rotate(360deg);}}
-  #debugLog{max-width:1200px;margin:0 auto;padding:8px 20px;font-family:var(--mono);font-size:11px;color:var(--w40);max-height:150px;overflow-y:auto;display:none;}
-  #debugLog.show{display:block;}
-  #debugLog div{margin-bottom:2px;}
-  #debugLog .ok{color:#2ecc71;}
-  #debugLog .err{color:#e74c3c;}
-  #debugLog .warn{color:#f39c12;}
-  .debug-toggle{font-size:11px;color:var(--w30);cursor:pointer;text-decoration:underline;margin-left:12px;}
   @media(max-width:800px){
     .main{flex-direction:column;}
     .list-panel{flex:1 1 100%!important;max-height:none!important;}
@@ -106,14 +99,11 @@
       <div class="header-sub">
         <a href="./" class="back-link">← Paddle App</a>
         &nbsp;·&nbsp; Spring 2026 A-Pick · Callowhill
-        <span class="debug-toggle" onclick="document.getElementById('debugLog').classList.toggle('show')">[debug]</span>
       </div>
     </div>
     <div class="header-count"><span id="count">0</span> reliefs</div>
   </div>
 </div>
-
-<div id="debugLog"></div>
 
 <div class="controls">
   <div class="controls-row">
@@ -155,36 +145,18 @@
 
 <script>
 // ============================================================
-// DEBUG LOGGER
+// CORRECT PATH: data/callowhill/ on main branch
 // ============================================================
-function log(msg, type) {
-  const el = document.getElementById("debugLog");
-  const d = document.createElement("div");
-  d.className = type || "";
-  d.textContent = new Date().toLocaleTimeString() + " " + msg;
-  el.appendChild(d);
-  el.scrollTop = el.scrollHeight;
-  console.log("[holdowner]", msg);
-}
+const REPO = "deenersin-png/septa-scheduler";
+const BRANCH = "main";
+const DATA_PATH = "data/callowhill";
 
-// ============================================================
-// CONFIG — Try multiple URL patterns
-// ============================================================
-// We detect the base path from the current page location
-const pagePath = window.location.pathname.replace(/\/[^/]*$/, '/');
-const origin = window.location.origin;
-const siteBase = origin + pagePath;
-
-// Try loading from same site (GitHub Pages serves data/ folder)
-// AND from raw.githubusercontent.com with both main and master branches
-function getURLsToTry(filename) {
-  return [
-    siteBase + "data/" + filename,
-    origin + "/septa-scheduler/data/" + filename,
-    "https://raw.githubusercontent.com/deenersin-png/septa-scheduler/main/data/" + filename,
-    "https://raw.githubusercontent.com/deenersin-png/septa-scheduler/master/data/" + filename,
-  ];
-}
+const CSV_URLS = {
+  weekday:   "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/weekday.csv",
+  saturday:  "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/saturday.csv",
+  sunday:    "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/sunday.csv",
+  holdowner: "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/holdowner.csv",
+};
 
 const ROUTE_COLORS = {
   "21-42":"#e63946","43":"#457b9d","52":"#2a9d8f","65":"#e9c46a",
@@ -201,39 +173,9 @@ let excludedRoutes = new Set();
 let selectedRelief = null;
 
 // ============================================================
-// FETCH WITH FALLBACKS
-// ============================================================
-async function fetchWithFallback(filename) {
-  const urls = getURLsToTry(filename);
-  for (const url of urls) {
-    try {
-      log("Trying: " + url);
-      const r = await fetch(url);
-      if (r.ok) {
-        const text = await r.text();
-        if (text && text.length > 10 && !text.includes("<!DOCTYPE")) {
-          log("OK loaded " + filename + " (" + text.length + " bytes) from: " + url, "ok");
-          return text;
-        } else {
-          log("Got response but looks like HTML page, not CSV: " + url, "warn");
-        }
-      } else {
-        log("HTTP " + r.status + " from " + url, "warn");
-      }
-    } catch(e) {
-      log("Fetch error for " + url + ": " + e.message, "err");
-    }
-  }
-  log("FAILED to load " + filename + " from any URL", "err");
-  return null;
-}
-
-// ============================================================
 // CSV PARSING
 // ============================================================
-function cleanStr(s) {
-  return (s || "").replace(/\r/g, "").trim();
-}
+function cleanStr(s) { return (s || "").replace(/\r/g, "").trim(); }
 
 function parseCSVRow(row) {
   const f = []; let c = "", q = false;
@@ -248,41 +190,37 @@ function parseCSVRow(row) {
 }
 
 function parseScheduleCSV(text) {
-  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l => l.trim());
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
   const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h));
-  
-  // Find column indices
   const idx = {};
   hdr.forEach((h, i) => { idx[h] = i; });
-  
+
   const runs = [];
   for (let i = 1; i < lines.length; i++) {
     const v = parseCSVRow(lines[i]);
-    const get = (name) => cleanStr(v[idx[name]] || v[idx[name.toLowerCase()]] || "");
-    
+    const get = (name) => cleanStr(v[idx[name]] || "");
     const runno = get("runno");
     if (!runno) continue;
-    
+
     const routes = [];
     for (let r = 1; r <= 10; r++) {
       const rVal = get("r" + r);
       if (rVal) {
         routes.push({
-          r: rVal,
-          b: get("b" + r),
+          r: rVal, b: get("b" + r),
           pot: get("potype" + r) + " " + get("pot" + r),
           pit: get("pitype" + r) + " " + get("pit" + r),
           stime: get("stime" + r),
         });
       }
     }
-    
+
     const startRaw = get("start");
     const finishRaw = get("finish");
     const sM = (startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || startRaw;
     const fM = (finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || finishRaw;
-    
+
     runs.push({
       runno, depot: get("depot"), day: get("day"),
       start: sM, finish: fM, worktime: get("worktime"),
@@ -293,46 +231,35 @@ function parseScheduleCSV(text) {
 }
 
 function parseHoldownerCSV(text) {
-  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l => l.trim());
-  if (lines.length < 2) { log("Holdowner CSV has less than 2 lines", "err"); return []; }
-  
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
   const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h).toLowerCase());
-  log("Holdowner headers: " + JSON.stringify(hdr), "ok");
-  
+
   const pkgs = [];
   for (let i = 1; i < lines.length; i++) {
     const v = parseCSVRow(lines[i]).map(s => cleanStr(s));
     const rr = v[0];
     if (!rr) continue;
-    
-    // Try to match headers by name, fall back to position
+
     const findCol = (names) => {
       for (const name of names) {
         const idx = hdr.indexOf(name);
         if (idx >= 0 && v[idx]) return v[idx];
       }
-      return "OFF";
+      return null;
     };
-    
+
     const days = {
-      Mon: findCol(["monday","mon"]) || v[1] || "OFF",
-      Tue: findCol(["tuesday","tue"]) || v[2] || "OFF",
-      Wed: findCol(["wednesday","wed"]) || v[3] || "OFF",
-      Thu: findCol(["thursday","thu"]) || v[4] || "OFF",
-      Fri: findCol(["friday","fri"]) || v[5] || "OFF",
-      Sat: findCol(["saturday","sat"]) || v[6] || "OFF",
-      Sun: findCol(["sunday","sun"]) || v[7] || "OFF",
+      Mon: findCol(["monday", "mon"]) || v[1] || "OFF",
+      Tue: findCol(["tuesday", "tue"]) || v[2] || "OFF",
+      Wed: findCol(["wednesday", "wed"]) || v[3] || "OFF",
+      Thu: findCol(["thursday", "thu"]) || v[4] || "OFF",
+      Fri: findCol(["friday", "fri"]) || v[5] || "OFF",
+      Sat: findCol(["saturday", "sat"]) || v[6] || "OFF",
+      Sun: findCol(["sunday", "sun"]) || v[7] || "OFF",
     };
-    
-    Object.keys(days).forEach(k => {
-      days[k] = days[k].toUpperCase() === "OFF" ? "OFF" : days[k];
-    });
-    
+    Object.keys(days).forEach(k => { if (days[k].toUpperCase() === "OFF") days[k] = "OFF"; });
     pkgs.push({ reliefRun: rr, days });
-  }
-  log("Parsed " + pkgs.length + " relief packages", "ok");
-  if (pkgs.length > 0) {
-    log("Sample R-01: " + JSON.stringify(pkgs[0].days));
   }
   return pkgs;
 }
@@ -340,79 +267,56 @@ function parseHoldownerCSV(text) {
 // ============================================================
 // DATA LOADING
 // ============================================================
+async function fetchCSV(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) { console.warn("HTTP " + r.status + ": " + url); return null; }
+    const text = await r.text();
+    if (text && text.length > 10 && !text.includes("<!DOCTYPE")) return text;
+    return null;
+  } catch (e) { console.warn("Fetch error: " + url, e); return null; }
+}
+
 async function loadData() {
-  log("Starting data load...");
-  log("Page URL: " + window.location.href);
-  log("Site base: " + siteBase);
-  
+  console.log("Loading from:", CSV_URLS);
+
   const [wdText, satText, sunText, hoText] = await Promise.all([
-    fetchWithFallback("weekday.csv"),
-    fetchWithFallback("saturday.csv"),
-    fetchWithFallback("sunday.csv"),
-    fetchWithFallback("holdowner.csv"),
+    fetchCSV(CSV_URLS.weekday),
+    fetchCSV(CSV_URLS.saturday),
+    fetchCSV(CSV_URLS.sunday),
+    fetchCSV(CSV_URLS.holdowner),
   ]);
 
   if (wdText) {
     const runs = parseScheduleCSV(wdText);
     runs.forEach(r => { runsByDay.Weekday[r.runno] = r; });
-    log("Weekday: " + runs.length + " runs loaded", "ok");
-  } else {
-    log("WARNING: No weekday data loaded!", "err");
+    console.log("Weekday:", runs.length, "runs");
   }
-  
   if (satText) {
     const runs = parseScheduleCSV(satText);
     runs.forEach(r => { runsByDay.Saturday[r.runno] = r; });
-    log("Saturday: " + runs.length + " runs loaded", "ok");
-  } else {
-    log("WARNING: No Saturday data loaded!", "err");
+    console.log("Saturday:", runs.length, "runs");
   }
-  
   if (sunText) {
     const runs = parseScheduleCSV(sunText);
     runs.forEach(r => { runsByDay.Sunday[r.runno] = r; });
-    log("Sunday: " + runs.length + " runs loaded", "ok");
-  } else {
-    log("WARNING: No Sunday data loaded!", "err");
+    console.log("Sunday:", runs.length, "runs");
   }
-
   if (hoText) {
     holdowner = parseHoldownerCSV(hoText);
-    if (holdowner.length === 0) {
-      log("Holdowner CSV parsed but got 0 results — check format", "err");
-    }
+    console.log("Holdowner:", holdowner.length, "reliefs");
   } else {
-    log("No holdowner.csv found — check that the file is in the data/ folder", "err");
-  }
-
-  // Verify some lookups
-  if (holdowner.length > 0) {
-    const sample = holdowner[0];
-    let found = 0, missing = 0;
-    DAY_ORDER.forEach(d => {
-      const rn = sample.days[d];
-      if (rn === "OFF") return;
-      const dtype = DAY_TO_TYPE[d];
-      if (runsByDay[dtype][rn]) found++;
-      else { missing++; log("Run " + rn + " on " + d + " (" + dtype + ") NOT found in schedule data", "warn"); }
-    });
-    log("Sample relief " + sample.reliefRun + ": " + found + " runs found, " + missing + " missing");
+    console.warn("No holdowner.csv loaded");
   }
 
   // Collect all routes
   const rs = new Set();
   Object.values(runsByDay).forEach(day => Object.values(day).forEach(r => r.routes.forEach(rt => rs.add(rt.r))));
   allRoutes = [...rs].sort();
-  log("All routes: " + allRoutes.join(", "), "ok");
 
   buildRouteFilters();
   render();
   document.getElementById("loadingMsg").style.display = "none";
-  
-  // Auto-show debug if something went wrong
-  if (holdowner.length === 0 || Object.keys(runsByDay.Weekday).length === 0) {
-    document.getElementById("debugLog").classList.add("show");
-  }
 }
 
 // ============================================================
@@ -427,14 +331,14 @@ function getPackageDetails(pkg) {
   const details = []; let totalPay = 0, workDays = 0; const routes = new Set();
   DAY_ORDER.forEach(day => {
     const rn = pkg.days[day];
-    if (rn === "OFF") { details.push({day, off: true}); }
+    if (rn === "OFF") { details.push({ day, off: true }); }
     else {
       const info = getRunInfo(day, rn);
-      if (info) { totalPay += info.pay; workDays++; info.routes.forEach(rt => routes.add(rt.r)); details.push({day, off: false, runno: rn, info}); }
-      else { details.push({day, off: false, runno: rn, info: null}); }
+      if (info) { totalPay += info.pay; workDays++; info.routes.forEach(rt => routes.add(rt.r)); details.push({ day, off: false, runno: rn, info }); }
+      else { details.push({ day, off: false, runno: rn, info: null }); }
     }
   });
-  return {details, totalPay: Math.round(totalPay * 100) / 100, workDays, routes: [...routes]};
+  return { details, totalPay: Math.round(totalPay * 100) / 100, workDays, routes: [...routes] };
 }
 
 function routeTag(route, small) {
@@ -452,7 +356,7 @@ function render() {
 
   let pkgs = holdowner.map(pkg => {
     const d = getPackageDetails(pkg);
-    return {...pkg, ...d};
+    return { ...pkg, ...d };
   });
 
   if (q) pkgs = pkgs.filter(p => p.reliefRun.toLowerCase().includes(q) || p.routes.some(r => r.toLowerCase().includes(q)));
@@ -461,22 +365,22 @@ function render() {
 
   if (sortBy === "pay-high") pkgs.sort((a, b) => b.totalPay - a.totalPay);
   else if (sortBy === "pay-low") pkgs.sort((a, b) => a.totalPay - b.totalPay);
-  else pkgs.sort((a, b) => a.reliefRun.localeCompare(b.reliefRun, undefined, {numeric: true}));
+  else pkgs.sort((a, b) => a.reliefRun.localeCompare(b.reliefRun, undefined, { numeric: true }));
 
   document.getElementById("count").textContent = pkgs.length;
 
   const list = document.getElementById("listPanel");
   if (pkgs.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>No reliefs found</div><div style="font-size:12px;margin-top:8px;color:rgba(255,255,255,0.3)">Click [debug] in header to see loading status</div></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>No reliefs found</div></div>';
   } else {
-    list.innerHTML = pkgs.map(p => 
+    list.innerHTML = pkgs.map(p =>
       '<div class="pkg-card' + (selectedRelief === p.reliefRun ? ' selected' : '') + '" data-relief="' + p.reliefRun + '">' +
-        '<div class="pkg-header">' +
-          '<span class="pkg-name">' + p.reliefRun + '</span>' +
-          '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
-        '</div>' +
-        '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
-        '<div class="pkg-meta">' + p.workDays + ' work days · Off: ' + p.details.filter(d => d.off).map(d => d.day).join(', ') + '</div>' +
+      '<div class="pkg-header">' +
+      '<span class="pkg-name">' + p.reliefRun + '</span>' +
+      '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
+      '</div>' +
+      '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
+      '<div class="pkg-meta">' + p.workDays + ' work days · Off: ' + p.details.filter(d => d.off).map(d => d.day).join(', ') + '</div>' +
       '</div>'
     ).join('');
   }
@@ -485,7 +389,7 @@ function render() {
     card.addEventListener('click', () => {
       selectedRelief = card.dataset.relief;
       render();
-      if (window.innerWidth < 800) document.getElementById("detailPanel").scrollIntoView({behavior: 'smooth'});
+      if (window.innerWidth < 800) document.getElementById("detailPanel").scrollIntoView({ behavior: 'smooth' });
     });
   });
 
@@ -496,18 +400,18 @@ function render() {
 }
 
 function renderDetail(pkg) {
-  const {details, totalPay, workDays, routes} = getPackageDetails(pkg);
+  const { details, totalPay, workDays, routes } = getPackageDetails(pkg);
   const dp = document.getElementById("detailPanel");
 
-  dp.innerHTML = 
+  dp.innerHTML =
     '<div class="week-header">' +
-      '<div class="week-title">' + pkg.reliefRun + '</div>' +
-      '<div class="week-sub">Weekly Relief Schedule</div>' +
-      '<div class="week-stats">' +
-        '<div><div class="stat-label">Weekly Pay</div><div class="stat-value">' + totalPay.toFixed(1) + ' hrs</div></div>' +
-        '<div><div class="stat-label">Work Days</div><div class="stat-value">' + workDays + '</div></div>' +
-        '<div><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">' + routes.map(r => routeTag(r)).join('') + '</div></div>' +
-      '</div>' +
+    '<div class="week-title">' + pkg.reliefRun + '</div>' +
+    '<div class="week-sub">Weekly Relief Schedule</div>' +
+    '<div class="week-stats">' +
+    '<div><div class="stat-label">Weekly Pay</div><div class="stat-value">' + totalPay.toFixed(1) + ' hrs</div></div>' +
+    '<div><div class="stat-label">Work Days</div><div class="stat-value">' + workDays + '</div></div>' +
+    '<div><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">' + routes.map(r => routeTag(r)).join('') + '</div></div>' +
+    '</div>' +
     '</div>' +
     details.map(d => {
       if (d.off) return '<div class="day-row off"><span class="day-label" style="color:var(--w30)">' + d.day + '</span><span class="day-off-text">Day Off</span></div>';
@@ -515,22 +419,22 @@ function renderDetail(pkg) {
       const rt = d.info.routes[0];
       return '<div class="day-row">' +
         '<div class="day-header">' +
-          '<div class="day-header-left">' +
-            '<span class="day-label" style="color:var(--accent)">' + d.day + '</span>' +
-            routeTag(rt.r) +
-            '<span style="font-size:12px;color:var(--w40)">Run ' + d.runno + '</span>' +
-          '</div>' +
-          '<span class="day-pay">' + d.info.pay + ' hrs</span>' +
+        '<div class="day-header-left">' +
+        '<span class="day-label" style="color:var(--accent)">' + d.day + '</span>' +
+        routeTag(rt.r) +
+        '<span style="font-size:12px;color:var(--w40)">Run ' + d.runno + '</span>' +
+        '</div>' +
+        '<span class="day-pay">' + d.info.pay + ' hrs</span>' +
         '</div>' +
         '<div class="day-details">' +
-          '<span>🕐 ' + d.info.start + ' → ' + d.info.finish + '</span>' +
-          '<span>⏱ ' + d.info.worktime + '</span>' +
-          (d.info.routes.length > 1 ? '<span>🔀 Swing</span>' : '') +
+        '<span>🕐 ' + d.info.start + ' → ' + d.info.finish + '</span>' +
+        '<span>⏱ ' + d.info.worktime + '</span>' +
+        (d.info.routes.length > 1 ? '<span>🔀 Swing</span>' : '') +
         '</div>' +
         (d.info.routes.length > 1 ? '<div style="margin-left:54px;margin-top:6px">' +
-          d.info.routes.map((rt2, i) => '<div style="font-size:11px;color:var(--w40);margin-bottom:2px">Piece ' + (i+1) + ': ' + routeTag(rt2.r, true) + ' ' + rt2.pot + ' → ' + rt2.pit + ' (' + rt2.stime + ')</div>').join('') +
-        '</div>' : '') +
-      '</div>';
+          d.info.routes.map((rt2, i) => '<div style="font-size:11px;color:var(--w40);margin-bottom:2px">Piece ' + (i + 1) + ': ' + routeTag(rt2.r, true) + ' ' + rt2.pot + ' → ' + rt2.pit + ' (' + rt2.stime + ')</div>').join('') +
+          '</div>' : '') +
+        '</div>';
     }).join('');
 }
 
@@ -542,8 +446,7 @@ function buildRouteFilters() {
       const r = btn.dataset.route;
       if (excludedRoutes.has(r)) { excludedRoutes.delete(r); btn.classList.remove('excluded'); }
       else { excludedRoutes.add(r); btn.classList.add('excluded'); }
-      updateClearBtn();
-      render();
+      updateClearBtn(); render();
     });
   });
 }
@@ -560,15 +463,15 @@ function updateClearBtn() {
 // ============================================================
 document.getElementById("search").addEventListener("input", render);
 document.getElementById("sortBy").addEventListener("change", render);
-document.getElementById("minHrs").addEventListener("input", function() {
+document.getElementById("minHrs").addEventListener("input", function () {
   document.getElementById("minHrsLabel").textContent = this.value + " hrs";
   updateClearBtn(); render();
 });
-document.getElementById("filterToggle").addEventListener("click", function() {
+document.getElementById("filterToggle").addEventListener("click", function () {
   document.getElementById("filterPanel").classList.toggle("show");
   this.classList.toggle("active");
 });
-document.getElementById("clearFilters").addEventListener("click", function() {
+document.getElementById("clearFilters").addEventListener("click", function () {
   excludedRoutes.clear();
   document.querySelectorAll('.route-filter-btn').forEach(b => b.classList.remove('excluded'));
   document.getElementById("minHrs").value = 0;
