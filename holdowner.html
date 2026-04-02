@@ -1,1 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holdowner Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --bg2: #0d1526;
+    --accent: #F37321;
+    --accent15: rgba(243,115,33,0.15);
+    --accent20: rgba(243,115,33,0.2);
+    --w05: rgba(255,255,255,0.05);
+    --w06: rgba(255,255,255,0.06);
+    --w08: rgba(255,255,255,0.08);
+    --w10: rgba(255,255,255,0.1);
+    --w25: rgba(255,255,255,0.25);
+    --w30: rgba(255,255,255,0.3);
+    --w40: rgba(255,255,255,0.4);
+    --w50: rgba(255,255,255,0.5);
+    --w55: rgba(255,255,255,0.55);
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: #fff; font-family: var(--sans); min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(243,115,33,0.3); border-radius: 3px; }
 
+  .header {
+    background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--accent15);
+    padding: 16px 20px; position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+  .header-title { font-size: 22px; font-weight: 800; color: var(--accent); font-family: var(--mono); }
+  .header-badge { font-size: 10px; background: var(--accent20); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-weight: 700; letter-spacing: 1px; margin-left: 10px; }
+  .header-sub { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+  .header-count { font-size: 13px; color: var(--w40); }
+  .header-count span { color: var(--accent); font-weight: 700; font-family: var(--mono); }
+
+  .controls { max-width: 1200px; margin: 0 auto; padding: 16px 20px 0; }
+  .controls-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .search-input {
+    flex: 1; min-width: 200px; background: var(--w05); border: 1px solid var(--w08);
+    border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px; outline: none;
+    font-family: var(--sans);
+  }
+  .sort-select {
+    background: var(--w05); border: 1px solid var(--w08); border-radius: 8px;
+    padding: 10px 14px; color: #fff; font-size: 13px; outline: none; cursor: pointer;
+    font-family: var(--sans);
+  }
+  .sort-select option { background: #1a1f2e; }
+  .filter-btn {
+    background: var(--w05); border: 1px solid var(--w08); border-radius: 8px;
+    padding: 10px 16px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;
+    font-family: var(--sans); transition: all 0.2s;
+  }
+  .filter-btn.active { background: var(--accent20); border-color: var(--accent); color: var(--accent); }
+
+  .filter-panel {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--w08);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px; display: none;
+  }
+  .filter-panel.show { display: block; }
+  .filter-label { font-size: 12px; color: var(--w50); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  .route-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .route-filter-btn {
+    background: var(--w06); border: 1px solid var(--w10); border-radius: 6px;
+    padding: 6px 12px; color: var(--w50); font-size: 12px; cursor: pointer; font-weight: 600;
+    font-family: var(--sans); transition: all 0.2s;
+  }
+  .route-filter-btn.excluded {
+    background: rgba(231,76,60,0.3); border-color: #e74c3c; color: #e74c3c;
+    text-decoration: line-through;
+  }
+  input[type="range"] {
+    -webkit-appearance: none; background: var(--w10); height: 4px; border-radius: 2px;
+    outline: none; width: 100%;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+  }
+  .clear-btn {
+    margin-top: 12px; background: transparent; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px; padding: 6px 14px; color: var(--w50); font-size: 12px;
+    cursor: pointer; font-family: var(--sans);
+  }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; display: flex; gap: 20px; align-items: flex-start; }
+  .list-panel { flex: 0 0 380px; max-height: calc(100vh - 180px); overflow-y: auto; padding-right: 8px; }
+  .detail-panel { flex: 1; position: sticky; top: 90px; max-height: calc(100vh - 120px); overflow-y: auto; }
+
+  .pkg-card {
+    background: rgba(255,255,255,0.03); border: 2px solid var(--w06);
+    border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;
+  }
+  .pkg-card:hover { border-color: rgba(243,115,33,0.3); }
+  .pkg-card.selected { background: rgba(243,115,33,0.12); border-color: var(--accent); }
+  .pkg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .pkg-name { font-size: 17px; font-weight: 800; color: var(--accent); font-family: var(--mono); }
+  .pkg-pay { background: var(--accent15); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; font-family: var(--mono); }
+  .pkg-routes { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+  .pkg-meta { font-size: 11px; color: var(--w40); }
+
+  .route-tag {
+    color: #fff; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.5px; display: inline-block; text-shadow: 0 1px 2px rgba(0,0,0,0.3); line-height: 1.4;
+  }
+  .route-tag.small { padding: 1px 6px; font-size: 10px; }
+
+  .week-header {
+    background: linear-gradient(135deg, var(--accent15), rgba(243,115,33,0.05));
+    border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--accent20);
+  }
+  .week-title { font-size: 24px; font-weight: 800; color: var(--accent); font-family: var(--mono); margin-bottom: 4px; }
+  .week-sub { font-size: 13px; color: var(--w50); margin-bottom: 12px; }
+  .week-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat-label { font-size: 11px; color: var(--w40); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 22px; font-weight: 800; color: #fff; font-family: var(--mono); }
+
+  .day-row {
+    padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 8px;
+    margin-bottom: 6px; border-left: 4px solid var(--accent);
+  }
+  .day-row.off { border-left-color: #333; background: rgba(255,255,255,0.02); }
+  .day-row.missing { border-left-color: #555; background: rgba(255,255,255,0.02); }
+  .day-label { width: 44px; font-weight: 700; font-size: 13px; display: inline-block; }
+  .day-off-text { font-size: 14px; color: var(--w25); font-style: italic; margin-left: 12px; }
+  .day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .day-header-left { display: flex; align-items: center; gap: 10px; }
+  .day-pay { color: var(--accent); font-weight: 700; font-size: 13px; font-family: var(--mono); }
+  .day-details { display: flex; gap: 16px; font-size: 12px; color: var(--w55); margin-left: 54px; flex-wrap: wrap; }
+
+  .empty-state { text-align: center; padding: 80px 20px; color: rgba(255,255,255,0.2); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 600; }
+  .empty-sub { font-size: 13px; margin-top: 8px; max-width: 280px; margin-left: auto; margin-right: auto; }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--w40); }
+  .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--w10); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--accent);
+    text-decoration: none; font-size: 13px; font-weight: 600; opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+  .back-link:hover { opacity: 1; }
+
+  @media (max-width: 800px) {
+    .main { flex-direction: column; }
+    .list-panel { flex: 1 1 100%; max-height: none; }
+    .detail-panel { position: static; max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div style="display:flex;align-items:center;">
+        <span class="header-title">HOLDOWNER</span>
+        <span class="header-badge">PICKER</span>
+      </div>
+      <div class="header-sub">
+        <a href="./" class="back-link">← Paddle App</a>
+        &nbsp;·&nbsp; Spring 2026 A-Pick · Callowhill
+      </div>
+    </div>
+    <div class="header-count"><span id="count">0</span> reliefs</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-row">
+    <input type="text" class="search-input" id="search" placeholder="Search relief or route...">
+    <select class="sort-select" id="sortBy">
+      <option value="relief">Sort: Relief #</option>
+      <option value="pay-high">Hours (Highest)</option>
+      <option value="pay-low">Hours (Lowest)</option>
+    </select>
+    <button class="filter-btn" id="filterToggle">⚙ Filters</button>
+  </div>
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-label">Exclude Routes (tap to exclude)</div>
+    <div class="route-filters" id="routeFilters"></div>
+    <div class="filter-label">Minimum Weekly Hours: <span style="color:var(--accent)" id="minHrsLabel">0 hrs</span></div>
+    <input type="range" min="0" max="80" step="1" value="0" id="minHrs">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--w30);margin-top:4px;">
+      <span>0 hrs</span><span>80 hrs</span>
+    </div>
+    <button class="clear-btn" id="clearFilters" style="display:none">Clear All Filters</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="list-panel" id="listPanel">
+    <div class="loading" id="loadingMsg">
+      <div class="loading-spinner"></div>
+      Loading schedule data...
+    </div>
+  </div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Select a relief</div>
+      <div class="empty-sub">Pick a relief run from the left to see your full week schedule</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — CSV URLs from your GitHub repo
+// ============================================================
+const BASE = "https://raw.githubusercontent.com/deenersin-png/septa-scheduler/main/data/";
+const CSV_URLS = {
+  weekday:   BASE + "weekday.csv",
+  saturday:  BASE + "saturday.csv",
+  sunday:    BASE + "sunday.csv",
+  holdowner: BASE + "holdowner.csv",  // add this file when ready
+};
+
+const ROUTE_COLORS = {
+  "21-42":"#e63946","43":"#457b9d","52":"#2a9d8f","65":"#e9c46a",
+  "44":"#f4a261","30":"#264653","38":"#6a4c93","31":"#1d3557",
+  "40":"#a8dadc","46":"#06d6a0","L1 OWL":"#9b5de5","WCS":"#f15bb5",
+};
+const DAY_ORDER = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAY_TO_TYPE = { Mon:"Weekday",Tue:"Weekday",Wed:"Weekday",Thu:"Weekday",Fri:"Weekday",Sat:"Saturday",Sun:"Sunday" };
+
+let runsByDay = { Weekday:{}, Saturday:{}, Sunday:{} };
+let holdowner = [];
+let allRoutes = [];
+let excludedRoutes = new Set();
+let selectedRelief = null;
+
+// ============================================================
+// CSV PARSING
+// ============================================================
+function parseCSVRow(row) {
+  const f=[]; let c="",q=false;
+  for(let i=0;i<row.length;i++){
+    const ch=row[i];
+    if(ch==='"')q=!q;
+    else if(ch===','&&!q){f.push(c.trim());c="";}
+    else if(ch!=='\r')c+=ch;
+  }
+  f.push(c.trim());
+  return f;
+}
+
+function parseScheduleCSV(text) {
+  const lines = text.split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const hdr = parseCSVRow(lines[0]);
+  const runs = [];
+  for(let i=1;i<lines.length;i++){
+    const v = parseCSVRow(lines[i]);
+    if(v.length<15)continue;
+    const o={};
+    hdr.forEach((h,j)=>{o[h]=v[j]||"";});
+    const routes=[];
+    for(let r=1;r<=10;r++){
+      if(o[`r${r}`]&&o[`r${r}`].trim()){
+        routes.push({
+          r:o[`r${r}`].trim(), b:o[`b${r}`]||"",
+          pot:(o[`potype${r}`]||"")+" "+(o[`pot${r}`]||"").trim(),
+          pit:(o[`pitype${r}`]||"")+" "+(o[`pit${r}`]||"").trim(),
+          stime:o[`stime${r}`]||"",
+        });
+      }
+    }
+    const sM=((o.start||"").match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||o.start||"";
+    const fM=((o.finish||"").match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||o.finish||"";
+    runs.push({
+      runno:(o.runno||"").trim(), depot:(o.depot||"").trim(), day:(o.day||"").trim(),
+      start:sM, finish:fM, worktime:(o.worktime||"").trim(),
+      pay:parseFloat(o.pay)||8.0, routes
+    });
+  }
+  return runs;
+}
+
+function parseHoldownerCSV(text) {
+  const lines = text.split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const hdr = parseCSVRow(lines[0]).map(h=>h.toLowerCase().trim());
+  const pkgs=[];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]);
+    const rr=v[0]?.trim();
+    if(!rr)continue;
+    const findCol=(name)=>{const idx=hdr.indexOf(name);return idx>=0?v[idx]?.trim()||"OFF":"OFF";};
+    const days={
+      Mon:findCol("monday")||v[1]?.trim()||"OFF",
+      Tue:findCol("tuesday")||v[2]?.trim()||"OFF",
+      Wed:findCol("wednesday")||v[3]?.trim()||"OFF",
+      Thu:findCol("thursday")||v[4]?.trim()||"OFF",
+      Fri:findCol("friday")||v[5]?.trim()||"OFF",
+      Sat:findCol("saturday")||v[6]?.trim()||"OFF",
+      Sun:findCol("sunday")||v[7]?.trim()||"OFF",
+    };
+    Object.keys(days).forEach(k=>{if(days[k].toUpperCase()==="OFF")days[k]="OFF";});
+    pkgs.push({reliefRun:rr, days});
+  }
+  return pkgs;
+}
+
+// ============================================================
+// SAMPLE HOLDOWNER (placeholder until real CSV exists)
+// ============================================================
+const SAMPLE_HOLDOWNER = [
+  {reliefRun:"R-01",days:{Mon:"101",Tue:"201",Wed:"OFF",Thu:"OFF",Fri:"301",Sat:"401",Sun:"501"}},
+  {reliefRun:"R-02",days:{Mon:"102",Tue:"102",Wed:"202",Thu:"OFF",Fri:"OFF",Sat:"302",Sun:"602"}},
+  {reliefRun:"R-03",days:{Mon:"OFF",Tue:"OFF",Wed:"103",Thu:"203",Fri:"403",Sat:"503",Sun:"103"}},
+  {reliefRun:"R-04",days:{Mon:"201",Tue:"301",Wed:"401",Thu:"501",Fri:"601",Sat:"OFF",Sun:"OFF"}},
+  {reliefRun:"R-05",days:{Mon:"651",Tue:"OFF",Wed:"OFF",Thu:"202",Fri:"302",Sat:"652",Sun:"202"}},
+  {reliefRun:"R-06",days:{Mon:"301",Tue:"401",Wed:"501",Thu:"OFF",Fri:"OFF",Sat:"601",Sun:"301"}},
+  {reliefRun:"R-07",days:{Mon:"OFF",Tue:"OFF",Wed:"670",Thu:"104",Fri:"204",Sat:"304",Sun:"670"}},
+  {reliefRun:"R-08",days:{Mon:"501",Tue:"601",Wed:"701",Thu:"101",Fri:"OFF",Sat:"OFF",Sun:"501"}},
+  {reliefRun:"R-09",days:{Mon:"601",Tue:"651",Wed:"OFF",Thu:"OFF",Fri:"501",Sat:"201",Sun:"601"}},
+  {reliefRun:"R-10",days:{Mon:"680",Tue:"OFF",Wed:"OFF",Thu:"690",Fri:"105",Sat:"651",Sun:"651"}},
+  {reliefRun:"R-11",days:{Mon:"104",Tue:"204",Wed:"304",Thu:"404",Fri:"504",Sat:"OFF",Sun:"OFF"}},
+  {reliefRun:"R-12",days:{Mon:"OFF",Tue:"105",Wed:"205",Thu:"305",Fri:"405",Sat:"505",Sun:"OFF"}},
+  {reliefRun:"R-13",days:{Mon:"203",Tue:"OFF",Wed:"303",Thu:"403",Fri:"OFF",Sat:"203",Sun:"603"}},
+  {reliefRun:"R-14",days:{Mon:"302",Tue:"402",Wed:"502",Thu:"OFF",Fri:"602",Sat:"OFF",Sun:"302"}},
+  {reliefRun:"R-15",days:{Mon:"402",Tue:"502",Wed:"OFF",Thu:"602",Fri:"702",Sat:"OFF",Sun:"402"}},
+  {reliefRun:"R-16",days:{Mon:"502",Tue:"602",Wed:"702",Thu:"OFF",Fri:"OFF",Sat:"502",Sun:"102"}},
+  {reliefRun:"R-17",days:{Mon:"OFF",Tue:"OFF",Wed:"652",Thu:"106",Fri:"206",Sat:"602",Sun:"652"}},
+  {reliefRun:"R-18",days:{Mon:"670",Tue:"107",Wed:"207",Thu:"670",Fri:"307",Sat:"OFF",Sun:"OFF"}},
+  {reliefRun:"R-19",days:{Mon:"680",Tue:"108",Wed:"OFF",Thu:"308",Fri:"680",Sat:"680",Sun:"OFF"}},
+  {reliefRun:"R-20",days:{Mon:"690",Tue:"OFF",Wed:"109",Thu:"690",Fri:"OFF",Sat:"690",Sun:"690"}},
+  {reliefRun:"R-21",days:{Mon:"106",Tue:"306",Wed:"506",Thu:"OFF",Fri:"OFF",Sat:"106",Sun:"106"}},
+  {reliefRun:"R-22",days:{Mon:"OFF",Tue:"OFF",Wed:"107",Thu:"307",Fri:"507",Sat:"107",Sun:"407"}},
+  {reliefRun:"R-23",days:{Mon:"204",Tue:"304",Wed:"504",Thu:"604",Fri:"704",Sat:"OFF",Sun:"OFF"}},
+  {reliefRun:"R-24",days:{Mon:"303",Tue:"OFF",Wed:"OFF",Thu:"603",Fri:"703",Sat:"303",Sun:"303"}},
+  {reliefRun:"R-25",days:{Mon:"403",Tue:"503",Wed:"603",Thu:"OFF",Fri:"103",Sat:"OFF",Sun:"403"}},
+  {reliefRun:"R-26",days:{Mon:"OFF",Tue:"503",Wed:"103",Thu:"603",Fri:"403",Sat:"503",Sun:"OFF"}},
+  {reliefRun:"R-27",days:{Mon:"603",Tue:"103",Wed:"OFF",Thu:"503",Fri:"OFF",Sat:"603",Sun:"103"}},
+  {reliefRun:"R-28",days:{Mon:"652",Tue:"110",Wed:"210",Thu:"OFF",Fri:"652",Sat:"OFF",Sun:"652"}},
+  {reliefRun:"R-29",days:{Mon:"671",Tue:"OFF",Wed:"111",Thu:"671",Fri:"OFF",Sat:"671",Sun:"671"}},
+  {reliefRun:"R-30",days:{Mon:"681",Tue:"112",Wed:"681",Thu:"312",Fri:"681",Sat:"OFF",Sun:"OFF"}},
+  {reliefRun:"R-31",days:{Mon:"108",Tue:"208",Wed:"OFF",Thu:"OFF",Fri:"508",Sat:"108",Sun:"108"}},
+  {reliefRun:"R-32",days:{Mon:"OFF",Tue:"109",Wed:"309",Thu:"509",Fri:"109",Sat:"OFF",Sun:"109"}},
+  {reliefRun:"R-33",days:{Mon:"205",Tue:"305",Wed:"405",Thu:"OFF",Fri:"OFF",Sat:"605",Sun:"205"}},
+  {reliefRun:"R-34",days:{Mon:"304",Tue:"404",Wed:"OFF",Thu:"604",Fri:"704",Sat:"304",Sun:"OFF"}},
+  {reliefRun:"R-35",days:{Mon:"OFF",Tue:"OFF",Wed:"404",Thu:"504",Fri:"604",Sat:"404",Sun:"404"}},
+  {reliefRun:"R-36",days:{Mon:"504",Tue:"604",Wed:"104",Thu:"204",Fri:"OFF",Sat:"504",Sun:"OFF"}},
+  {reliefRun:"R-37",days:{Mon:"604",Tue:"OFF",Wed:"104",Thu:"OFF",Fri:"304",Sat:"604",Sun:"604"}},
+  {reliefRun:"R-38",days:{Mon:"653",Tue:"113",Wed:"213",Thu:"653",Fri:"OFF",Sat:"OFF",Sun:"653"}},
+  {reliefRun:"R-39",days:{Mon:"672",Tue:"OFF",Wed:"OFF",Thu:"114",Fri:"314",Sat:"672",Sun:"672"}},
+  {reliefRun:"R-40",days:{Mon:"691",Tue:"111",Wed:"311",Thu:"OFF",Fri:"691",Sat:"691",Sun:"OFF"}},
+];
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function fetchCSV(url) {
+  try {
+    const r = await fetch(url);
+    if(!r.ok) throw new Error(r.status);
+    return await r.text();
+  } catch(e) { console.warn("Failed to load "+url, e); return null; }
+}
+
+async function loadData() {
+  const [wdText, satText, sunText, hoText] = await Promise.all([
+    fetchCSV(CSV_URLS.weekday),
+    fetchCSV(CSV_URLS.saturday),
+    fetchCSV(CSV_URLS.sunday),
+    fetchCSV(CSV_URLS.holdowner),
+  ]);
+
+  if(wdText) parseScheduleCSV(wdText).forEach(r=>{runsByDay.Weekday[r.runno]=r;});
+  if(satText) parseScheduleCSV(satText).forEach(r=>{runsByDay.Saturday[r.runno]=r;});
+  if(sunText) parseScheduleCSV(sunText).forEach(r=>{runsByDay.Sunday[r.runno]=r;});
+
+  if(hoText) {
+    holdowner = parseHoldownerCSV(hoText);
+    console.log("Loaded holdowner CSV:", holdowner.length, "reliefs");
+  } else {
+    holdowner = SAMPLE_HOLDOWNER;
+    console.log("Using sample holdowner data (upload holdowner.csv to data/ folder to use real data)");
+  }
+
+  // Collect all routes
+  const rs = new Set();
+  Object.values(runsByDay).forEach(day=>Object.values(day).forEach(r=>r.routes.forEach(rt=>rs.add(rt.r))));
+  allRoutes = [...rs].sort();
+
+  buildRouteFilters();
+  render();
+  document.getElementById("loadingMsg").style.display = "none";
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function getRunInfo(dayAbbr, runno) {
+  if(runno==="OFF")return null;
+  return runsByDay[DAY_TO_TYPE[dayAbbr]]?.[runno]||null;
+}
+
+function getPackageDetails(pkg) {
+  const details=[]; let totalPay=0, workDays=0; const routes=new Set();
+  DAY_ORDER.forEach(day=>{
+    const rn=pkg.days[day];
+    if(rn==="OFF"){details.push({day,off:true});}
+    else{
+      const info=getRunInfo(day,rn);
+      if(info){totalPay+=info.pay;workDays++;info.routes.forEach(rt=>routes.add(rt.r));details.push({day,off:false,runno:rn,info});}
+      else{details.push({day,off:false,runno:rn,info:null});}
+    }
+  });
+  return{details,totalPay:Math.round(totalPay*100)/100,workDays,routes:[...routes]};
+}
+
+function routeTag(route, small) {
+  const bg = ROUTE_COLORS[route]||"#555";
+  return `<span class="route-tag${small?' small':''}" style="background:${bg}">${route}</span>`;
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function render() {
+  const q = document.getElementById("search").value.toLowerCase().trim();
+  const sortBy = document.getElementById("sortBy").value;
+  const minHrs = parseFloat(document.getElementById("minHrs").value)||0;
+
+  let pkgs = holdowner.map(pkg=>{
+    const d=getPackageDetails(pkg);
+    return{...pkg,...d};
+  });
+
+  // Filter
+  if(q) pkgs = pkgs.filter(p=>p.reliefRun.toLowerCase().includes(q)||p.routes.some(r=>r.toLowerCase().includes(q)));
+  if(excludedRoutes.size>0) pkgs = pkgs.filter(p=>!p.routes.some(r=>excludedRoutes.has(r)));
+  if(minHrs>0) pkgs = pkgs.filter(p=>p.totalPay>=minHrs);
+
+  // Sort
+  if(sortBy==="pay-high") pkgs.sort((a,b)=>b.totalPay-a.totalPay);
+  else if(sortBy==="pay-low") pkgs.sort((a,b)=>a.totalPay-b.totalPay);
+  else pkgs.sort((a,b)=>a.reliefRun.localeCompare(b.reliefRun,undefined,{numeric:true}));
+
+  document.getElementById("count").textContent = pkgs.length;
+
+  // Render list
+  const list = document.getElementById("listPanel");
+  if(pkgs.length===0){
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div>No reliefs match your filters</div></div>`;
+  } else {
+    list.innerHTML = pkgs.map(p=>`
+      <div class="pkg-card${selectedRelief===p.reliefRun?' selected':''}" data-relief="${p.reliefRun}">
+        <div class="pkg-header">
+          <span class="pkg-name">${p.reliefRun}</span>
+          <span class="pkg-pay">${p.totalPay.toFixed(1)} hrs/wk</span>
+        </div>
+        <div class="pkg-routes">${p.routes.map(r=>routeTag(r,true)).join('')}</div>
+        <div class="pkg-meta">${p.workDays} work days · Off: ${p.details.filter(d=>d.off).map(d=>d.day).join(', ')}</div>
+      </div>
+    `).join('');
+  }
+
+  // Attach click handlers
+  list.querySelectorAll('.pkg-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      selectedRelief = card.dataset.relief;
+      render();
+      if(window.innerWidth<800) document.getElementById("detailPanel").scrollIntoView({behavior:'smooth'});
+    });
+  });
+
+  // Render detail
+  if(selectedRelief){
+    const pkg = holdowner.find(p=>p.reliefRun===selectedRelief);
+    if(pkg) renderDetail(pkg);
+  }
+}
+
+function renderDetail(pkg) {
+  const {details, totalPay, workDays, routes} = getPackageDetails(pkg);
+  const dp = document.getElementById("detailPanel");
+
+  dp.innerHTML = `
+    <div class="week-header">
+      <div class="week-title">${pkg.reliefRun}</div>
+      <div class="week-sub">Weekly Relief Schedule</div>
+      <div class="week-stats">
+        <div><div class="stat-label">Weekly Pay</div><div class="stat-value">${totalPay.toFixed(1)} hrs</div></div>
+        <div><div class="stat-label">Work Days</div><div class="stat-value">${workDays}</div></div>
+        <div><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">${routes.map(r=>routeTag(r)).join('')}</div></div>
+      </div>
+    </div>
+    ${details.map(d=>{
+      if(d.off) return `<div class="day-row off"><span class="day-label" style="color:var(--w30)">${d.day}</span><span class="day-off-text">Day Off</span></div>`;
+      if(!d.info) return `<div class="day-row missing"><span class="day-label" style="color:var(--w50)">${d.day}</span><span style="font-size:13px;color:var(--w40);margin-left:12px">Run ${d.runno} — data not found</span></div>`;
+      const rt = d.info.routes[0];
+      return `<div class="day-row">
+        <div class="day-header">
+          <div class="day-header-left">
+            <span class="day-label" style="color:var(--accent)">${d.day}</span>
+            ${routeTag(rt.r)}
+            <span style="font-size:12px;color:var(--w40)">Run ${d.runno}</span>
+          </div>
+          <span class="day-pay">${d.info.pay} hrs</span>
+        </div>
+        <div class="day-details">
+          <span>🕐 ${d.info.start} → ${d.info.finish}</span>
+          <span>⏱ ${d.info.worktime}</span>
+          ${d.info.routes.length>1?'<span>🔀 Swing</span>':''}
+        </div>
+        ${d.info.routes.length>1?`<div style="margin-left:54px;margin-top:6px">${d.info.routes.map((rt2,i)=>`<div style="font-size:11px;color:var(--w40);margin-bottom:2px">Piece ${i+1}: ${routeTag(rt2.r,true)} ${rt2.pot} → ${rt2.pit} (${rt2.stime})</div>`).join('')}</div>`:''}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function buildRouteFilters() {
+  const el = document.getElementById("routeFilters");
+  el.innerHTML = allRoutes.map(r=>`<button class="route-filter-btn" data-route="${r}">${r}</button>`).join('');
+  el.querySelectorAll('.route-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const r=btn.dataset.route;
+      if(excludedRoutes.has(r)){excludedRoutes.delete(r);btn.classList.remove('excluded');}
+      else{excludedRoutes.add(r);btn.classList.add('excluded');}
+      updateClearBtn();
+      render();
+    });
+  });
+}
+
+function updateClearBtn(){
+  const minHrs=parseFloat(document.getElementById("minHrs").value)||0;
+  document.getElementById("clearFilters").style.display=(excludedRoutes.size>0||minHrs>0)?'inline-block':'none';
+  const active=excludedRoutes.size+(minHrs>0?1:0);
+  const btn=document.getElementById("filterToggle");
+  btn.textContent=`⚙ Filters${active>0?' ('+active+')':''}`;
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("sortBy").addEventListener("change", render);
+document.getElementById("minHrs").addEventListener("input", function(){
+  document.getElementById("minHrsLabel").textContent = this.value+" hrs";
+  updateClearBtn();
+  render();
+});
+document.getElementById("filterToggle").addEventListener("click", function(){
+  const panel=document.getElementById("filterPanel");
+  panel.classList.toggle("show");
+  this.classList.toggle("active");
+});
+document.getElementById("clearFilters").addEventListener("click", function(){
+  excludedRoutes.clear();
+  document.querySelectorAll('.route-filter-btn').forEach(b=>b.classList.remove('excluded'));
+  document.getElementById("minHrs").value=0;
+  document.getElementById("minHrsLabel").textContent="0 hrs";
+  updateClearBtn();
+  render();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+</script>
+</body>
+</html>
