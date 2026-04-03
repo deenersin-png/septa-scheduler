@@ -360,15 +360,14 @@ function buildDetailHTML(pkg){
           '<span class="day-label">'+d.day+'</span>'+
           routeTag(rt.r,true)+
           linkHTML+
-          (isSwing?'<span class="swing-badge">SWING</span>':'')+
         '</div>'+
         '<span class="day-pay">'+d.info.pay+' hrs</span>'+
       '</div>'+
       '<div class="day-details">'+
         '<span>'+d.info.start+' → '+d.info.finish+'</span>'+
         '<span>'+d.info.worktime+'</span>'+
-        (isSwing?'<span style="color:#9b5de5;font-weight:600;">Pull-in: '+d.info.swingdur+'</span>':'')+
       '</div>'+
+      (isSwing?'<div style="margin-left:44px;margin-top:6px;font-size:12px;color:#9b5de5;font-weight:600;">Swing: '+d.info.swingdur+'</div>':'')+
       (isSwing?'<div class="swing-details">'+
         d.info.routes.map((rt2)=>'<div class="swing-detail-row">'+routeTag(rt2.r,true)+'<span>'+rt2.pot+' → '+rt2.pit+'</span><span style="color:var(--w30);">('+rt2.stime+')</span></div>').join('')+
       '</div>':'')+
