@@ -45,11 +45,12 @@
   .sort-select{width:100%;background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:12px 14px;color:#fff;font-size:14px;outline:none;cursor:pointer;font-family:var(--sans);}
   .sort-select option{background:#1a1f2e;}
   .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;display:flex;gap:20px;align-items:flex-start;}
-  .list-panel{flex:0 0 100%;width:100%;max-height:calc(100vh - 180px);overflow-y:auto;padding-right:0;}
-  .detail-panel{flex:1;position:sticky;top:90px;max-height:calc(100vh - 120px);overflow-y:auto;}
+  .list-panel{flex:0 0 100%;width:100%;max-height:none;overflow-y:visible;padding-right:0;}
+  .detail-panel{width:100%;max-height:none;overflow-y:visible;position:static;display:none;}
+  .detail-panel.show{display:block;}
   .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;margin-bottom:10px;}
-  .pkg-card:hover{border-color:rgba(243,115,33,0.3);}
-  .pkg-card.selected{background:rgba(243,115,33,0.12);border-color:var(--accent);}
+  .pkg-card:hover{border-color:rgba(243,115,33,0.3);background:var(--w05);}
+  .pkg-card.selected{background:rgba(243,115,33,0.12);border-color:var(--accent);border-bottom-left-radius:0;border-bottom-right-radius:0;}
   .pkg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .pkg-name{font-size:19px;font-weight:800;color:var(--accent);font-family:var(--mono);}
   .pkg-pay{background:var(--accent15);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;font-family:var(--mono);}
@@ -57,7 +58,7 @@
   .pkg-meta{font-size:13px;color:var(--w40);}
   .route-tag{color:#fff;padding:3px 12px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:0.5px;display:inline-block;text-shadow:0 1px 2px rgba(0,0,0,0.3);line-height:1.4;}
   .route-tag.small{padding:2px 8px;font-size:11px;}
-  .week-header{background:linear-gradient(135deg,var(--accent15),rgba(243,115,33,0.05));border-radius:12px;padding:24px;margin-bottom:20px;border:1px solid var(--accent20);}
+  .week-header{background:linear-gradient(135deg,var(--accent15),rgba(243,115,33,0.05));border-radius:0;border-top:0;padding:20px 16px;margin-bottom:0;border:1px solid var(--accent20);border-top:none;border-left:2px solid var(--accent);border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);border-bottom-left-radius:12px;border-bottom-right-radius:12px;margin-bottom:10px;}
   .week-title{font-size:28px;font-weight:800;color:var(--accent);font-family:var(--mono);margin-bottom:4px;}
   .week-sub{font-size:14px;color:var(--w50);margin-bottom:16px;}
   .week-stats{display:flex;gap:20px;flex-wrap:wrap;}
@@ -74,8 +75,8 @@
   .day-pay{color:var(--accent);font-weight:700;font-size:15px;font-family:var(--mono);}
   .day-details{display:flex;gap:16px;font-size:13px;color:var(--w55);margin-left:62px;flex-wrap:wrap;margin-top:6px;}
   .swing-badge{background:rgba(155,93,229,0.3);color:#9b5de5;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;}
-  .paddle-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--accent20);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:14px;cursor:pointer;text-decoration:none;font-weight:700;transition:all 0.2s;margin-left:6px;}
-  .paddle-btn:hover{background:var(--accent);color:#fff;}
+  .run-number{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;padding:2px 6px;border-radius:4px;transition:all 0.2s;}
+  .run-number:hover{background:rgba(243,115,33,0.2);text-decoration:underline;}
   .empty-state{text-align:center;padding:80px 20px;color:rgba(255,255,255,0.2);}
   .empty-icon{font-size:48px;margin-bottom:12px;}
   .empty-title{font-size:18px;font-weight:600;}
@@ -384,23 +385,27 @@ function render() {
   if (pkgs.length === 0) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No reliefs found</div><div class="empty-sub">Try adjusting your filters</div></div>';
   } else {
-    list.innerHTML = pkgs.map(p =>
-      '<div class="pkg-card' + (selectedRelief === p.reliefRun ? ' selected' : '') + '" data-relief="' + p.reliefRun + '">' +
-      '<div class="pkg-header">' +
-      '<span class="pkg-name">' + p.reliefRun + '</span>' +
-      '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
-      '</div>' +
-      '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
-      '<div class="pkg-meta">' + p.workDays + ' work days</div>' +
-      '</div>'
-    ).join('');
+    list.innerHTML = pkgs.map(p => {
+      const offDayText = p.offDays.length > 0 ? 'Off: ' + p.offDays.join(', ') : 'No days off';
+      return '<div class="pkg-card' + (selectedRelief === p.reliefRun ? ' selected' : '') + '" data-relief="' + p.reliefRun + '">' +
+        '<div class="pkg-header">' +
+        '<span class="pkg-name">' + p.reliefRun + '</span>' +
+        '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
+        '</div>' +
+        '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
+        '<div class="pkg-meta">' + offDayText + '</div>' +
+        '</div>';
+    }).join('');
   }
 
   list.querySelectorAll('.pkg-card').forEach(card => {
     card.addEventListener('click', () => {
       selectedRelief = card.dataset.relief;
       render();
-      if (window.innerWidth < 800) document.getElementById("detailPanel").scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        document.getElementById("detailPanel").classList.add("show");
+        document.getElementById("detailPanel").scrollIntoView({ behavior: 'smooth' });
+      }, 0);
     });
   });
 
@@ -438,9 +443,7 @@ function renderDetail(pkg) {
         '<div class="day-header-left">' +
         '<span class="day-label" style="color:var(--accent)">' + d.day + '</span>' +
         routeTag(rt.r) +
-        '<span style="font-size:13px;color:var(--w40);display:flex;align-items:center;">Run ' + d.runno + 
-        '<a href="' + moblink + '" class="paddle-btn" title="Open in Paddle">🏏</a>' +
-        '</span>' +
+        '<a href="' + moblink + '" class="run-number">Run ' + d.runno + '</a>' +
         (isSwing ? '<span class="swing-badge">SWING</span>' : '') +
         '</div>' +
         '<span class="day-pay">' + d.info.pay + ' hrs</span>' +
