@@ -30,7 +30,6 @@
   .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;opacity:0.8;transition:opacity 0.2s;}
   .back-link:hover{opacity:1;}
   .controls{max-width:1200px;margin:0 auto;padding:16px 20px 0;}
-  .controls-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
   .filter-label{font-size:13px;color:var(--w50);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
   .route-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
   .route-filter-btn{background:var(--w06);border:1px solid var(--w10);border-radius:6px;padding:8px 14px;color:var(--w50);font-size:13px;cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;}
@@ -44,24 +43,28 @@
   .hours-value{color:var(--accent);font-weight:700;font-family:var(--mono);}
   .sort-select{width:100%;background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:12px 14px;color:#fff;font-size:14px;outline:none;cursor:pointer;font-family:var(--sans);}
   .sort-select option{background:#1a1f2e;}
-  .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;display:flex;gap:20px;align-items:flex-start;}
-  .list-panel{flex:0 0 100%;width:100%;max-height:none;overflow-y:visible;padding-right:0;}
-  .detail-panel{width:100%;max-height:none;overflow-y:visible;position:static;display:none;}
-  .detail-panel.show{display:block;}
-  .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;margin-bottom:10px;}
+  .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;}
+
+  /* Card + Accordion */
+  .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:16px;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:0;}
   .pkg-card:hover{border-color:rgba(243,115,33,0.3);background:var(--w05);}
-  .pkg-card.selected{background:rgba(243,115,33,0.12);border-color:var(--accent);border-bottom-left-radius:0;border-bottom-right-radius:0;}
+  .pkg-card.open{background:rgba(243,115,33,0.12);border-color:var(--accent);border-bottom-left-radius:0;border-bottom-right-radius:0;}
+  .pkg-wrap{margin-bottom:10px;}
+  .pkg-detail{overflow:hidden;max-height:0;transition:max-height 0.35s ease;border:2px solid var(--accent);border-top:none;border-bottom-left-radius:12px;border-bottom-right-radius:12px;background:linear-gradient(135deg,var(--accent15),rgba(243,115,33,0.05));}
+  .pkg-detail.open{max-height:2000px;}
+  .pkg-detail-inner{padding:20px 16px;}
+
   .pkg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .pkg-name{font-size:19px;font-weight:800;color:var(--accent);font-family:var(--mono);}
   .pkg-pay{background:var(--accent15);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;font-family:var(--mono);}
+  .pkg-chevron{font-size:16px;color:var(--accent);transition:transform 0.3s;margin-left:8px;flex-shrink:0;}
+  .pkg-chevron.open{transform:rotate(180deg);}
   .pkg-routes{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
   .pkg-meta{font-size:13px;color:var(--w40);}
   .route-tag{color:#fff;padding:3px 12px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:0.5px;display:inline-block;text-shadow:0 1px 2px rgba(0,0,0,0.3);line-height:1.4;}
   .route-tag.small{padding:2px 8px;font-size:11px;}
-  .week-header{background:linear-gradient(135deg,var(--accent15),rgba(243,115,33,0.05));border-radius:0;border-top:0;padding:20px 16px;margin-bottom:0;border:1px solid var(--accent20);border-top:none;border-left:2px solid var(--accent);border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);border-bottom-left-radius:12px;border-bottom-right-radius:12px;margin-bottom:10px;}
-  .week-title{font-size:28px;font-weight:800;color:var(--accent);font-family:var(--mono);margin-bottom:4px;}
-  .week-sub{font-size:14px;color:var(--w50);margin-bottom:16px;}
-  .week-stats{display:flex;gap:20px;flex-wrap:wrap;}
+
+  .week-stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;}
   .stat-item{flex:1;min-width:140px;}
   .stat-label{font-size:12px;color:var(--w40);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
   .stat-value{font-size:26px;font-weight:800;color:#fff;font-family:var(--mono);}
@@ -75,8 +78,8 @@
   .day-pay{color:var(--accent);font-weight:700;font-size:15px;font-family:var(--mono);}
   .day-details{display:flex;gap:16px;font-size:13px;color:var(--w55);margin-left:62px;flex-wrap:wrap;margin-top:6px;}
   .swing-badge{background:rgba(155,93,229,0.3);color:#9b5de5;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;}
-  .run-number{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;padding:2px 6px;border-radius:4px;transition:all 0.2s;}
-  .run-number:hover{background:rgba(243,115,33,0.2);text-decoration:underline;}
+  .run-link{color:var(--accent);font-weight:700;text-decoration:none;padding:3px 8px;border-radius:4px;background:rgba(243,115,33,0.12);border:1px solid rgba(243,115,33,0.3);font-size:13px;font-family:var(--mono);transition:background 0.2s;}
+  .run-link:hover{background:rgba(243,115,33,0.25);}
   .empty-state{text-align:center;padding:80px 20px;color:rgba(255,255,255,0.2);}
   .empty-icon{font-size:48px;margin-bottom:12px;}
   .empty-title{font-size:18px;font-weight:600;}
@@ -87,12 +90,7 @@
   @media(max-width:800px){
     .header-title{font-size:22px;}
     .header-badge{font-size:10px;padding:2px 8px;}
-    .main{flex-direction:column;gap:0;}
-    .list-panel{flex:1 1 100%!important;max-height:none!important;padding-right:0;}
-    .detail-panel{position:static!important;max-height:none!important;}
     .controls{padding:12px 16px 0;}
-    .week-header{padding:20px;margin-bottom:16px;}
-    .week-title{font-size:24px;}
     .week-stats{gap:12px;}
     .stat-item{min-width:110px;}
     .day-details{margin-left:0;margin-top:8px;}
@@ -120,15 +118,11 @@
 <div class="controls">
   <div class="filter-label">Exclude Routes (tap to exclude)</div>
   <div class="route-filters" id="routeFilters"></div>
-  
   <div class="hours-section">
     <div class="hours-label">Minimum Weekly Hours: <span class="hours-value" id="minHrsLabel">40 hrs</span></div>
     <input type="range" min="40" max="65" step="1" value="40" id="minHrs">
-    <div class="range-info">
-      <span>40 hrs</span><span>65 hrs</span>
-    </div>
+    <div class="range-info"><span>40 hrs</span><span>65 hrs</span></div>
   </div>
-
   <div>
     <select class="sort-select" id="sortBy">
       <option value="relief">Sort: Relief #</option>
@@ -139,29 +133,18 @@
 </div>
 
 <div class="main">
-  <div class="list-panel" id="listPanel">
+  <div id="listPanel">
     <div class="loading" id="loadingMsg">
       <div class="loading-spinner"></div>
       Loading schedule data...
     </div>
   </div>
-  <div class="detail-panel" id="detailPanel">
-    <div class="empty-state">
-      <div class="empty-icon">📋</div>
-      <div class="empty-title">Select a relief</div>
-      <div class="empty-sub">Pick a relief run from the left to see your full week schedule</div>
-    </div>
-  </div>
 </div>
 
 <script>
-// ============================================================
-// CORRECT PATH: data/callowhill/ on main branch
-// ============================================================
 const REPO = "deenersin-png/septa-scheduler";
 const BRANCH = "main";
 const DATA_PATH = "data/callowhill";
-
 const CSV_URLS = {
   weekday:   "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/weekday.csv",
   saturday:  "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/saturday.csv",
@@ -181,306 +164,217 @@ let runsByDay = {Weekday:{},Saturday:{},Sunday:{}};
 let holdowner = [];
 let allRoutes = [];
 let excludedRoutes = new Set();
-let selectedRelief = null;
+let openRelief = null;
 
-// ============================================================
-// CSV PARSING
-// ============================================================
-function cleanStr(s) { return (s || "").replace(/\r/g, "").trim(); }
-
-function parseCSVRow(row) {
-  const f = []; let c = "", q = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (ch === '"') q = !q;
-    else if (ch === ',' && !q) { f.push(c.trim()); c = ""; }
-    else if (ch !== '\r') c += ch;
+function cleanStr(s){return(s||"").replace(/\r/g,"").trim();}
+function parseCSVRow(row){
+  const f=[];let c="",q=false;
+  for(let i=0;i<row.length;i++){
+    const ch=row[i];
+    if(ch==='"')q=!q;
+    else if(ch===','&&!q){f.push(c.trim());c="";}
+    else if(ch!=='\r')c+=ch;
   }
-  f.push(c.trim());
-  return f;
+  f.push(c.trim());return f;
 }
 
-function parseScheduleCSV(text) {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h));
-  const idx = {};
-  hdr.forEach((h, i) => { idx[h] = i; });
-
-  const runs = [];
-  for (let i = 1; i < lines.length; i++) {
-    const v = parseCSVRow(lines[i]);
-    const get = (name) => cleanStr(v[idx[name]] || "");
-    const runno = get("runno");
-    if (!runno) continue;
-
-    const routes = [];
-    for (let r = 1; r <= 10; r++) {
-      const rVal = get("r" + r);
-      if (rVal) {
-        routes.push({
-          r: rVal, b: get("b" + r),
-          pot: get("potype" + r) + " " + get("pot" + r),
-          pit: get("pitype" + r) + " " + get("pit" + r),
-          stime: get("stime" + r),
-        });
-      }
+function parseScheduleCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const hdr=parseCSVRow(lines[0]).map(h=>cleanStr(h));
+  const idx={};hdr.forEach((h,i)=>{idx[h]=i;});
+  const runs=[];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]);
+    const get=(name)=>cleanStr(v[idx[name]]||"");
+    const runno=get("runno");if(!runno)continue;
+    const routes=[];
+    for(let r=1;r<=10;r++){
+      const rVal=get("r"+r);
+      if(rVal)routes.push({r:rVal,b:get("b"+r),pot:get("potype"+r)+" "+get("pot"+r),pit:get("pitype"+r)+" "+get("pit"+r),stime:get("stime"+r)});
     }
-
-    const startRaw = get("start");
-    const finishRaw = get("finish");
-    const sM = (startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || startRaw;
-    const fM = (finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || finishRaw;
-
-    runs.push({
-      runno, depot: get("depot"), day: get("day"),
-      start: sM, finish: fM, worktime: get("worktime"),
-      pay: parseFloat(get("pay")) || 8.0, routes
-    });
+    const startRaw=get("start"),finishRaw=get("finish");
+    const sM=(startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||startRaw;
+    const fM=(finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||finishRaw;
+    runs.push({runno,depot:get("depot"),day:get("day"),start:sM,finish:fM,worktime:get("worktime"),pay:parseFloat(get("pay"))||8.0,routes});
   }
   return runs;
 }
 
-function parseHoldownerCSV(text) {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h).toLowerCase());
-
-  const pkgs = [];
-  for (let i = 1; i < lines.length; i++) {
-    const v = parseCSVRow(lines[i]).map(s => cleanStr(s));
-    const rr = v[0];
-    if (!rr) continue;
-
-    const findCol = (names) => {
-      for (const name of names) {
-        const idx = hdr.indexOf(name);
-        if (idx >= 0 && v[idx]) return v[idx];
-      }
-      return null;
+function parseHoldownerCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const hdr=parseCSVRow(lines[0]).map(h=>cleanStr(h).toLowerCase());
+  const pkgs=[];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]).map(s=>cleanStr(s));
+    const rr=v[0];if(!rr)continue;
+    const findCol=(names)=>{for(const name of names){const idx=hdr.indexOf(name);if(idx>=0&&v[idx])return v[idx];}return null;};
+    const days={
+      Mon:findCol(["monday","mon"])||v[1]||"OFF",
+      Tue:findCol(["tuesday","tue"])||v[2]||"OFF",
+      Wed:findCol(["wednesday","wed"])||v[3]||"OFF",
+      Thu:findCol(["thursday","thu"])||v[4]||"OFF",
+      Fri:findCol(["friday","fri"])||v[5]||"OFF",
+      Sat:findCol(["saturday","sat"])||v[6]||"OFF",
+      Sun:findCol(["sunday","sun"])||v[7]||"OFF",
     };
-
-    const days = {
-      Mon: findCol(["monday", "mon"]) || v[1] || "OFF",
-      Tue: findCol(["tuesday", "tue"]) || v[2] || "OFF",
-      Wed: findCol(["wednesday", "wed"]) || v[3] || "OFF",
-      Thu: findCol(["thursday", "thu"]) || v[4] || "OFF",
-      Fri: findCol(["friday", "fri"]) || v[5] || "OFF",
-      Sat: findCol(["saturday", "sat"]) || v[6] || "OFF",
-      Sun: findCol(["sunday", "sun"]) || v[7] || "OFF",
-    };
-    Object.keys(days).forEach(k => { if (days[k].toUpperCase() === "OFF") days[k] = "OFF"; });
-    pkgs.push({ reliefRun: rr, days });
+    Object.keys(days).forEach(k=>{if(days[k].toUpperCase()==="OFF")days[k]="OFF";});
+    pkgs.push({reliefRun:rr,days});
   }
   return pkgs;
 }
 
-// ============================================================
-// DATA LOADING
-// ============================================================
-async function fetchCSV(url) {
-  try {
-    const r = await fetch(url);
-    if (!r.ok) { console.warn("HTTP " + r.status + ": " + url); return null; }
-    const text = await r.text();
-    if (text && text.length > 10 && !text.includes("<!DOCTYPE")) return text;
+async function fetchCSV(url){
+  try{
+    const r=await fetch(url);
+    if(!r.ok){console.warn("HTTP "+r.status+": "+url);return null;}
+    const text=await r.text();
+    if(text&&text.length>10&&!text.includes("<!DOCTYPE"))return text;
     return null;
-  } catch (e) { console.warn("Fetch error: " + url, e); return null; }
+  }catch(e){console.warn("Fetch error: "+url,e);return null;}
 }
 
-async function loadData() {
-  console.log("Loading from:", CSV_URLS);
-
-  const [wdText, satText, sunText, hoText] = await Promise.all([
-    fetchCSV(CSV_URLS.weekday),
-    fetchCSV(CSV_URLS.saturday),
-    fetchCSV(CSV_URLS.sunday),
-    fetchCSV(CSV_URLS.holdowner),
+async function loadData(){
+  const [wdText,satText,sunText,hoText]=await Promise.all([
+    fetchCSV(CSV_URLS.weekday),fetchCSV(CSV_URLS.saturday),
+    fetchCSV(CSV_URLS.sunday),fetchCSV(CSV_URLS.holdowner),
   ]);
-
-  if (wdText) {
-    const runs = parseScheduleCSV(wdText);
-    runs.forEach(r => { runsByDay.Weekday[r.runno] = r; });
-    console.log("Weekday:", runs.length, "runs");
-  }
-  if (satText) {
-    const runs = parseScheduleCSV(satText);
-    runs.forEach(r => { runsByDay.Saturday[r.runno] = r; });
-    console.log("Saturday:", runs.length, "runs");
-  }
-  if (sunText) {
-    const runs = parseScheduleCSV(sunText);
-    runs.forEach(r => { runsByDay.Sunday[r.runno] = r; });
-    console.log("Sunday:", runs.length, "runs");
-  }
-  if (hoText) {
-    holdowner = parseHoldownerCSV(hoText);
-    console.log("Holdowner:", holdowner.length, "reliefs");
-  } else {
-    console.warn("No holdowner.csv loaded");
-  }
-
-  // Collect all routes
-  const rs = new Set();
-  Object.values(runsByDay).forEach(day => Object.values(day).forEach(r => r.routes.forEach(rt => rs.add(rt.r))));
-  allRoutes = [...rs].sort();
-
+  if(wdText){const runs=parseScheduleCSV(wdText);runs.forEach(r=>{runsByDay.Weekday[r.runno]=r;});}
+  if(satText){const runs=parseScheduleCSV(satText);runs.forEach(r=>{runsByDay.Saturday[r.runno]=r;});}
+  if(sunText){const runs=parseScheduleCSV(sunText);runs.forEach(r=>{runsByDay.Sunday[r.runno]=r;});}
+  if(hoText)holdowner=parseHoldownerCSV(hoText);
+  const rs=new Set();
+  Object.values(runsByDay).forEach(day=>Object.values(day).forEach(r=>r.routes.forEach(rt=>rs.add(rt.r))));
+  allRoutes=[...rs].sort();
   buildRouteFilters();
   render();
-  document.getElementById("loadingMsg").style.display = "none";
+  document.getElementById("loadingMsg").style.display="none";
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
-function getRunInfo(dayAbbr, runno) {
-  if (runno === "OFF") return null;
-  return runsByDay[DAY_TO_TYPE[dayAbbr]]?.[runno] || null;
+function getRunInfo(dayAbbr,runno){
+  if(runno==="OFF")return null;
+  return runsByDay[DAY_TO_TYPE[dayAbbr]]?.[runno]||null;
 }
 
-function getPackageDetails(pkg) {
-  const details = []; let totalPay = 0, workDays = 0; const routes = new Set(); const offDays = [];
-  DAY_ORDER.forEach(day => {
-    const rn = pkg.days[day];
-    if (rn === "OFF") { 
-      details.push({ day, off: true }); 
-      offDays.push(day);
-    }
-    else {
-      const info = getRunInfo(day, rn);
-      if (info) { totalPay += info.pay; workDays++; info.routes.forEach(rt => routes.add(rt.r)); details.push({ day, off: false, runno: rn, info }); }
-      else { details.push({ day, off: false, runno: rn, info: null }); }
+function getPackageDetails(pkg){
+  const details=[];let totalPay=0,workDays=0;const routes=new Set();const offDays=[];
+  DAY_ORDER.forEach(day=>{
+    const rn=pkg.days[day];
+    if(rn==="OFF"){details.push({day,off:true});offDays.push(day);}
+    else{
+      const info=getRunInfo(day,rn);
+      if(info){totalPay+=info.pay;workDays++;info.routes.forEach(rt=>routes.add(rt.r));details.push({day,off:false,runno:rn,info});}
+      else{details.push({day,off:false,runno:rn,info:null});}
     }
   });
-  return { details, totalPay: Math.round(totalPay * 100) / 100, workDays, routes: [...routes], offDays };
+  return{details,totalPay:Math.round(totalPay*100)/100,workDays,routes:[...routes],offDays};
 }
 
-function routeTag(route, small) {
-  const bg = ROUTE_COLORS[route] || "#555";
-  return '<span class="route-tag' + (small ? ' small' : '') + '" style="background:' + bg + '">' + route + '</span>';
+function routeTag(route,small){
+  const bg=ROUTE_COLORS[route]||"#555";
+  return '<span class="route-tag'+(small?' small':'')+'" style="background:'+bg+'">'+route+'</span>';
 }
 
-// ============================================================
-// RENDERING
-// ============================================================
-function render() {
-  const sortBy = document.getElementById("sortBy").value;
-  const minHrs = parseFloat(document.getElementById("minHrs").value) || 40;
-
-  let pkgs = holdowner.map(pkg => {
-    const d = getPackageDetails(pkg);
-    return { ...pkg, ...d };
-  });
-
-  if (excludedRoutes.size > 0) pkgs = pkgs.filter(p => !p.routes.some(r => excludedRoutes.has(r)));
-  if (minHrs > 40) pkgs = pkgs.filter(p => p.totalPay >= minHrs);
-
-  if (sortBy === "pay-high") pkgs.sort((a, b) => b.totalPay - a.totalPay);
-  else if (sortBy === "pay-low") pkgs.sort((a, b) => a.totalPay - b.totalPay);
-  else pkgs.sort((a, b) => a.reliefRun.localeCompare(b.reliefRun, undefined, { numeric: true }));
-
-  document.getElementById("count").textContent = pkgs.length;
-
-  const list = document.getElementById("listPanel");
-  if (pkgs.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No reliefs found</div><div class="empty-sub">Try adjusting your filters</div></div>';
-  } else {
-    list.innerHTML = pkgs.map(p => {
-      const offDayText = p.offDays.length > 0 ? 'Off: ' + p.offDays.join(', ') : 'No days off';
-      return '<div class="pkg-card' + (selectedRelief === p.reliefRun ? ' selected' : '') + '" data-relief="' + p.reliefRun + '">' +
-        '<div class="pkg-header">' +
-        '<span class="pkg-name">' + p.reliefRun + '</span>' +
-        '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
-        '</div>' +
-        '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
-        '<div class="pkg-meta">' + offDayText + '</div>' +
+function buildDetailHTML(pkg){
+  const{details,totalPay,workDays,routes,offDays}=getPackageDetails(pkg);
+  const offDayString=offDays.length>0?'Off Days: '+offDays.join(', '):'';
+  return '<div class="week-stats">'+
+    '<div class="stat-item"><div class="stat-label">Weekly Hours</div><div class="stat-value">'+totalPay.toFixed(1)+'</div></div>'+
+    '<div class="stat-item"><div class="stat-label">Work Days</div><div class="stat-value">'+workDays+'</div></div>'+
+    '<div class="stat-item"><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">'+routes.map(r=>routeTag(r)).join('')+'</div></div>'+
+    (offDayString?'<div class="stat-item" style="flex:1;min-width:100%;"><div class="stat-label">Off</div><div style="font-size:15px;color:var(--w40);margin-top:4px;">'+offDayString+'</div></div>':'')+
+    '</div>'+
+    details.map(d=>{
+      if(d.off)return '<div class="day-row off"><span class="day-label" style="color:var(--w30)">'+d.day+'</span><span class="day-off-text">Day Off</span></div>';
+      if(!d.info)return '<div class="day-row missing"><span class="day-label" style="color:var(--w50)">'+d.day+'</span><span style="font-size:14px;color:var(--w40);margin-left:12px">Run '+d.runno+' — not found in schedule</span></div>';
+      const rt=d.info.routes[0];
+      const isSwing=d.info.routes.length>1;
+      const moblink='moblink://open?run='+encodeURIComponent(d.runno);
+      return '<div class="day-row">'+
+        '<div class="day-header">'+
+        '<div class="day-header-left">'+
+        '<span class="day-label" style="color:var(--accent)">'+d.day+'</span>'+
+        routeTag(rt.r)+
+        '<a href="'+moblink+'" class="run-link">'+d.runno+'</a>'+
+        (isSwing?'<span class="swing-badge">SWING</span>':'')+
+        '</div>'+
+        '<span class="day-pay">'+d.info.pay+' hrs</span>'+
+        '</div>'+
+        '<div class="day-details">'+
+        '<span>🕐 '+d.info.start+' → '+d.info.finish+'</span>'+
+        '<span>⏱ '+d.info.worktime+'</span>'+
+        '</div>'+
         '</div>';
     }).join('');
-  }
+}
 
-  list.querySelectorAll('.pkg-card').forEach(card => {
-    card.addEventListener('click', () => {
-      selectedRelief = card.dataset.relief;
+function render(){
+  const sortBy=document.getElementById("sortBy").value;
+  const minHrs=parseFloat(document.getElementById("minHrs").value)||40;
+  let pkgs=holdowner.map(pkg=>{const d=getPackageDetails(pkg);return{...pkg,...d};});
+  if(excludedRoutes.size>0)pkgs=pkgs.filter(p=>!p.routes.some(r=>excludedRoutes.has(r)));
+  if(minHrs>40)pkgs=pkgs.filter(p=>p.totalPay>=minHrs);
+  if(sortBy==="pay-high")pkgs.sort((a,b)=>b.totalPay-a.totalPay);
+  else if(sortBy==="pay-low")pkgs.sort((a,b)=>a.totalPay-b.totalPay);
+  else pkgs.sort((a,b)=>a.reliefRun.localeCompare(b.reliefRun,undefined,{numeric:true}));
+  document.getElementById("count").textContent=pkgs.length;
+  const list=document.getElementById("listPanel");
+  if(pkgs.length===0){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No reliefs found</div><div class="empty-sub">Try adjusting your filters</div></div>';
+    return;
+  }
+  list.innerHTML=pkgs.map(p=>{
+    const offDayText=p.offDays.length>0?'Off: '+p.offDays.join(', '):'No days off';
+    const isOpen=openRelief===p.reliefRun;
+    return '<div class="pkg-wrap" id="wrap-'+p.reliefRun+'">'+
+      '<div class="pkg-card'+(isOpen?' open':'')+'" data-relief="'+p.reliefRun+'">'+
+      '<div class="pkg-header">'+
+      '<span class="pkg-name">'+p.reliefRun+'</span>'+
+      '<div style="display:flex;align-items:center;gap:8px;">'+
+      '<span class="pkg-pay">'+p.totalPay.toFixed(1)+' hrs/wk</span>'+
+      '<span class="pkg-chevron'+(isOpen?' open':'')+'">&#9660;</span>'+
+      '</div>'+
+      '</div>'+
+      '<div class="pkg-routes">'+p.routes.map(r=>routeTag(r,true)).join('')+'</div>'+
+      '<div class="pkg-meta">'+offDayText+'</div>'+
+      '</div>'+
+      '<div class="pkg-detail'+(isOpen?' open':'')+'" id="detail-'+p.reliefRun+'">'+
+      (isOpen?'<div class="pkg-detail-inner">'+buildDetailHTML(holdowner.find(h=>h.reliefRun===p.reliefRun))+'</div>':'')+
+      '</div>'+
+      '</div>';
+  }).join('');
+  list.querySelectorAll('.pkg-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const relief=card.dataset.relief;
+      openRelief=(openRelief===relief)?null:relief;
       render();
-      setTimeout(() => {
-        document.getElementById("detailPanel").classList.add("show");
-        document.getElementById("detailPanel").scrollIntoView({ behavior: 'smooth' });
-      }, 0);
+      if(openRelief){
+        setTimeout(()=>{document.getElementById("wrap-"+openRelief)?.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+      }
     });
   });
-
-  if (selectedRelief) {
-    const pkg = holdowner.find(p => p.reliefRun === selectedRelief);
-    if (pkg) renderDetail(pkg);
-  }
 }
 
-function renderDetail(pkg) {
-  const { details, totalPay, workDays, routes, offDays } = getPackageDetails(pkg);
-  const dp = document.getElementById("detailPanel");
-
-  const offDayString = offDays.length > 0 ? 'Off Days: ' + offDays.join(', ') : '';
-
-  dp.innerHTML =
-    '<div class="week-header">' +
-    '<div class="week-title">' + pkg.reliefRun + '</div>' +
-    '<div class="week-sub">Weekly Relief Schedule</div>' +
-    '<div class="week-stats">' +
-    '<div class="stat-item"><div class="stat-label">Weekly Pay</div><div class="stat-value">' + totalPay.toFixed(1) + ' hrs</div></div>' +
-    '<div class="stat-item"><div class="stat-label">Work Days</div><div class="stat-value">' + workDays + '</div></div>' +
-    '<div class="stat-item"><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">' + routes.map(r => routeTag(r)).join('') + '</div></div>' +
-    (offDayString ? '<div class="stat-item" style="flex:1;min-width:100%;"><div class="stat-label">Off</div><div style="font-size:15px;color:var(--w40);margin-top:4px;">' + offDayString + '</div></div>' : '') +
-    '</div>' +
-    '</div>' +
-    details.map(d => {
-      if (d.off) return '<div class="day-row off"><span class="day-label" style="color:var(--w30)">' + d.day + '</span><span class="day-off-text">Day Off</span></div>';
-      if (!d.info) return '<div class="day-row missing"><span class="day-label" style="color:var(--w50)">' + d.day + '</span><span style="font-size:14px;color:var(--w40);margin-left:12px">Run ' + d.runno + ' — not found in schedule</span></div>';
-      const rt = d.info.routes[0];
-      const isSwing = d.info.routes.length > 1;
-      const moblink = 'moblink://open?url=https://paddle.app/relief/' + d.runno;
-      return '<div class="day-row">' +
-        '<div class="day-header">' +
-        '<div class="day-header-left">' +
-        '<span class="day-label" style="color:var(--accent)">' + d.day + '</span>' +
-        routeTag(rt.r) +
-        '<a href="' + moblink + '" class="run-number">Run ' + d.runno + '</a>' +
-        (isSwing ? '<span class="swing-badge">SWING</span>' : '') +
-        '</div>' +
-        '<span class="day-pay">' + d.info.pay + ' hrs</span>' +
-        '</div>' +
-        '<div class="day-details">' +
-        '<span>🕐 ' + d.info.start + ' → ' + d.info.finish + '</span>' +
-        '<span>⏱ ' + d.info.worktime + '</span>' +
-        '</div>' +
-        '</div>';
-    }).join('');
-}
-
-function buildRouteFilters() {
-  const el = document.getElementById("routeFilters");
-  el.innerHTML = allRoutes.map(r => '<button class="route-filter-btn" data-route="' + r + '">' + r + '</button>').join('');
-  el.querySelectorAll('.route-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const r = btn.dataset.route;
-      if (excludedRoutes.has(r)) { excludedRoutes.delete(r); btn.classList.remove('excluded'); }
-      else { excludedRoutes.add(r); btn.classList.add('excluded'); }
+function buildRouteFilters(){
+  const el=document.getElementById("routeFilters");
+  el.innerHTML=allRoutes.map(r=>'<button class="route-filter-btn" data-route="'+r+'">'+r+'</button>').join('');
+  el.querySelectorAll('.route-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const r=btn.dataset.route;
+      if(excludedRoutes.has(r)){excludedRoutes.delete(r);btn.classList.remove('excluded');}
+      else{excludedRoutes.add(r);btn.classList.add('excluded');}
       render();
     });
   });
 }
 
-// ============================================================
-// EVENT LISTENERS
-// ============================================================
-document.getElementById("sortBy").addEventListener("change", render);
-document.getElementById("minHrs").addEventListener("input", function () {
-  document.getElementById("minHrsLabel").textContent = this.value + " hrs";
+document.getElementById("sortBy").addEventListener("change",render);
+document.getElementById("minHrs").addEventListener("input",function(){
+  document.getElementById("minHrsLabel").textContent=this.value+" hrs";
   render();
 });
 
-// ============================================================
-// INIT
-// ============================================================
 loadData();
 </script>
 </body>
