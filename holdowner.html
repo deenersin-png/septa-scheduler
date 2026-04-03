@@ -1,9 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-QXEKGF4DXT');
+    </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Holdowner Picker</title>
+<title>Callowhill Bus Relief</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -22,68 +29,70 @@
   ::-webkit-scrollbar-thumb{background:rgba(243,115,33,0.3);border-radius:3px;}
   .header{background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%);border-bottom:1px solid var(--accent15);padding:16px 20px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
   .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;}
-  .header-title{font-size:22px;font-weight:800;color:var(--accent);font-family:var(--mono);}
-  .header-badge{font-size:10px;background:var(--accent20);color:var(--accent);padding:2px 8px;border-radius:4px;font-weight:700;letter-spacing:1px;margin-left:10px;}
-  .header-sub{font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;}
-  .header-count{font-size:13px;color:var(--w40);}
+  .header-title{font-size:24px;font-weight:800;color:var(--accent);font-family:var(--mono);}
+  .header-badge{font-size:11px;background:var(--accent20);color:var(--accent);padding:3px 10px;border-radius:4px;font-weight:700;letter-spacing:1px;margin-left:10px;}
+  .header-sub{font-size:13px;color:rgba(255,255,255,0.35);margin-top:2px;}
+  .header-count{font-size:14px;color:var(--w40);}
   .header-count span{color:var(--accent);font-weight:700;font-family:var(--mono);}
   .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;opacity:0.8;transition:opacity 0.2s;}
   .back-link:hover{opacity:1;}
   .controls{max-width:1200px;margin:0 auto;padding:16px 20px 0;}
-  .controls-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
-  .search-input{flex:1;min-width:200px;background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:10px 14px;color:#fff;font-size:14px;outline:none;font-family:var(--sans);}
-  .sort-select{background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:10px 14px;color:#fff;font-size:13px;outline:none;cursor:pointer;font-family:var(--sans);}
-  .sort-select option{background:#1a1f2e;}
-  .filter-btn{background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:10px 16px;color:#fff;font-size:13px;cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;}
-  .filter-btn.active{background:var(--accent20);border-color:var(--accent);color:var(--accent);}
-  .filter-panel{background:var(--w03);border:1px solid var(--w08);border-radius:12px;padding:16px;margin-bottom:12px;display:none;}
-  .filter-panel.show{display:block;}
-  .filter-label{font-size:12px;color:var(--w50);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
-  .route-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-  .route-filter-btn{background:var(--w06);border:1px solid var(--w10);border-radius:6px;padding:6px 12px;color:var(--w50);font-size:12px;cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;}
+  .filter-label{font-size:13px;color:var(--w50);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+  .route-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .route-filter-btn{background:var(--w06);border:1px solid var(--w10);border-radius:6px;padding:8px 14px;color:var(--w50);font-size:13px;cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;}
   .route-filter-btn.excluded{background:rgba(231,76,60,0.3);border-color:#e74c3c;color:#e74c3c;text-decoration:line-through;}
-  input[type="range"]{-webkit-appearance:none;background:var(--w10);height:4px;border-radius:2px;outline:none;width:100%;}
-  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
-  .clear-btn{margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 14px;color:var(--w50);font-size:12px;cursor:pointer;font-family:var(--sans);}
-  .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;display:flex;gap:20px;align-items:flex-start;}
-  .list-panel{flex:0 0 380px;max-height:calc(100vh - 180px);overflow-y:auto;padding-right:8px;}
-  .detail-panel{flex:1;position:sticky;top:90px;max-height:calc(100vh - 120px);overflow-y:auto;}
-  .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all 0.2s;margin-bottom:8px;}
-  .pkg-card:hover{border-color:rgba(243,115,33,0.3);}
-  .pkg-card.selected{background:rgba(243,115,33,0.12);border-color:var(--accent);}
-  .pkg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
-  .pkg-name{font-size:17px;font-weight:800;color:var(--accent);font-family:var(--mono);}
-  .pkg-pay{background:var(--accent15);color:var(--accent);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;font-family:var(--mono);}
+  .hours-section{margin-bottom:16px;}
+  input[type="range"]{-webkit-appearance:none;background:var(--w10);height:5px;border-radius:2px;outline:none;width:100%;}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;}
+  input[type="range"]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;border:none;}
+  .range-info{display:flex;justify-content:space-between;font-size:12px;color:var(--w30);margin-top:6px;}
+  .hours-label{font-size:14px;color:var(--w50);margin-bottom:8px;font-weight:600;}
+  .hours-value{color:var(--accent);font-weight:700;font-family:var(--mono);}
+  .sort-select{width:100%;background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:12px 14px;color:#fff;font-size:14px;outline:none;cursor:pointer;font-family:var(--sans);margin-bottom:16px;}
+  .sort-select option{background:#1a1f2e;}
+  .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;}
+  .pkg-wrap{margin-bottom:10px;}
+  .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:16px;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
+  .pkg-card:hover{border-color:rgba(243,115,33,0.3);background:var(--w05);}
+  .pkg-card.open{background:rgba(243,115,33,0.08);border-color:var(--accent);border-bottom-left-radius:0;border-bottom-right-radius:0;}
+  .pkg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .pkg-name{font-size:19px;font-weight:800;color:var(--accent);font-family:var(--mono);}
+  .pkg-right{display:flex;align-items:center;gap:8px;}
+  .pkg-pay{background:var(--accent15);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;font-family:var(--mono);}
+  .pkg-chevron{font-size:14px;color:var(--accent);transition:transform 0.3s;flex-shrink:0;}
+  .pkg-chevron.open{transform:rotate(180deg);}
   .pkg-routes{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
-  .pkg-meta{font-size:11px;color:var(--w40);}
-  .route-tag{color:#fff;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:0.5px;display:inline-block;text-shadow:0 1px 2px rgba(0,0,0,0.3);line-height:1.4;}
-  .route-tag.small{padding:1px 6px;font-size:10px;}
-  .week-header{background:linear-gradient(135deg,var(--accent15),rgba(243,115,33,0.05));border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid var(--accent20);}
-  .week-title{font-size:24px;font-weight:800;color:var(--accent);font-family:var(--mono);margin-bottom:4px;}
-  .week-sub{font-size:13px;color:var(--w50);margin-bottom:12px;}
-  .week-stats{display:flex;gap:24px;flex-wrap:wrap;}
-  .stat-label{font-size:11px;color:var(--w40);text-transform:uppercase;letter-spacing:1px;}
-  .stat-value{font-size:22px;font-weight:800;color:#fff;font-family:var(--mono);}
-  .day-row{padding:12px 16px;background:var(--w03);border-radius:8px;margin-bottom:6px;border-left:4px solid var(--accent);}
+  .pkg-meta{font-size:13px;color:var(--w40);}
+  .route-tag{color:#fff;padding:3px 12px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:0.5px;display:inline-block;text-shadow:0 1px 2px rgba(0,0,0,0.3);line-height:1.4;}
+  .route-tag.small{padding:2px 8px;font-size:11px;}
+  .pkg-detail{overflow:hidden;max-height:0;transition:max-height 0.4s ease;border:2px solid var(--accent);border-top:none;border-bottom-left-radius:12px;border-bottom-right-radius:12px;}
+  .pkg-detail.open{max-height:3000px;}
+  .pkg-detail-inner{padding:12px 16px 16px;}
+  .day-row{padding:12px 14px;background:var(--w03);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent);}
+  .day-row:last-child{margin-bottom:0;}
   .day-row.off{border-left-color:#333;}
   .day-row.missing{border-left-color:#555;}
-  .day-label{width:44px;font-weight:700;font-size:13px;display:inline-block;}
-  .day-off-text{font-size:14px;color:var(--w25);font-style:italic;margin-left:12px;}
-  .day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-  .day-header-left{display:flex;align-items:center;gap:10px;}
-  .day-pay{color:var(--accent);font-weight:700;font-size:13px;font-family:var(--mono);}
-  .day-details{display:flex;gap:16px;font-size:12px;color:var(--w55);margin-left:54px;flex-wrap:wrap;}
+  .day-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .day-header-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .day-label{width:36px;font-weight:700;font-size:13px;color:var(--accent);font-family:var(--mono);flex-shrink:0;}
+  .day-off-label{width:36px;font-weight:700;font-size:13px;color:var(--w30);font-family:var(--mono);flex-shrink:0;}
+  .day-off-text{font-size:13px;color:var(--w25);font-style:italic;}
+  .day-pay{color:var(--accent);font-weight:700;font-size:13px;font-family:var(--mono);white-space:nowrap;}
+  .day-details{display:flex;gap:14px;font-size:12px;color:var(--w50);margin-top:6px;margin-left:44px;flex-wrap:wrap;align-items:center;}
+  .swing-badge{background:rgba(155,93,229,0.3);color:#9b5de5;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;}
+  .run-link{color:var(--accent);font-weight:700;text-decoration:none;padding:3px 10px;border-radius:4px;background:rgba(243,115,33,0.12);border:1px solid rgba(243,115,33,0.25);font-size:12px;font-family:var(--mono);transition:background 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+  .run-link:hover{background:rgba(243,115,33,0.28);}
+  .run-link-icon{font-size:11px;opacity:0.7;}
   .empty-state{text-align:center;padding:80px 20px;color:rgba(255,255,255,0.2);}
   .empty-icon{font-size:48px;margin-bottom:12px;}
-  .empty-title{font-size:16px;font-weight:600;}
-  .empty-sub{font-size:13px;margin-top:8px;max-width:280px;margin-left:auto;margin-right:auto;}
+  .empty-title{font-size:18px;font-weight:600;}
+  .empty-sub{font-size:14px;margin-top:8px;max-width:280px;margin-left:auto;margin-right:auto;}
   .loading{text-align:center;padding:60px 20px;color:var(--w40);}
   .loading-spinner{width:40px;height:40px;border:3px solid var(--w10);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
   @keyframes spin{to{transform:rotate(360deg);}}
   @media(max-width:800px){
-    .main{flex-direction:column;}
-    .list-panel{flex:1 1 100%!important;max-height:none!important;}
-    .detail-panel{position:static!important;max-height:none!important;}
+    .controls{padding:12px 16px 0;}
+    .day-details{margin-left:0;margin-top:6px;}
   }
 </style>
 </head>
@@ -93,7 +102,7 @@
   <div class="header-inner">
     <div>
       <div style="display:flex;align-items:center;">
-        <span class="header-title">HOLDOWNER</span>
+        <span class="header-title">RELIEFS</span>
         <span class="header-badge">PICKER</span>
       </div>
       <div class="header-sub">
@@ -106,56 +115,40 @@
 </div>
 
 <div class="controls">
-  <div class="controls-row">
-    <input type="text" class="search-input" id="search" placeholder="Search relief or route...">
-    <select class="sort-select" id="sortBy">
-      <option value="relief">Sort: Relief #</option>
-      <option value="pay-high">Hours (Highest)</option>
-      <option value="pay-low">Hours (Lowest)</option>
-    </select>
-    <button class="filter-btn" id="filterToggle">⚙ Filters</button>
+  <div class="filter-label">Exclude Routes (tap to exclude)</div>
+  <div class="route-filters" id="routeFilters"></div>
+  <div class="hours-section">
+    <div class="hours-label">Minimum Weekly Hours: <span class="hours-value" id="minHrsLabel">40 hrs</span></div>
+    <input type="range" min="40" max="65" step="1" value="40" id="minHrs">
+    <div class="range-info"><span>40 hrs</span><span>65 hrs</span></div>
   </div>
-  <div class="filter-panel" id="filterPanel">
-    <div class="filter-label">Exclude Routes (tap to exclude)</div>
-    <div class="route-filters" id="routeFilters"></div>
-    <div class="filter-label">Minimum Weekly Hours: <span style="color:var(--accent)" id="minHrsLabel">0 hrs</span></div>
-    <input type="range" min="0" max="80" step="1" value="0" id="minHrs">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--w30);margin-top:4px;">
-      <span>0 hrs</span><span>80 hrs</span>
-    </div>
-    <button class="clear-btn" id="clearFilters" style="display:none">Clear All Filters</button>
-  </div>
+  <select class="sort-select" id="sortBy">
+    <option value="relief">Sort: Relief #</option>
+    <option value="pay-high">Hours (Highest)</option>
+    <option value="pay-low">Hours (Lowest)</option>
+  </select>
 </div>
 
 <div class="main">
-  <div class="list-panel" id="listPanel">
+  <div id="listPanel">
     <div class="loading" id="loadingMsg">
       <div class="loading-spinner"></div>
       Loading schedule data...
     </div>
   </div>
-  <div class="detail-panel" id="detailPanel">
-    <div class="empty-state">
-      <div class="empty-icon">📋</div>
-      <div class="empty-title">Select a relief</div>
-      <div class="empty-sub">Pick a relief run from the left to see your full week schedule</div>
-    </div>
-  </div>
 </div>
 
 <script>
-// ============================================================
-// CORRECT PATH: data/callowhill/ on main branch
-// ============================================================
-const REPO = "deenersin-png/septa-scheduler";
+const REPO   = "deenersin-png/septa-scheduler";
 const BRANCH = "main";
-const DATA_PATH = "data/callowhill";
+const BASE   = "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/data/callowhill/";
 
 const CSV_URLS = {
-  weekday:   "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/weekday.csv",
-  saturday:  "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/saturday.csv",
-  sunday:    "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/sunday.csv",
-  holdowner: "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH + "/" + DATA_PATH + "/holdowner.csv",
+  weekday:   BASE + "weekday.csv",
+  saturday:  BASE + "saturday.csv",
+  sunday:    BASE + "sunday.csv",
+  holdowner: BASE + "holdowner.csv",
+  pdfs:      BASE + "pdfs.csv",
 };
 
 const ROUTE_COLORS = {
@@ -163,325 +156,282 @@ const ROUTE_COLORS = {
   "44":"#f4a261","30":"#264653","38":"#6a4c93","31":"#1d3557",
   "40":"#a8dadc","46":"#06d6a0","L1 OWL":"#9b5de5","WCS":"#f15bb5",
 };
-const DAY_ORDER = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAY_ORDER   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const DAY_TO_TYPE = {Mon:"Weekday",Tue:"Weekday",Wed:"Weekday",Thu:"Weekday",Fri:"Weekday",Sat:"Saturday",Sun:"Sunday"};
 
-let runsByDay = {Weekday:{},Saturday:{},Sunday:{}};
-let holdowner = [];
-let allRoutes = [];
+let runsByDay  = {Weekday:{},Saturday:{},Sunday:{}};
+let holdowner  = [];
+let allRoutes  = [];
 let excludedRoutes = new Set();
-let selectedRelief = null;
+let openRelief = null;
 
-// ============================================================
-// CSV PARSING
-// ============================================================
-function cleanStr(s) { return (s || "").replace(/\r/g, "").trim(); }
+// pdfLinks[dayType][runno] = moblink URL
+// e.g. pdfLinks["Weekday"]["51"] = "https://...#page=1"
+let pdfLinks = {Weekday:{}, Saturday:{}, Sunday:{}};
 
-function parseCSVRow(row) {
-  const f = []; let c = "", q = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (ch === '"') q = !q;
-    else if (ch === ',' && !q) { f.push(c.trim()); c = ""; }
-    else if (ch !== '\r') c += ch;
+// ── CSV helpers ───────────────────────────────────────────────
+function cleanStr(s){ return (s||"").replace(/\r/g,"").trim(); }
+
+function parseCSVRow(row){
+  const f=[]; let c="", q=false;
+  for(let i=0;i<row.length;i++){
+    const ch=row[i];
+    if(ch==='"') q=!q;
+    else if(ch===','&&!q){ f.push(c.trim()); c=""; }
+    else if(ch!=='\r') c+=ch;
   }
-  f.push(c.trim());
-  return f;
+  f.push(c.trim()); return f;
 }
 
-function parseScheduleCSV(text) {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h));
-  const idx = {};
-  hdr.forEach((h, i) => { idx[h] = i; });
-
-  const runs = [];
-  for (let i = 1; i < lines.length; i++) {
-    const v = parseCSVRow(lines[i]);
-    const get = (name) => cleanStr(v[idx[name]] || "");
-    const runno = get("runno");
-    if (!runno) continue;
-
-    const routes = [];
-    for (let r = 1; r <= 10; r++) {
-      const rVal = get("r" + r);
-      if (rVal) {
-        routes.push({
-          r: rVal, b: get("b" + r),
-          pot: get("potype" + r) + " " + get("pot" + r),
-          pit: get("pitype" + r) + " " + get("pit" + r),
-          stime: get("stime" + r),
-        });
-      }
+function parseScheduleCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2) return [];
+  const hdr=parseCSVRow(lines[0]).map(h=>cleanStr(h).toLowerCase());
+  const col=(name)=>hdr.indexOf(name);
+  const runs=[];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]);
+    const get=(name)=>{ const idx=col(name); return idx>=0?cleanStr(v[idx]||""):""; };
+    const runno=get("runno"); if(!runno) continue;
+    const routes=[];
+    for(let r=1;r<=10;r++){
+      const rVal=get("r"+r);
+      if(rVal) routes.push({r:rVal, b:get("b"+r)});
     }
-
-    const startRaw = get("start");
-    const finishRaw = get("finish");
-    const sM = (startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || startRaw;
-    const fM = (finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i) || [])[1] || finishRaw;
-
+    const startRaw=get("start"), finishRaw=get("finish");
+    const sM=(startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||startRaw;
+    const fM=(finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||finishRaw;
     runs.push({
-      runno, depot: get("depot"), day: get("day"),
-      start: sM, finish: fM, worktime: get("worktime"),
-      pay: parseFloat(get("pay")) || 8.0, routes
+      runno, start:sM, finish:fM,
+      worktime: get("worktime"),
+      pay: parseFloat(get("pay"))||8.0,
+      routes
     });
   }
   return runs;
 }
 
-function parseHoldownerCSV(text) {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const hdr = parseCSVRow(lines[0]).map(h => cleanStr(h).toLowerCase());
+function parsePdfsCSV(text){
+  // columns: myid, runno, depot, page_1, page, day, moblink, pclink, triplink
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2) return;
+  const hdr=parseCSVRow(lines[0]).map(h=>cleanStr(h).toLowerCase());
+  const col=(name)=>hdr.indexOf(name);
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]);
+    const get=(name)=>{ const idx=col(name); return idx>=0?cleanStr(v[idx]||""):""; };
+    const runno  = get("runno");   if(!runno) continue;
+    const day    = get("day");     // "Weekday", "Saturday", "Sunday"
+    const moblink= get("moblink"); if(!moblink) continue;
+    // Normalise day value to match our keys
+    const key = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+    // key will be "Weekday", "Saturday", or "Sunday"
+    if(pdfLinks[key]) pdfLinks[key][runno] = moblink;
+  }
+}
 
-  const pkgs = [];
-  for (let i = 1; i < lines.length; i++) {
-    const v = parseCSVRow(lines[i]).map(s => cleanStr(s));
-    const rr = v[0];
-    if (!rr) continue;
-
-    const findCol = (names) => {
-      for (const name of names) {
-        const idx = hdr.indexOf(name);
-        if (idx >= 0 && v[idx]) return v[idx];
-      }
-      return null;
+function parseHoldownerCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2) return [];
+  const hdr=parseCSVRow(lines[0]).map(h=>cleanStr(h).toLowerCase());
+  const pkgs=[];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]).map(s=>cleanStr(s));
+    const rr=v[0]; if(!rr) continue;
+    const findCol=(names)=>{ for(const n of names){ const idx=hdr.indexOf(n); if(idx>=0&&v[idx]) return v[idx]; } return null; };
+    const days={
+      Mon: findCol(["monday","mon"])||v[1]||"OFF",
+      Tue: findCol(["tuesday","tue"])||v[2]||"OFF",
+      Wed: findCol(["wednesday","wed"])||v[3]||"OFF",
+      Thu: findCol(["thursday","thu"])||v[4]||"OFF",
+      Fri: findCol(["friday","fri"])||v[5]||"OFF",
+      Sat: findCol(["saturday","sat"])||v[6]||"OFF",
+      Sun: findCol(["sunday","sun"])||v[7]||"OFF",
     };
-
-    const days = {
-      Mon: findCol(["monday", "mon"]) || v[1] || "OFF",
-      Tue: findCol(["tuesday", "tue"]) || v[2] || "OFF",
-      Wed: findCol(["wednesday", "wed"]) || v[3] || "OFF",
-      Thu: findCol(["thursday", "thu"]) || v[4] || "OFF",
-      Fri: findCol(["friday", "fri"]) || v[5] || "OFF",
-      Sat: findCol(["saturday", "sat"]) || v[6] || "OFF",
-      Sun: findCol(["sunday", "sun"]) || v[7] || "OFF",
-    };
-    Object.keys(days).forEach(k => { if (days[k].toUpperCase() === "OFF") days[k] = "OFF"; });
-    pkgs.push({ reliefRun: rr, days });
+    Object.keys(days).forEach(k=>{ if(days[k].toUpperCase()==="OFF") days[k]="OFF"; });
+    pkgs.push({reliefRun:rr, days});
   }
   return pkgs;
 }
 
-// ============================================================
-// DATA LOADING
-// ============================================================
-async function fetchCSV(url) {
-  try {
-    const r = await fetch(url);
-    if (!r.ok) { console.warn("HTTP " + r.status + ": " + url); return null; }
-    const text = await r.text();
-    if (text && text.length > 10 && !text.includes("<!DOCTYPE")) return text;
+// ── Fetch ─────────────────────────────────────────────────────
+async function fetchCSV(url){
+  try{
+    const r=await fetch(url);
+    if(!r.ok){ console.warn("HTTP "+r.status+": "+url); return null; }
+    const text=await r.text();
+    if(text&&text.length>10&&!text.includes("<!DOCTYPE")) return text;
     return null;
-  } catch (e) { console.warn("Fetch error: " + url, e); return null; }
+  }catch(e){ console.warn("Fetch error:",url,e); return null; }
 }
 
-async function loadData() {
-  console.log("Loading from:", CSV_URLS);
-
-  const [wdText, satText, sunText, hoText] = await Promise.all([
-    fetchCSV(CSV_URLS.weekday),
-    fetchCSV(CSV_URLS.saturday),
-    fetchCSV(CSV_URLS.sunday),
-    fetchCSV(CSV_URLS.holdowner),
+async function loadData(){
+  const [wdText,satText,sunText,hoText,pdfText] = await Promise.all([
+    fetchCSV(CSV_URLS.weekday), fetchCSV(CSV_URLS.saturday),
+    fetchCSV(CSV_URLS.sunday),  fetchCSV(CSV_URLS.holdowner),
+    fetchCSV(CSV_URLS.pdfs),
   ]);
+  if(wdText){  parseScheduleCSV(wdText).forEach(r=>{runsByDay.Weekday[r.runno]=r;}); }
+  if(satText){ parseScheduleCSV(satText).forEach(r=>{runsByDay.Saturday[r.runno]=r;}); }
+  if(sunText){ parseScheduleCSV(sunText).forEach(r=>{runsByDay.Sunday[r.runno]=r;}); }
+  if(hoText)  holdowner=parseHoldownerCSV(hoText);
+  if(pdfText) parsePdfsCSV(pdfText);
 
-  if (wdText) {
-    const runs = parseScheduleCSV(wdText);
-    runs.forEach(r => { runsByDay.Weekday[r.runno] = r; });
-    console.log("Weekday:", runs.length, "runs");
-  }
-  if (satText) {
-    const runs = parseScheduleCSV(satText);
-    runs.forEach(r => { runsByDay.Saturday[r.runno] = r; });
-    console.log("Saturday:", runs.length, "runs");
-  }
-  if (sunText) {
-    const runs = parseScheduleCSV(sunText);
-    runs.forEach(r => { runsByDay.Sunday[r.runno] = r; });
-    console.log("Sunday:", runs.length, "runs");
-  }
-  if (hoText) {
-    holdowner = parseHoldownerCSV(hoText);
-    console.log("Holdowner:", holdowner.length, "reliefs");
-  } else {
-    console.warn("No holdowner.csv loaded");
-  }
-
-  // Collect all routes
-  const rs = new Set();
-  Object.values(runsByDay).forEach(day => Object.values(day).forEach(r => r.routes.forEach(rt => rs.add(rt.r))));
-  allRoutes = [...rs].sort();
+  const rs=new Set();
+  Object.values(runsByDay).forEach(day=>Object.values(day).forEach(r=>r.routes.forEach(rt=>rs.add(rt.r))));
+  allRoutes=[...rs].sort();
 
   buildRouteFilters();
   render();
-  document.getElementById("loadingMsg").style.display = "none";
+  document.getElementById("loadingMsg").style.display="none";
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
-function getRunInfo(dayAbbr, runno) {
-  if (runno === "OFF") return null;
+// ── Helpers ───────────────────────────────────────────────────
+function getRunInfo(dayAbbr, runno){
+  if(runno==="OFF") return null;
   return runsByDay[DAY_TO_TYPE[dayAbbr]]?.[runno] || null;
 }
 
-function getPackageDetails(pkg) {
-  const details = []; let totalPay = 0, workDays = 0; const routes = new Set();
-  DAY_ORDER.forEach(day => {
-    const rn = pkg.days[day];
-    if (rn === "OFF") { details.push({ day, off: true }); }
-    else {
-      const info = getRunInfo(day, rn);
-      if (info) { totalPay += info.pay; workDays++; info.routes.forEach(rt => routes.add(rt.r)); details.push({ day, off: false, runno: rn, info }); }
-      else { details.push({ day, off: false, runno: rn, info: null }); }
+function getMoblink(dayAbbr, runno){
+  const type = DAY_TO_TYPE[dayAbbr]; // "Weekday" | "Saturday" | "Sunday"
+  return pdfLinks[type]?.[runno] || null;
+}
+
+function getPackageDetails(pkg){
+  const details=[]; let totalPay=0, workDays=0;
+  const routes=new Set(); const offDays=[];
+  DAY_ORDER.forEach(day=>{
+    const rn=pkg.days[day];
+    if(rn==="OFF"){ details.push({day,off:true}); offDays.push(day); }
+    else{
+      const info=getRunInfo(day,rn);
+      if(info){ totalPay+=info.pay; workDays++; info.routes.forEach(rt=>routes.add(rt.r)); details.push({day,off:false,runno:rn,info}); }
+      else{ details.push({day,off:false,runno:rn,info:null}); }
     }
   });
-  return { details, totalPay: Math.round(totalPay * 100) / 100, workDays, routes: [...routes] };
+  return{ details, totalPay:Math.round(totalPay*100)/100, workDays, routes:[...routes], offDays };
 }
 
-function routeTag(route, small) {
-  const bg = ROUTE_COLORS[route] || "#555";
-  return '<span class="route-tag' + (small ? ' small' : '') + '" style="background:' + bg + '">' + route + '</span>';
+function routeTag(route,small){
+  const bg=ROUTE_COLORS[route]||"#555";
+  return '<span class="route-tag'+(small?' small':'')+'" style="background:'+bg+'">'+route+'</span>';
 }
 
-// ============================================================
-// RENDERING
-// ============================================================
-function render() {
-  const q = document.getElementById("search").value.toLowerCase().trim();
+// ── Detail: day rows only, no repeated summary ────────────────
+function buildDetailHTML(pkg){
+  const { details } = getPackageDetails(pkg);
+  return details.map(d=>{
+    if(d.off){
+      return '<div class="day-row off">'+
+        '<div class="day-header"><div class="day-header-left">'+
+        '<span class="day-off-label">'+d.day+'</span>'+
+        '<span class="day-off-text">Day Off</span>'+
+        '</div></div></div>';
+    }
+    if(!d.info){
+      return '<div class="day-row missing">'+
+        '<div class="day-header"><div class="day-header-left">'+
+        '<span class="day-label">'+d.day+'</span>'+
+        '<span style="font-size:13px;color:var(--w40)">Run '+d.runno+' — not in schedule</span>'+
+        '</div></div></div>';
+    }
+    const rt      = d.info.routes[0];
+    const isSwing = d.info.routes.length > 1;
+    const href    = getMoblink(d.day, d.runno); // real PDF URL from pdfs.csv
+    const linkHTML = href
+      ? '<a href="'+href+'" target="_blank" class="run-link">'+d.runno+' <span class="run-link-icon">↗</span></a>'
+      : '<span style="font-size:12px;font-family:var(--mono);color:var(--w30)">'+d.runno+'</span>';
+
+    return '<div class="day-row">'+
+      '<div class="day-header">'+
+        '<div class="day-header-left">'+
+          '<span class="day-label">'+d.day+'</span>'+
+          routeTag(rt.r,true)+
+          linkHTML+
+          (isSwing?'<span class="swing-badge">SWING</span>':'')+
+        '</div>'+
+        '<span class="day-pay">'+d.info.pay+' hrs</span>'+
+      '</div>'+
+      '<div class="day-details">'+
+        '<span>'+d.info.start+' → '+d.info.finish+'</span>'+
+        '<span>'+d.info.worktime+'</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Main render ───────────────────────────────────────────────
+function render(){
   const sortBy = document.getElementById("sortBy").value;
-  const minHrs = parseFloat(document.getElementById("minHrs").value) || 0;
+  const minHrs = parseFloat(document.getElementById("minHrs").value)||40;
 
-  let pkgs = holdowner.map(pkg => {
-    const d = getPackageDetails(pkg);
-    return { ...pkg, ...d };
-  });
+  let pkgs=holdowner.map(pkg=>{ const d=getPackageDetails(pkg); return{...pkg,...d}; });
+  if(excludedRoutes.size>0) pkgs=pkgs.filter(p=>!p.routes.some(r=>excludedRoutes.has(r)));
+  if(minHrs>40) pkgs=pkgs.filter(p=>p.totalPay>=minHrs);
+  if(sortBy==="pay-high") pkgs.sort((a,b)=>b.totalPay-a.totalPay);
+  else if(sortBy==="pay-low") pkgs.sort((a,b)=>a.totalPay-b.totalPay);
+  else pkgs.sort((a,b)=>a.reliefRun.localeCompare(b.reliefRun,undefined,{numeric:true}));
 
-  if (q) pkgs = pkgs.filter(p => p.reliefRun.toLowerCase().includes(q) || p.routes.some(r => r.toLowerCase().includes(q)));
-  if (excludedRoutes.size > 0) pkgs = pkgs.filter(p => !p.routes.some(r => excludedRoutes.has(r)));
-  if (minHrs > 0) pkgs = pkgs.filter(p => p.totalPay >= minHrs);
+  document.getElementById("count").textContent=pkgs.length;
+  const list=document.getElementById("listPanel");
 
-  if (sortBy === "pay-high") pkgs.sort((a, b) => b.totalPay - a.totalPay);
-  else if (sortBy === "pay-low") pkgs.sort((a, b) => a.totalPay - b.totalPay);
-  else pkgs.sort((a, b) => a.reliefRun.localeCompare(b.reliefRun, undefined, { numeric: true }));
-
-  document.getElementById("count").textContent = pkgs.length;
-
-  const list = document.getElementById("listPanel");
-  if (pkgs.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>No reliefs found</div></div>';
-  } else {
-    list.innerHTML = pkgs.map(p =>
-      '<div class="pkg-card' + (selectedRelief === p.reliefRun ? ' selected' : '') + '" data-relief="' + p.reliefRun + '">' +
-      '<div class="pkg-header">' +
-      '<span class="pkg-name">' + p.reliefRun + '</span>' +
-      '<span class="pkg-pay">' + p.totalPay.toFixed(1) + ' hrs/wk</span>' +
-      '</div>' +
-      '<div class="pkg-routes">' + p.routes.map(r => routeTag(r, true)).join('') + '</div>' +
-      '<div class="pkg-meta">' + p.workDays + ' work days · Off: ' + p.details.filter(d => d.off).map(d => d.day).join(', ') + '</div>' +
-      '</div>'
-    ).join('');
+  if(pkgs.length===0){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No reliefs found</div><div class="empty-sub">Try adjusting your filters</div></div>';
+    return;
   }
 
-  list.querySelectorAll('.pkg-card').forEach(card => {
-    card.addEventListener('click', () => {
-      selectedRelief = card.dataset.relief;
+  list.innerHTML=pkgs.map(p=>{
+    const offDayText=p.offDays.length>0?'Off: '+p.offDays.join(', '):'No days off';
+    const isOpen=openRelief===p.reliefRun;
+    return '<div class="pkg-wrap" id="wrap-'+p.reliefRun+'">'+
+      '<div class="pkg-card'+(isOpen?' open':'')+'" data-relief="'+p.reliefRun+'">'+
+        '<div class="pkg-header">'+
+          '<span class="pkg-name">'+p.reliefRun+'</span>'+
+          '<div class="pkg-right">'+
+            '<span class="pkg-pay">'+p.totalPay.toFixed(1)+' hrs/wk</span>'+
+            '<span class="pkg-chevron'+(isOpen?' open':'')+'">&#9660;</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="pkg-routes">'+p.routes.map(r=>routeTag(r,true)).join('')+'</div>'+
+        '<div class="pkg-meta">'+offDayText+'</div>'+
+      '</div>'+
+      '<div class="pkg-detail'+(isOpen?' open':'')+'" id="detail-'+p.reliefRun+'">'+
+        (isOpen?'<div class="pkg-detail-inner">'+buildDetailHTML(holdowner.find(h=>h.reliefRun===p.reliefRun))+'</div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  list.querySelectorAll('.pkg-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const relief=card.dataset.relief;
+      openRelief=(openRelief===relief)?null:relief;
       render();
-      if (window.innerWidth < 800) document.getElementById("detailPanel").scrollIntoView({ behavior: 'smooth' });
-    });
-  });
-
-  if (selectedRelief) {
-    const pkg = holdowner.find(p => p.reliefRun === selectedRelief);
-    if (pkg) renderDetail(pkg);
-  }
-}
-
-function renderDetail(pkg) {
-  const { details, totalPay, workDays, routes } = getPackageDetails(pkg);
-  const dp = document.getElementById("detailPanel");
-
-  dp.innerHTML =
-    '<div class="week-header">' +
-    '<div class="week-title">' + pkg.reliefRun + '</div>' +
-    '<div class="week-sub">Weekly Relief Schedule</div>' +
-    '<div class="week-stats">' +
-    '<div><div class="stat-label">Weekly Pay</div><div class="stat-value">' + totalPay.toFixed(1) + ' hrs</div></div>' +
-    '<div><div class="stat-label">Work Days</div><div class="stat-value">' + workDays + '</div></div>' +
-    '<div><div class="stat-label">Routes</div><div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">' + routes.map(r => routeTag(r)).join('') + '</div></div>' +
-    '</div>' +
-    '</div>' +
-    details.map(d => {
-      if (d.off) return '<div class="day-row off"><span class="day-label" style="color:var(--w30)">' + d.day + '</span><span class="day-off-text">Day Off</span></div>';
-      if (!d.info) return '<div class="day-row missing"><span class="day-label" style="color:var(--w50)">' + d.day + '</span><span style="font-size:13px;color:var(--w40);margin-left:12px">Run ' + d.runno + ' — not found in schedule</span></div>';
-      const rt = d.info.routes[0];
-      return '<div class="day-row">' +
-        '<div class="day-header">' +
-        '<div class="day-header-left">' +
-        '<span class="day-label" style="color:var(--accent)">' + d.day + '</span>' +
-        routeTag(rt.r) +
-        '<span style="font-size:12px;color:var(--w40)">Run ' + d.runno + '</span>' +
-        '</div>' +
-        '<span class="day-pay">' + d.info.pay + ' hrs</span>' +
-        '</div>' +
-        '<div class="day-details">' +
-        '<span>🕐 ' + d.info.start + ' → ' + d.info.finish + '</span>' +
-        '<span>⏱ ' + d.info.worktime + '</span>' +
-        (d.info.routes.length > 1 ? '<span>🔀 Swing</span>' : '') +
-        '</div>' +
-        (d.info.routes.length > 1 ? '<div style="margin-left:54px;margin-top:6px">' +
-          d.info.routes.map((rt2, i) => '<div style="font-size:11px;color:var(--w40);margin-bottom:2px">Piece ' + (i + 1) + ': ' + routeTag(rt2.r, true) + ' ' + rt2.pot + ' → ' + rt2.pit + ' (' + rt2.stime + ')</div>').join('') +
-          '</div>' : '') +
-        '</div>';
-    }).join('');
-}
-
-function buildRouteFilters() {
-  const el = document.getElementById("routeFilters");
-  el.innerHTML = allRoutes.map(r => '<button class="route-filter-btn" data-route="' + r + '">' + r + '</button>').join('');
-  el.querySelectorAll('.route-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const r = btn.dataset.route;
-      if (excludedRoutes.has(r)) { excludedRoutes.delete(r); btn.classList.remove('excluded'); }
-      else { excludedRoutes.add(r); btn.classList.add('excluded'); }
-      updateClearBtn(); render();
+      if(openRelief){
+        setTimeout(()=>{ document.getElementById("wrap-"+openRelief)?.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
+      }
     });
   });
 }
 
-function updateClearBtn() {
-  const minHrs = parseFloat(document.getElementById("minHrs").value) || 0;
-  document.getElementById("clearFilters").style.display = (excludedRoutes.size > 0 || minHrs > 0) ? 'inline-block' : 'none';
-  const active = excludedRoutes.size + (minHrs > 0 ? 1 : 0);
-  document.getElementById("filterToggle").textContent = '⚙ Filters' + (active > 0 ? ' (' + active + ')' : '');
+function buildRouteFilters(){
+  const el=document.getElementById("routeFilters");
+  el.innerHTML=allRoutes.map(r=>'<button class="route-filter-btn" data-route="'+r+'">'+r+'</button>').join('');
+  el.querySelectorAll('.route-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const r=btn.dataset.route;
+      if(excludedRoutes.has(r)){ excludedRoutes.delete(r); btn.classList.remove('excluded'); }
+      else{ excludedRoutes.add(r); btn.classList.add('excluded'); }
+      render();
+    });
+  });
 }
 
-// ============================================================
-// EVENT LISTENERS
-// ============================================================
-document.getElementById("search").addEventListener("input", render);
-document.getElementById("sortBy").addEventListener("change", render);
-document.getElementById("minHrs").addEventListener("input", function () {
-  document.getElementById("minHrsLabel").textContent = this.value + " hrs";
-  updateClearBtn(); render();
-});
-document.getElementById("filterToggle").addEventListener("click", function () {
-  document.getElementById("filterPanel").classList.toggle("show");
-  this.classList.toggle("active");
-});
-document.getElementById("clearFilters").addEventListener("click", function () {
-  excludedRoutes.clear();
-  document.querySelectorAll('.route-filter-btn').forEach(b => b.classList.remove('excluded'));
-  document.getElementById("minHrs").value = 0;
-  document.getElementById("minHrsLabel").textContent = "0 hrs";
-  updateClearBtn(); render();
+document.getElementById("sortBy").addEventListener("change",render);
+document.getElementById("minHrs").addEventListener("input",function(){
+  document.getElementById("minHrsLabel").textContent=this.value+" hrs";
+  render();
 });
 
-// ============================================================
-// INIT
-// ============================================================
 loadData();
 </script>
 </body>
