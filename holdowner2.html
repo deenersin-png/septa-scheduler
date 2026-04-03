@@ -210,9 +210,12 @@ function parseScheduleCSV(text){
     const startRaw=get("start"), finishRaw=get("finish");
     const sM=(startRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||startRaw;
     const fM=(finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||finishRaw;
+    const swingdur=get("swingdur");
     runs.push({
       runno, start:sM, finish:fM,
-      worktime: get("worktime").replace(/[()]/g, ""),
+      worktime: get("worktime").replace(/[()]/g, "").trim().replace(/\s+/g, " "),
+      swingdur: swingdur,
+      isSwing: swingdur&&swingdur.length>0,
       pay: parseFloat(get("pay"))||8.0,
       routes
     });
@@ -345,7 +348,7 @@ function buildDetailHTML(pkg){
         '</div></div></div>';
     }
     const rt      = d.info.routes[0];
-    const isSwing = d.info.routes.length > 1;
+    const isSwing = d.info.isSwing;
     const href    = getMoblink(d.day, d.runno);
     const linkHTML = href
       ? '<a href="'+href+'" target="_blank" class="run-link">'+d.runno+' <span class="run-link-icon">↗</span></a>'
@@ -364,6 +367,7 @@ function buildDetailHTML(pkg){
       '<div class="day-details">'+
         '<span>'+d.info.start+' → '+d.info.finish+'</span>'+
         '<span>'+d.info.worktime+'</span>'+
+        (isSwing?'<span style="color:#9b5de5;font-weight:600;">Pull-in: '+d.info.swingdur+'</span>':'')+
       '</div>'+
       (isSwing?'<div class="swing-details">'+
         d.info.routes.map((rt2)=>'<div class="swing-detail-row">'+routeTag(rt2.r,true)+'<span>'+rt2.pot+' → '+rt2.pit+'</span><span style="color:var(--w30);">('+rt2.stime+')</span></div>').join('')+
