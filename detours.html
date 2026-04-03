@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bus Detours</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QXEKGF4DXT');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ink: #0a0b0d;
+  --ink2: #13151a;
+  --ink3: #1d2028;
+  --line: rgba(255,255,255,0.07);
+  --line2: rgba(255,255,255,0.13);
+  --line3: rgba(255,255,255,0.22);
+  --dim: #4a4f5e;
+  --mid: #8a909f;
+  --text: #c8cdd8;
+  --bright: #e8ecf4;
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --green: #3dd68c;
+  --green-dim: rgba(61,214,140,0.1);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.1);
+  --red: #ff6b6b;
+  --red-dim: rgba(255,107,107,0.1);
+  --violet: #a78bfa;
+  --violet-dim: rgba(167,139,250,0.1);
+  --sans: 'IBM Plex Sans Condensed', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+html { font-size: 16px; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events:none;z-index:1000;
+}
+
+header {
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line2);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: auto;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  justify-content: space-between;
+}
+
+.hd-depot {
+  display:flex;align-items:center;gap:12px;
+  flex: 0 0 auto;
+}
+
+.hd-dot {
+  width:8px;height:8px;border-radius:50%;
+  background:var(--amber);
+  opacity: 0.7;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
+
+.hd-title {
+  font-family:var(--mono);
+  font-size:15px;
+  color:var(--bright);
+  font-weight:600;
+  letter-spacing:.04em;
+}
+
+.hd-pick { 
+  font-size:12px;
+  color:var(--dim);
+  margin-top:2px; 
+}
+
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-header {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bright);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+  letter-spacing: .04em;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+
+.btn-paddles {
+  background: var(--green);
+}
+
+.btn-paddles:hover {
+  background: #2dc67e;
+  transform: translateY(-1px);
+}
+
+.btn-live {
+  background: var(--red);
+}
+
+.btn-live:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
+}
+
+.toolbar {
+  background:var(--ink2);
+  border-bottom:1px solid var(--line);
+  padding:14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.route-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 250px;
+}
+
+.route-label {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--dim);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.route-select {
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--bright);
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight: 600;
+  padding:10px 16px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+  flex: 1 1 auto;
+  min-width: 150px;
+  outline: none;
+}
+
+.route-select:hover {
+  border-color: var(--line3);
+}
+
+.route-select:focus {
+  border-color: var(--amber);
+}
+
+.status-line {
+  font-size:13px;
+  color:var(--dim);
+  font-family:var(--mono);
+  white-space:nowrap;
+  flex: 0 0 auto;
+}
+
+.status-line strong { color:var(--amber); }
+
+.content-wrap {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.detour-card {
+  background:var(--ink2);
+  border:1px solid var(--line2);
+  border-radius:6px;
+  padding:16px;
+  margin-bottom:12px;
+  transition:border-color .2s, transform .15s;
+}
+
+.detour-card:hover {
+  border-color:var(--line3);
+  transform:translateY(-1px);
+}
+
+.detour-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.route-badge {
+  background: var(--amber-dim);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.detour-title {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bright);
+  flex: 1;
+  min-width: 200px;
+}
+
+.detour-direction {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  padding: 4px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.detour-body {
+  display: grid;
+  gap: 12px;
+}
+
+.detour-section {
+  display: grid;
+  gap: 6px;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dim);
+  letter-spacing: .08em;
+}
+
+.section-content {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: var(--dim);
+  text-align: center;
+}
+
+.empty-state p { 
+  font-size: 16px;
+  max-width: 400px;
+}
+
+.error-banner {
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line2);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+@media (max-width: 768px) {
+  html { font-size: 16px; }
+  
+  header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .hd-title {
+    font-size: 14px;
+  }
+
+  .header-buttons {
+    gap: 6px;
+  }
+
+  .btn-header {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .route-selector-wrap {
+    width: 100%;
+    min-width: unset;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .route-select {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .status-line {
+    width: 100%;
+  }
+
+  .content-wrap {
+    padding: 12px;
+  }
+
+  .detour-card {
+    padding: 12px;
+  }
+
+  .detour-header {
+    flex-wrap: wrap;
+  }
+
+  .detour-title {
+    flex-basis: 100%;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 16px; }
+  
+  .hd-title {
+    font-size: 13px;
+  }
+
+  .btn-header {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .route-label {
+    font-size: 12px;
+  }
+
+  .route-select {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .detour-card {
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+
+  .section-content {
+    font-size: 12px;
+  }
+
+  .detour-direction {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-depot">
+    <div class="hd-dot"></div>
+    <div>
+      <div class="hd-title">BUS DETOURS</div>
+      <div class="hd-pick">Real-time SEPTA Bus Route Detours</div>
+    </div>
+  </div>
+  <div class="header-buttons">
+    <a href="https://deenersin-png.github.io/septa-scheduler/" class="btn-header btn-paddles">PADDLES</a>
+    <a href="https://deenersin-png.github.io/live-tracker/" class="btn-header btn-live">LIVE</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="route-selector-wrap">
+    <label class="route-label" for="route-select">Select Route:</label>
+    <select class="route-select" id="route-select" onchange="loadDetours()">
+      <option value="">Loading routes...</option>
+    </select>
+  </div>
+  <div class="status-line"><strong id="detour-count">0</strong> detours found</div>
+</div>
+
+<div class="content-wrap">
+  <div id="detours-container"></div>
+</div>
+
+<script>
+let STATE = {
+  allDetours: [],
+  selectedRoute: null,
+  loading: false,
+  error: null,
+  routes: []
+};
+
+function initializeRoutes() {
+  const select = document.getElementById('route-select');
+  // Start loading detours to populate routes
+  loadAllDetours();
+}
+
+async function loadAllDetours() {
+  STATE.loading = true;
+  try {
+    const response = await fetch('https://www3.septa.org/api/BusDetours/');
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    
+    const data = await response.json();
+    
+    // Process the array of detour objects
+    STATE.allDetours = data || [];
+    
+    // Extract unique routes from the detours
+    const routeSet = new Set();
+    STATE.allDetours.forEach(detourGroup => {
+      if (detourGroup.route_id) {
+        routeSet.add(detourGroup.route_id);
+      }
+    });
+    
+    STATE.routes = Array.from(routeSet).sort((a, b) => {
+      const aNum = parseInt(a) || 0;
+      const bNum = parseInt(b) || 0;
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return a.localeCompare(b);
+    });
+    
+    // Populate dropdown
+    const select = document.getElementById('route-select');
+    const routeOptions = STATE.routes.map(r => `<option value="${r}">Route ${r}</option>`).join('');
+    select.innerHTML = `<option value="">All Routes</option>${routeOptions}`;
+    
+    STATE.loading = false;
+    renderDetours();
+  } catch (error) {
+    STATE.error = error.message;
+    STATE.loading = false;
+    renderError();
+  }
+}
+
+async function loadDetours() {
+  const select = document.getElementById('route-select');
+  STATE.selectedRoute = select.value;
+  renderDetours();
+}
+
+function renderDetours() {
+  const container = document.getElementById('detours-container');
+  const detourCount = document.getElementById('detour-count');
+  
+  if (STATE.loading) {
+    container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading detours...</div>';
+    return;
+  }
+
+  if (STATE.error) {
+    container.innerHTML = `<div class="error-banner">Error: ${STATE.error}</div>`;
+    return;
+  }
+
+  // Filter detours based on selected route
+  let filtered = STATE.allDetours;
+  if (STATE.selectedRoute) {
+    filtered = filtered.filter(d => d.route_id === STATE.selectedRoute);
+  }
+
+  if (!filtered || filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>No detours found${STATE.selectedRoute ? ` for Route ${STATE.selectedRoute}` : ''}</p>
+        <p style="font-size: 12px; color: var(--dim);">Check back later for updates</p>
+      </div>
+    `;
+    detourCount.textContent = '0';
+    return;
+  }
+
+  // Flatten all detour info from route groups
+  let allDetourCards = [];
+  filtered.forEach(routeGroup => {
+    const routeId = routeGroup.route_id || 'Unknown';
+    if (routeGroup.route_info && Array.isArray(routeGroup.route_info)) {
+      routeGroup.route_info.forEach(detour => {
+        allDetourCards.push({
+          routeId: routeId,
+          direction: detour.route_direction || '',
+          reason: detour.reason || '',
+          startLocation: detour.start_location || '',
+          endLocation: detour.end_location || '',
+          startDate: detour.start_date_time || '',
+          endDate: detour.end_date_time || '',
+          message: detour.current_message || ''
+        });
+      });
+    }
+  });
+
+  detourCount.textContent = allDetourCards.length;
+
+  let html = '';
+  allDetourCards.forEach(detour => {
+    html += `
+      <div class="detour-card">
+        <div class="detour-header">
+          <div class="route-badge">Route ${escapeHtml(detour.routeId)}</div>
+          <div class="detour-title">${escapeHtml(detour.reason || 'Bus Route Detour')}</div>
+          ${detour.direction ? `<div class="detour-direction">${escapeHtml(detour.direction)}</div>` : ''}
+        </div>
+        <div class="detour-body">
+          ${detour.startLocation || detour.endLocation ? `
+            <div class="detour-section">
+              <div class="section-label">Location</div>
+              <div class="section-content">
+                ${detour.startLocation ? `From: ${escapeHtml(detour.startLocation)}<br>` : ''}
+                ${detour.endLocation ? `To: ${escapeHtml(detour.endLocation)}` : ''}
+              </div>
+            </div>
+          ` : ''}
+          ${detour.message ? `
+            <div class="detour-section">
+              <div class="section-label">Details</div>
+              <div class="section-content">${escapeHtml(detour.message)}</div>
+            </div>
+          ` : ''}
+          ${detour.startDate || detour.endDate ? `
+            <div class="detour-section">
+              <div class="section-label">Timeline</div>
+              <div class="section-content">
+                ${detour.startDate ? `Start: ${escapeHtml(detour.startDate)}<br>` : ''}
+                ${detour.endDate ? `End: ${escapeHtml(detour.endDate)}` : ''}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderError() {
+  const container = document.getElementById('detours-container');
+  container.innerHTML = `<div class="error-banner">Error: ${STATE.error || 'Failed to load detours'}</div>`;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Initialize
+initializeRoutes();
+</script>
+</body>
+</html>
