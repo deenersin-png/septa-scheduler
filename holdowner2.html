@@ -212,7 +212,7 @@ function parseScheduleCSV(text){
     const fM=(finishRaw.match(/(\d{1,2}:\d{2}\s*[AP]M)/i)||[])[1]||finishRaw;
     runs.push({
       runno, start:sM, finish:fM,
-      worktime: get("worktime"),
+      worktime: get("worktime").replace(/[()]/g, ""),
       pay: parseFloat(get("pay"))||8.0,
       routes
     });
