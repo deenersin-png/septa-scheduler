@@ -5,6 +5,16 @@
       "label": "Callowhill",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
+     {
+      "name": "victory",
+      "label": "Victory",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frontier",
+      "label": "Frontier",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
     {
       "name": "elmwood",
       "label": "Elmwood",
