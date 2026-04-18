@@ -883,7 +883,9 @@ function initializeDistricts() {
     .map(d => `<option value="${d.name}">${d.label || d.name}</option>`)
     .join('');
   if (STATE.manifest.districts.length > 0) {
-    select.value = STATE.manifest.districts[0].name;
+    const saved = localStorage.getItem('paddleDepot');
+    const validSaved = STATE.manifest.districts.find(d => d.name === saved);
+    select.value = validSaved ? saved : STATE.manifest.districts[0].name;
     changeDistrict();
   }
 }
@@ -892,6 +894,7 @@ async function changeDistrict() {
   const select = document.getElementById('district-select');
   STATE.currentDistrict = select.value;
   if (!STATE.currentDistrict) return;
+  localStorage.setItem('paddleDepot', STATE.currentDistrict);
   
   try {
     STATE.runs = [];
@@ -1081,8 +1084,8 @@ function render() {
       <div class="card day-${run.day}">
         <div class="card-head">
           <div class="card-head-top">
+            ${pdfLink.pclink ? `<a class="run-num" href="${pdfLink.pclink}" target="_blank" style="text-decoration:none;">${run.runno}</a>` : `<div class="run-num">${run.runno}</div>`}
             <div class="run-day">${run.day}</div>
-            <div class="run-num">${run.runno}</div>
             <div class="run-actions">${paddleBtn}</div>
           </div>
           <div class="card-head-bottom">
