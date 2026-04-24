@@ -1000,7 +1000,7 @@ function render() {
   let filtered = STATE.runs.filter(r => {
     if (r.day !== STATE.currentDay) return false;
     if (searchRun && String(r.runno || '').trim() !== searchRun) return false;
-    if (searchBlock && String(r.b1 || '').trim() !== searchBlock) return false;
+    if (searchBlock && ![1,2,3,4,5,6,7,8,9,10].some(i => String(r['b'+i]||'').trim() === searchBlock)) return false;
     if (STATE.activeRoutes.size > 0) {
       const runRoutes = getRunRoutes(r);
       const allRoutesMatch = runRoutes.length > 0 && runRoutes.every(route => STATE.activeRoutes.has(route));
