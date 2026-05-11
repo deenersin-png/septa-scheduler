@@ -11,6 +11,11 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
+      "name": "victory-summer-2026",
+      "label": "Victory Summer",
+      "days": ["Victory Bus_6-21-2026_weekday", "Victory Bus_6-20-2026_saturday", "Victory Bus_6-20-2026_sunday"]
+    },
+    {
       "name": "frontier",
       "label": "Frontier",
       "days": ["Weekday", "Saturday", "Sunday"]
