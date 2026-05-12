@@ -31,6 +31,11 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
+      "name": "elmwood-summer2026",
+      "label": "Elmwood Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
       "name": "comly",
       "label": "Comly",
       "days": ["Weekday", "Saturday", "Sunday"]
@@ -45,6 +50,12 @@
       "label": "Frankford Rail",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
+    {
+      "name": "frankford-rail-summer2026",
+      "label": "Frankford Rail Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+
     {
       "name": "midvale",
       "label": "Midvale",
