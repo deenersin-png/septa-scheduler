@@ -5,6 +5,11 @@
       "label": "Callowhill",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
+    {
+      "name": "allegheny-summmer2026",
+      "label": "Allegheny Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
      {
       "name": "victory",
       "label": "Victory",
