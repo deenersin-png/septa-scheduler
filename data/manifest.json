@@ -27,7 +27,7 @@
     },
     {
       "name": "victory-summer-2026",
-      "label": "Victory-Bus-Summer",
+      "label": "Victory-Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
