@@ -6,7 +6,17 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "allegheny-summmer2026",
+      "name": "callowhillb-summer2026",
+      "label": "Callowhill Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "allegheny",
+      "label": "Allegheny",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "allegheny-summer2026",
       "label": "Allegheny Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
@@ -26,8 +36,18 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
+      "name": "frontier-summer2026",
+      "label": "Frontier Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
       "name": "southern",
       "label": "Southern",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "southern-summer2026",
+      "label": "Southern Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
@@ -46,8 +66,18 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
+      "name": "comly-summer2026",
+      "label": "Comly Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
       "name": "frankford-bus",
       "label": "Frankford Bus",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankfordb-summer2026",
+      "label": "Frankford Bus Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
