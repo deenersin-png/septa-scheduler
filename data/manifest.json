@@ -6,18 +6,8 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "callowhillb-summer2026",
-      "label": "Callowhill Summer",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
       "name": "allegheny",
       "label": "Allegheny",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "allegheny-summer2026",
-      "label": "Allegheny Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
      {
@@ -26,18 +16,8 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "victory-summer-2026",
-      "label": "Victory-Summer",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
       "name": "frontier",
       "label": "Frontier",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "frontier-summer2026",
-      "label": "Frontier Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
@@ -46,18 +26,8 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "southern-summer2026",
-      "label": "Southern Summer",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
       "name": "elmwood",
       "label": "Elmwood",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "elmwood-summer2026",
-      "label": "Elmwood Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
@@ -66,18 +36,8 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "comly-summer2026",
-      "label": "Comly Summer",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
       "name": "frankford-bus",
       "label": "Frankford Bus",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "frankfordb-summer2026",
-      "label": "Frankford Bus Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
@@ -86,18 +46,8 @@
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "frankford-rail-summer2026",
-      "label": "Frankford Rail Summer",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
       "name": "midvale",
       "label": "Midvale",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "midvale-summer2026",
-      "label": "Midvale Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
