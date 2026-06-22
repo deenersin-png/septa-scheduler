@@ -1,53 +1,53 @@
 {
   "districts": [
     {
-      "name": "callowhill",
-      "label": "Callowhill",
+      "name": "callowhillb-summer2026",
+      "label": "Callowhill Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "allegheny",
-      "label": "Allegheny",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-     {
-      "name": "victory",
-      "label": "Victory",
+      "name": "allegheny-summer2026",
+      "label": "Allegheny Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "frontier",
-      "label": "Frontier",
+      "name": "victory-summer-2026",
+      "label": "Victory-Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "southern",
-      "label": "Southern",
+      "name": "frontier-summer2026",
+      "label": "Frontier Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "elmwood",
-      "label": "Elmwood",
+      "name": "southern-summer2026",
+      "label": "Southern Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "comly",
-      "label": "Comly",
+      "name": "elmwood-summer2026",
+      "label": "Elmwood Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "frankford-bus",
-      "label": "Frankford Bus",
+      "name": "comly-summer2026",
+      "label": "Comly Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "frankford-rail",
-      "label": "Frankford Rail",
+      "name": "frankfordb-summer2026",
+      "label": "Frankford Bus Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "midvale",
-      "label": "Midvale",
+      "name": "frankford-rail-summer2026",
+      "label": "Frankford Rail Summer",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "midvale-summer2026",
+      "label": "Midvale Summer",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
