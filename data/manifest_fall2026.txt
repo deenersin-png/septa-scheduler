@@ -1,0 +1,54 @@
+{
+  "districts": [
+    {
+      "name": "callowhill",
+      "label": "Callowhill",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "allegheny",
+      "label": "Allegheny",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+     {
+      "name": "victory",
+      "label": "Victory",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frontier",
+      "label": "Frontier",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "southern",
+      "label": "Southern",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "elmwood",
+      "label": "Elmwood",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "comly",
+      "label": "Comly",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankford-bus",
+      "label": "Frankford Bus",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankford-rail",
+      "label": "Frankford Rail",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "midvale",
+      "label": "Midvale",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    }
+  ]
+}
