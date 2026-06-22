@@ -864,7 +864,7 @@ function getRunRoutes(run) {
 
 async function loadManifest() {
   try {
-    const response = await fetch('data/manifest_summer.json');
+    const response = await fetch('data/manifest.json');
     if (!response.ok) throw new Error('Manifest not found');
     STATE.manifest = await response.json();
     initializeDistricts();
