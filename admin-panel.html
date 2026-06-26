@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-
-(function() {
-  const pw = sessionStorage.getItem('admin_auth');
-  if (pw !== 'yourpassword') {
-    const entered = prompt('Admin password:');
-    if (entered !== 'yourpassword') {
-      document.body.innerHTML = '<h2>Access denied.</h2>';
-      throw new Error('unauthorized');
-    }
-    sessionStorage.setItem('admin_auth', entered);
-  }
-})();
-  
+<head>  
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SEPTA Admin Panel - Upload Districts</title>
