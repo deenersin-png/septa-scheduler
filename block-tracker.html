@@ -821,7 +821,10 @@ function annotateLayovers(merged) {
       }
     }
   }
-  return merged;
+  // Drop blocks parked at the terminal that have finished all their trips for
+  // the day — they've pulled in, not waiting to pull out, so keeping them (up
+  // to the 45-min ghost timeout) just clutters the tracker.
+  return merged.filter(b => !(b._isLayover && b._doneForDay));
 }
 
 // The scheduled start time relevant to this bus's current state: its next
