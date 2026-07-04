@@ -300,11 +300,33 @@ let schedRequestId = 0;
 // type) and reused across route changes.
 const paddle = { byBlock: new Map(), loaded: false, loading: false };
 
+// Holiday-aware day type. On July 4th, Thanksgiving, etc., SEPTA runs a
+// Sunday (or Saturday) schedule even though it's a weekday — the septa-gtfs
+// build publishes those exceptions (from GTFS calendar_dates.txt) as a
+// date→daytype map, which we consult before falling back to day-of-week.
+let calendarOverrides = {};
+
+function localISODate() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
 function getDayType() {
+  const ov = calendarOverrides[localISODate()];
+  if (ov) return ov;
   const d = new Date().getDay();
   if (d === 0) return 'sunday';
   if (d === 6) return 'saturday';
   return 'weekday';
+}
+
+async function loadCalendarOverrides() {
+  try {
+    const res = await fetch(GTFS_BASE + '/calendar-overrides.json');
+    if (res.ok) calendarOverrides = await res.json();
+  } catch(e) {}
 }
 
 // "HH:MM:SS" (GTFS allows hour >= 24 for past-midnight trips) → minutes since midnight
@@ -1553,8 +1575,12 @@ const ICONS = {
   window.addEventListener('online',  () => { if (state.route) onRouteChange(); });
   window.addEventListener('offline', () => setStatus('offline'));
 
-  loadPaddleData();
-  if (state.route) onRouteChange();
+  // Load holiday overrides first so getDayType() is correct before any
+  // schedule/paddle fetch reads it.
+  loadCalendarOverrides().then(() => {
+    loadPaddleData();
+    if (state.route) onRouteChange();
+  });
 })();
 </script>
 </body>
