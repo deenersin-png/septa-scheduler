@@ -7,6 +7,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>SEPTA Block Tracker</title>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QXEKGF4DXT');
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -92,7 +102,7 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .node-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
 .bus-node.you .node-card{border-color:var(--accent);box-shadow:0 0 16px var(--you-glow);background:linear-gradient(135deg,rgba(88,166,255,.06),var(--card))}
 .bus-node.my-leader .node-card{border-color:var(--orange);box-shadow:0 0 12px rgba(240,136,62,.15);background:linear-gradient(135deg,rgba(240,136,62,.04),var(--card))}
-.bus-node.layover .node-card{border-style:dashed;border-color:var(--yellow);background:linear-gradient(135deg,rgba(210,153,34,.06),var(--card))}
+.bus-node.layover .node-card{opacity:.88;border-style:dashed;border-color:var(--yellow)}
 
 /* CARD CONTENT */
 .node-row1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -108,7 +118,7 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .bus-node.you .block-num{color:var(--accent)}
 .bus-node.my-leader .block-num{color:var(--orange)}
 .bus-node.layover .block-num{color:var(--yellow)}
-.vehicle-num{display:flex;align-items:center;gap:4px;font-size:15px;font-weight:700;color:var(--text-dim);margin-left:8px;background:var(--border);padding:3px 9px;border-radius:5px}
+.vehicle-num{display:flex;align-items:center;gap:4px;font-size:15px;font-weight:700;color:var(--text-dim);margin-left:auto;background:var(--border);padding:3px 9px;border-radius:5px}
 .vehicle-num svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
 
 .node-row2{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}
@@ -122,7 +132,7 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .seat-tag.many{background:var(--green-dim);color:var(--green)}
 .seat-tag.few{background:var(--yellow-dim);color:var(--yellow)}
 .seat-tag.standing,.seat-tag.full{background:var(--red-dim);color:var(--red)}
-.stop-name{font-size:12px;color:var(--text-faint);font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stop-name{font-size:12px;color:var(--text-faint);font-weight:500;margin-left:auto;max-width:45%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* HEADWAY ROW */
 .headway-row{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim)}
@@ -134,42 +144,9 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .layover-row{display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim)}
 .terminal-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--yellow-dim);color:var(--yellow);letter-spacing:.04em;text-transform:uppercase}
 .layover-timer{font-size:13px;font-weight:700;color:var(--yellow);font-variant-numeric:tabular-nums}
-.due-out{font-size:12px;font-weight:700;color:var(--text-dim);margin-left:auto;font-variant-numeric:tabular-nums}
-.due-out.overdue{color:var(--red)}
-
-/* FLAG ROW (possible follower-bunching) */
-.flag-row{display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);flex-wrap:wrap}
-.flag-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--red-dim);color:var(--red);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-.flag-detail{font-size:12px;color:var(--text-dim)}
-
-/* SCHEDULED LEADER ROW */
-.sched-leader-row{display:flex;align-items:center;gap:6px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
-.sched-leader-label{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--red-dim);color:var(--red);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-.sched-leader-blk{font-size:13px;font-weight:800;color:var(--text)}
-.sched-leader-bus{font-size:12px;font-weight:600;color:var(--text-dim)}
-.sched-leader-missing{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--red-dim);color:var(--red);letter-spacing:.03em}
-.sched-leader-passed{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--orange-dim);color:var(--orange);letter-spacing:.03em}
-.not-tracking-tag{font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;background:var(--orange-dim);color:var(--orange)}
-
-/* BOTTOM ROW (location + run#) */
-.node-bottom{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
-
-/* PULLOFF ROW */
-.pulloff-row{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:var(--text-dim)}
-.pulloff-time{font-size:14px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
-
-/* NEIGHBOR ITEMS (leader above row1, follower below row1) */
-.neighbor-item{display:flex;align-items:center;gap:6px;font-size:12px}
-.neighbor-item.leader-n{padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid var(--border)}
-.neighbor-item.follower-n{padding-top:7px;margin-top:7px;border-top:1px solid var(--border)}
-.neighbor-label{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;min-width:72px;text-align:center;letter-spacing:.03em;text-transform:uppercase}
-.leader-n .neighbor-label{background:var(--orange-dim);color:var(--orange)}
-.follower-n .neighbor-label{background:var(--purple-dim);color:var(--purple)}
-.neighbor-blk{font-size:13px;font-weight:800;color:var(--text)}
-.neighbor-bus{font-size:12px;font-weight:600;color:var(--text-dim)}
 
 /* SECTION LABELS */
-.section-label{padding:10px 16px 8px;font-size:15px;font-weight:800;color:var(--text);letter-spacing:.04em;text-transform:uppercase;text-align:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--card);margin:4px 0}
+.section-label{padding:8px 0 6px 50px;font-size:12px;font-weight:700;color:var(--text-faint);letter-spacing:.06em;text-transform:uppercase}
 
 /* MESSAGES */
 .msg{text-align:center;padding:50px 20px;color:var(--text-dim)}
@@ -248,35 +225,16 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 const ROUTES = [
   '1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20',
   '21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40',
-  '41','42','43','44','45','46','47','48','50','51','52','53','54','55','56','57','58','59','60','61',
-  '62','63','64','65','66','67','68','70','71','73','75','77','78','79','80','81','82','84','88','89',
-  '90','91','92','93','94','95','96','97','98','99','100','101','102','103','104','105','106','107',
-  '108','109','110','111','112','113','114','115','117','118','119','120','123','124','125','126',
-  '127','128','129','130','131','132','133','139','150','201','204','205','206','310',
-  'T1','T2','T3','T4','T5','G','G1','H','K','L','LUCY','BSO','MFO'
+  '42','43','44','45','46','47','48','50','52','53','54','55','56','57','58','59','60','61','62','64',
+  '65','66','67','68','70','73','75','77','78','79','80','84','88','89','90','91','92','93','94','95',
+  '96','97','98','99','100','101','102','103','104','105','106','107','108','109','110','111','112',
+  '113','114','115','117','118','119','120','123','124','125','126','127','128','129','130','131','132',
+  '133','139','150','201','204','205','206','310','G','H','K','L','LUCY','BSO','MFO'
 ];
-
-const ROUTE_ALIASES = {
-  '10': ['10','T1'],   'T1': ['T1','10'],
-  '11': ['11','T4'],   'T4': ['T4','11'],
-  '13': ['13','T3'],   'T3': ['T3','13'],
-  '15': ['15','G1','G'],   'G1': ['G1','15'],
-  '34': ['34','T2'],   'T2': ['T2','34'],
-  '36': ['36','T5'],   'T5': ['T5','36'],
-  'G':  ['G','63'],    '63': ['63','G'],
-  'H':  ['H','71'],    '71': ['71','H'],
-  'J':  ['J','41'],    '41': ['41','J'],
-  'L':  ['L','51'],    '51': ['51','L'],
-  'R':  ['R','82'],    '82': ['82','R'],
-  'XH': ['XH','81'],   '81': ['81','XH'],
-};
-function getAliases(route) {
-  return ROUTE_ALIASES[route] || [route];
-}
 const REFRESH_MS         = 30000;
 const FETCH_TIMEOUT_MS   = 8000;
-const LAYOVER_TIMEOUT_MS = 45 * 60000;
-const MIN_SEEN           = 1;
+const LAYOVER_TIMEOUT_MS = 20 * 60000;
+const MIN_SEEN           = 2;
 const LATE_BAD           = 6;
 
 const API = {
@@ -284,97 +242,9 @@ const API = {
   alerts:  r => `https://www3.septa.org/api/Alerts/index.php?routes=bus_route_${encodeURIComponent(r)}`,
   detours: r => `https://www3.septa.org/api/BusDetours/${encodeURIComponent(r)}`,
 };
-const GTFS_BASE = 'https://deenersin-png.github.io/septa-gtfs/data';
 
 // ── STATE ────────────────────────────────────────────────────
 const state = { route: '', block: '', status: 'idle', lastUpdate: null };
-
-// ── SCHEDULE DATA (SEPTA GTFS, via septa-gtfs pipeline) ───────
-const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map() };
-let schedRequestId = 0;
-
-function getDayType() {
-  const d = new Date().getDay();
-  if (d === 0) return 'sunday';
-  if (d === 6) return 'saturday';
-  return 'weekday';
-}
-
-// "HH:MM:SS" (GTFS allows hour >= 24 for past-midnight trips) → minutes since midnight
-function timeStrToMin(t) {
-  const m = String(t || '').match(/(\d+):(\d+)/);
-  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
-}
-
-// Loads the current route's trips (all blocks) for today's day-type from the
-// septa-gtfs static JSON. Lazy, per-route — reloaded on every route change.
-// Builds into local collections and commits atomically at the end, guarded by
-// a request id, so a stale in-flight load (e.g. from rapid route switching)
-// can't clobber a newer one or interleave writes into the same Map.
-async function loadScheduleData(route) {
-  const reqId = ++schedRequestId;
-  sched.loaded = false;
-  if (!route) return;
-  try {
-    let data = null;
-    for (const name of getAliases(route)) {
-      try {
-        const res = await fetch(GTFS_BASE + '/' + encodeURIComponent(name) + '.json');
-        if (res.ok) { data = await res.json(); break; }
-      } catch(e) {}
-    }
-    if (!data || reqId !== schedRequestId) return;
-
-    const trips = data[getDayType()] || [];
-    const blockTrips = new Map();
-    const order = [];
-    for (const t of trips) {
-      const blk = String(t.block_id);
-      if (!blockTrips.has(blk)) { blockTrips.set(blk, []); order.push(blk); }
-      blockTrips.get(blk).push({ ...t, route });
-    }
-    if (reqId !== schedRequestId) return;
-
-    sched.blockTrips = blockTrips;
-    sched.schedOrderByRoute = new Map([[route, order]]); // trips arrive pre-sorted by start time
-    sched.loaded = true;
-  } catch(e) { console.warn('Schedule load failed:', e); }
-}
-
-function getSchedLeader(block) {
-  const trips = sched.blockTrips.get(block);
-  const route = trips && trips[0] && trips[0].route;
-  if (!route) return null;
-  const order = sched.schedOrderByRoute.get(route) || [];
-  const idx = order.indexOf(block);
-  return idx > 0 ? order[idx - 1] : null;
-}
-
-function getSchedFollower(block) {
-  const trips = sched.blockTrips.get(block);
-  const route = trips && trips[0] && trips[0].route;
-  if (!route) return null;
-  const order = sched.schedOrderByRoute.get(route) || [];
-  const idx = order.indexOf(block);
-  return (idx >= 0 && idx < order.length - 1) ? order[idx + 1] : null;
-}
-
-// When a block is sitting at the terminal, find its next scheduled pull-out:
-// the start time of the trip right after whichever trip it most recently
-// finished (or the first trip of the day if none have finished yet).
-function getNextDeparture(block, nowMin) {
-  const trips = sched.blockTrips.get(String(block));
-  if (!trips || !trips.length) return null;
-  const times = trips
-    .map(t => ({ s: timeStrToMin(t.start), e: timeStrToMin(t.end), tripId: t.trip_id }))
-    .filter(x => x.s != null && x.e != null)
-    .sort((a, b) => a.s - b.s);
-  if (!times.length) return null;
-  let lastFinishedIdx = -1;
-  times.forEach((x, i) => { if (x.e <= nowMin) lastFinishedIdx = i; });
-  const next = times[lastFinishedIdx + 1];
-  return next ? { dueOutMin: next.s, tripId: next.tripId } : null;
-}
 
 // ── BUS CACHE ────────────────────────────────────────────────
 // Persists buses that disappear from the live feed (terminal layover)
@@ -410,7 +280,6 @@ function updateCache(liveBuses, routeId) {
       lastSeenAt:   now,
       isLayover:    false,
       layoverSince: null,
-      departedAt:   ex.isLayover ? now : (ex.departedAt || null),
       seenCount:    (ex.seenCount || 0) + 1,
     });
   }
@@ -420,7 +289,7 @@ function updateCache(liveBuses, routeId) {
     if (c.routeId !== routeId) continue;
     if ((now - c.lastSeenAt) > LAYOVER_TIMEOUT_MS) { busCache.delete(key); continue; }
     if (!c.isLayover && c.seenCount >= MIN_SEEN) {
-      busCache.set(key, { ...c, isLayover: true, layoverSince: now, departedAt: null });
+      busCache.set(key, { ...c, isLayover: true, layoverSince: now });
     }
   }
 }
@@ -436,29 +305,6 @@ function mergeLiveAndCache(liveBuses, routeId) {
       next_stop_name: null, estimated_seat_availability: '',
       _isLayover: true, _layoverSince: c.layoverSince,
     });
-  }
-  return merged;
-}
-
-// Attach due-out/overdue/possible-bunching info to layover ghost entries.
-function annotateLayovers(merged) {
-  const now = Date.now();
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  for (const bus of merged) {
-    if (!bus._isLayover) continue;
-    const blk = String(bus.BlockID || '');
-    const due = getNextDeparture(blk, nowMin);
-    bus._dueOutMin  = due ? due.dueOutMin : null;
-    bus._overdueMin = due ? Math.max(0, nowMin - due.dueOutMin) : null;
-    bus._flag = null;
-    if (bus._overdueMin > 0) {
-      const followerBlk = getSchedFollower(blk);
-      const fc = followerBlk ? busCache.get('blk_' + followerBlk) : null;
-      if (fc && !fc.isLayover && fc.departedAt) {
-        const minsAgo = Math.round((now - fc.departedAt) / 60000);
-        if (minsAgo >= 0 && minsAgo < 180) bus._flag = { followerBlk, minsAgo };
-      }
-    }
   }
   return merged;
 }
@@ -491,14 +337,9 @@ function parseTVData(raw) {
       if (Array.isArray(v)) v.forEach(b => b && typeof b === 'object' && buses.push(b));
     }
   }
-  return buses.map(b => {
-    const offNum = parseFloat(String(b.Offset || ''));
-    if (!isNaN(offNum) && Math.abs(offNum) >= 500) b._notTracking = true;
-    return b;
-  }).filter(b => {
-    const ts  = parseInt(b.timestamp) || 0;
+  return buses.filter(b => {
+    const ts = parseInt(b.timestamp) || 0;
     const off = String(b.Offset || '');
-    if (b._notTracking && !parseInt(b.next_stop_sequence)) return false;
     return ts > 1000000 || (off && off !== '999');
   });
 }
@@ -510,23 +351,10 @@ const TV_ENDPOINTS = [
   r => `https://www3.septa.org/beta/TransitView/?route=${encodeURIComponent(r)}&callback=`,
 ];
 
-function fetchTVOnce(route) {
+function fetchTV(route) {
   return new Promise((resolve, reject) => {
     tryJSONP(route, TV_ENDPOINTS, 0, resolve, reject);
   });
-}
-
-async function fetchTV(route) {
-  const aliases = getAliases(route);
-  let lastErr = null;
-  for (const name of aliases) {
-    try {
-      const buses = await fetchTVOnce(name);
-      if (buses && buses.length > 0) return buses;
-    } catch (e) { lastErr = e; }
-  }
-  if (lastErr) throw lastErr;
-  return [];
 }
 
 function tryJSONP(route, endpoints, idx, resolve, reject) {
@@ -566,14 +394,6 @@ async function safeGet(url) {
   catch { return []; }
 }
 
-async function safeGetWithAliases(urlBuilder, route) {
-  for (const name of getAliases(route)) {
-    const data = await safeGet(urlBuilder(name));
-    if (data.length > 0) return data;
-  }
-  return [];
-}
-
 // ── CLASSIFY ─────────────────────────────────────────────────
 function classify(merged, block) {
   if (!block || block.length < 3) return { found: false };
@@ -585,31 +405,12 @@ function classify(merged, block) {
   same.sort((a, b) => (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
 
   const myPos = same.findIndex(b => String(b.BlockID || '') === block);
-
-  const schedLeaderBlk = getSchedLeader(block);
-  const schedLeaderBus = schedLeaderBlk
-    ? merged.find(b => String(b.BlockID || '') === schedLeaderBlk) || null
-    : null;
-  let schedLeaderState = null;
-  if (schedLeaderBlk) {
-    if (!schedLeaderBus) {
-      schedLeaderState = 'missing';
-    } else {
-      const mySeq = parseInt(same[myPos].next_stop_sequence) || 0;
-      const lSeq  = parseInt(schedLeaderBus.next_stop_sequence) || 0;
-      schedLeaderState = lSeq >= mySeq ? 'ahead' : 'behind';
-    }
-  }
-
   return {
     found: true, direction: dir,
     leaders:         same.slice(0, myPos),
     you:             same[myPos],
     followers:       same.slice(myPos + 1),
     immediateLeader: myPos > 0 ? same[myPos - 1] : null,
-    schedLeaderBlk,
-    schedLeaderBus,
-    schedLeaderState,
   };
 }
 
@@ -656,26 +457,9 @@ function renderMain(merged, block, route) {
     return;
   }
 
-  if (cl.you && cl.you._isLayover && cl.you._flag) {
-    showBanner('warn', '⚠', 'You are ' + cl.you._overdueMin + 'm past scheduled pull-out and your follower (Block ' + esc(cl.you._flag.followerBlk) + ') already left ' + cl.you._flag.minsAgo + 'm ago');
-    setContent(buildFoundMode(cl, anim));
-    manageLayoverTimers();
-    return;
-  }
-
   // Leader status banner
   const ldr = cl.immediateLeader;
-  const schedBlk   = cl.schedLeaderBlk;
-  const schedBus   = cl.schedLeaderBus;
-  const schedState = cl.schedLeaderState; // 'missing' | 'behind' | 'ahead' | null
-
-  if (schedState === 'missing') {
-    const actualPart = ldr ? ' — actual: Bus V#' + esc(String(ldr.VehicleID || ldr.BlockID || '?')) : ' — no actual leader visible';
-    showBanner('warn', '⚠', 'Sched leader Block ' + esc(schedBlk) + ' NOT IN SERVICE' + actualPart);
-  } else if (schedState === 'behind') {
-    const sVid = schedBus ? (schedBus.VehicleID || schedBus.BlockID || '?') : '?';
-    showBanner('warn', '⚠', 'Sched leader Block ' + esc(schedBlk) + ' passed — Bus V#' + esc(String(sVid)) + ' is behind you');
-  } else if (!ldr) {
+  if (!ldr) {
     showBanner('warn', '⚠', 'You are first ' + dirShort(cl.direction) + ' — no leading bus');
   } else if (ldr._isLayover) {
     showBanner('info', 'ℹ', 'Leading Bus ' + esc(ldr.BlockID) + ' is AT TERMINAL');
@@ -705,26 +489,22 @@ function buildFoundMode(cl, anim) {
     const label = isImm ? 'LEADING BUS' : 'LEADING BUS +' + (leaders.length - i);
     const hw = isImm && !bus._isLayover && !you._isLayover
       ? (bus.next_stop_sequence || 0) - (you.next_stop_sequence || 0) : null;
-    const aL = i > 0 ? leaders[i - 1] : null;
-    const aF = i < leaders.length - 1 ? leaders[i + 1] : you;
-    h += buildNode(bus, role, label, idx++, anim, hw, null, aL, aF);
+    h += buildNode(bus, role, label, idx++, anim, hw, null);
   });
 
   if (leaders.length > 0)
-    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">● Selected Bus</div>';
+    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">● YOU</div>';
 
-  h += buildNode(you, 'you', 'Selected Bus', idx++, anim, null, null, cl.immediateLeader, followers[0] || null, { schedLeaderBlk: cl.schedLeaderBlk, schedLeaderBus: cl.schedLeaderBus, schedLeaderState: cl.schedLeaderState });
+  h += buildNode(you, 'you', 'YOU', idx++, anim, null, null);
 
   if (followers.length > 0)
-    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">↓ Behind · ' + followers.length + '</div>';
+    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '" style="padding-top:4px">↓ Behind · ' + followers.length + '</div>';
 
   followers.forEach((bus, i) => {
     const label = i === 0 ? 'FOLLOWING BUS' : 'FOLLOWING BUS +' + (i + 1);
     const hw = i === 0 && !bus._isLayover && !you._isLayover
       ? (you.next_stop_sequence || 0) - (bus.next_stop_sequence || 0) : null;
-    const aL = i === 0 ? you : followers[i - 1];
-    const aF = i < followers.length - 1 ? followers[i + 1] : null;
-    h += buildNode(bus, 'following', label, idx++, anim, null, hw, aL, aF);
+    h += buildNode(bus, 'following', label, idx++, anim, null, hw);
   });
 
   return h + '</div></div>';
@@ -738,16 +518,12 @@ function buildAllBuses(merged, anim) {
   Object.keys(dirs).sort().forEach(dir => {
     const buses = dirs[dir].sort((a, b) => (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
     h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + buses.length + ' bus' + (buses.length !== 1 ? 'es' : '') + '</div>';
-    buses.forEach((bus, i) => {
-      const aL = i > 0 ? buses[i - 1] : null;
-      const aF = i < buses.length - 1 ? buses[i + 1] : null;
-      h += buildNode(bus, bus._isLayover ? 'layover' : 'other', bus._isLayover ? 'AT TERMINAL' : 'BUS', idx++, anim, null, null, aL, aF);
-    });
+    buses.forEach(bus => { h += buildNode(bus, bus._isLayover ? 'layover' : 'other', dirShort(bus.Direction), idx++, anim, null, null); });
   });
   return h + '</div></div>';
 }
 
-function buildNode(bus, role, label, idx, anim, leaderHw, followerHw, adjLeader, adjFollower, schedInfo) {
+function buildNode(bus, role, label, idx, anim, leaderHw, followerHw) {
   const late = parseInt(bus.late) || 0;
   let lateClass, lateText;
   if (late === 0)         { lateClass = 'ontime'; lateText = 'On Time'; }
@@ -767,18 +543,17 @@ function buildNode(bus, role, label, idx, anim, leaderHw, followerHw, adjLeader,
   h += '<div class="node-card">';
 
   h += '<div class="node-row1">';
+  h += '<span class="role-tag ' + nodeRole + '">' + esc(label) + '</span>';
+  h += '<span class="dir-tag">' + dir + '</span>';
   h += '<span class="block-num">' + esc(String(blk)) + '</span>';
   h += '<span class="vehicle-num">' + ICONS.bus + ' ' + esc(String(vid)) + '</span>';
   h += '</div>';
 
   if (!isLay) {
     h += '<div class="node-row2">';
-    if (bus._notTracking) {
-      h += '<span class="not-tracking-tag">NOT TRACKING</span>';
-    } else {
-      h += '<span class="late-tag ' + lateClass + '">' + lateText + '</span>';
-    }
+    h += '<span class="late-tag ' + lateClass + '">' + lateText + '</span>';
     if (seat.show) h += '<span class="seat-tag ' + seat.c + '">' + ICONS.seat + ' ' + seat.t + '</span>';
+    if (stop) h += '<span class="stop-name">→ ' + esc(stop) + '</span>';
     h += '</div>';
   }
 
@@ -792,40 +567,7 @@ function buildNode(bus, role, label, idx, anim, leaderHw, followerHw, adjLeader,
     const dur = fmtDuration(Date.now() - (bus._layoverSince || Date.now()));
     h += '<div class="layover-row"><span class="terminal-badge">AT TERMINAL</span>';
     h += '<span>Layover:</span>';
-    h += '<span class="layover-timer" data-layover-since="' + (bus._layoverSince || 0) + '">' + dur + '</span>';
-    if (bus._dueOutMin != null) {
-      if (bus._overdueMin > 0) {
-        h += '<span class="due-out overdue">OVERDUE ' + bus._overdueMin + 'm</span>';
-      } else {
-        h += '<span class="due-out">Due out ' + fmtClock(bus._dueOutMin) + '</span>';
-      }
-    }
-    h += '</div>';
-    if (bus._flag) {
-      h += '<div class="flag-row"><span class="flag-badge">FOLLOWER ALREADY OUT</span>';
-      h += '<span class="flag-detail">Block ' + esc(bus._flag.followerBlk) + ' left ' + bus._flag.minsAgo + 'm ago</span></div>';
-    }
-  }
-
-  if (schedInfo && schedInfo.schedLeaderBlk && schedInfo.schedLeaderState !== 'ahead') {
-    const sBlk   = schedInfo.schedLeaderBlk;
-    const sState = schedInfo.schedLeaderState; // 'missing' | 'behind'
-    const sVid   = schedInfo.schedLeaderBus
-      ? (schedInfo.schedLeaderBus.VehicleID || schedInfo.schedLeaderBus.BlockID || '—') : null;
-    h += '<div class="sched-leader-row">';
-    h += '<span class="sched-leader-label">SCHED LEADER</span>';
-    h += '<span class="sched-leader-blk">' + esc(sBlk) + '</span>';
-    if (sState === 'missing') {
-      h += '<span class="sched-leader-missing">NOT IN SERVICE</span>';
-    } else {
-      h += '<span class="sched-leader-passed">PASSED</span>';
-      if (sVid) h += '<span class="sched-leader-bus">Bus# ' + esc(String(sVid)) + '</span>';
-    }
-    h += '</div>';
-  }
-
-  if (stop && !isLay) {
-    h += '<div class="node-bottom"><span class="stop-name">→ ' + esc(stop) + '</span></div>';
+    h += '<span class="layover-timer" data-layover-since="' + (bus._layoverSince || 0) + '">' + dur + '</span></div>';
   }
 
   return h + '</div></div>';
@@ -900,7 +642,7 @@ async function tick() {
   try {
     const live = await fetchTV(state.route);
     updateCache(live, state.route);
-    renderMain(annotateLayovers(mergeLiveAndCache(live, state.route)), state.block, state.route);
+    renderMain(mergeLiveAndCache(live, state.route), state.block, state.route);
     state.lastUpdate = new Date();
     refreshSec = 30;
     setStatus('live');
@@ -921,7 +663,6 @@ async function onRouteChange() {
   if (!state.route) return;
 
   busCache.clear();
-  loadScheduleData(state.route);
   isFirstRender = true;
   lastHTML = '';
   try { localStorage.setItem('bt_route', state.route); } catch(e) {}
@@ -937,15 +678,15 @@ async function onRouteChange() {
   try {
     const [tvRes, alertsRes, detoursRes] = await Promise.allSettled([
       fetchTV(state.route),
-      safeGetWithAliases(API.alerts,  state.route),
-      safeGetWithAliases(API.detours, state.route),
+      safeGet(API.alerts(state.route)),
+      safeGet(API.detours(state.route)),
     ]);
 
     if (tvRes.status === 'rejected') throw tvRes.reason;
 
     const live = tvRes.value;
     updateCache(live, state.route);
-    renderMain(annotateLayovers(mergeLiveAndCache(live, state.route)), state.block, state.route);
+    renderMain(mergeLiveAndCache(live, state.route), state.block, state.route);
     state.lastUpdate = new Date();
     refreshSec = 30;
     setStatus('live');
@@ -984,14 +725,6 @@ function fmtDuration(ms) {
   return s + 's';
 }
 
-function fmtClock(min) {
-  min = ((min % 1440) + 1440) % 1440;
-  let h = Math.floor(min / 60), m = min % 60;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12; if (h === 0) h = 12;
-  return h + ':' + String(m).padStart(2, '0') + ' ' + ampm;
-}
-
 function dirShort(d) {
   if (!d) return '—';
   const l = d.toLowerCase();
@@ -1011,7 +744,7 @@ function seatInfo(v) {
     FULL:                       { t:'Full',         c:'full',     show:true  },
   })[v] || { t:'—', c:'na', show:false };
 }
- 
+
 function esc(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1027,4 +760,40 @@ const ICONS = {
   const routeSel = document.getElementById('routeSelect');
   const blockInp = document.getElementById('blockInput');
 
-  ROUTES.forEach(r 
+  ROUTES.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r; o.textContent = 'Route ' + r;
+    routeSel.appendChild(o);
+  });
+
+  try {
+    const sr = localStorage.getItem('bt_route');
+    const sb = localStorage.getItem('bt_block');
+    if (sr) routeSel.value = sr;
+    if (sb) blockInp.value = sb;
+  } catch(e) {}
+
+  state.route = routeSel.value;
+  state.block = blockInp.value.trim();
+
+  routeSel.addEventListener('change', onRouteChange);
+
+  let saveTimer = null;
+  blockInp.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
+    state.block = e.target.value;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { try { localStorage.setItem('bt_block', state.block); } catch(e2) {} }, 500);
+    if (state.block.length >= 3 && state.route && !ticking) tick();
+  });
+
+  blockInp.addEventListener('keydown', e => { if (e.key === 'Enter' && state.route) tick(); });
+
+  window.addEventListener('online',  () => { if (state.route) onRouteChange(); });
+  window.addEventListener('offline', () => setStatus('offline'));
+
+  if (state.route) onRouteChange();
+})();
+</script>
+</body>
+</html>
