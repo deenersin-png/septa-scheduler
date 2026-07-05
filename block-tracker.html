@@ -1051,6 +1051,16 @@ async function safeGetWithAliases(urlBuilder, route) {
 // the bus object, the same way annotateOvertake()/annotateLayovers() do —
 // so every card in the list shows its own status, not just one you'd have
 // had to type a block number in to see.
+// The last-stop name of the trip a live bus is currently running (by its live
+// GTFS trip id). Two buses' raw stop-sequence numbers are only comparable
+// when they're on the same trip variation (same endpoint).
+function liveTripLast(bus) {
+  const trips = sched.blockTrips.get(String(bus.BlockID || ''));
+  if (!trips || bus.trip == null) return null;
+  const t = trips.find(x => String(x.trip_id) === String(bus.trip));
+  return t ? (t.last || null) : null;
+}
+
 function annotateSchedLeader(merged) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const byBlock = new Map();
@@ -1113,9 +1123,19 @@ function annotateSchedLeader(merged) {
       // to the no-tag "ahead" state rather than risk a false "PASSED" alarm.
       bus._schedLeaderState = 'ahead';
     } else {
-      const mySeq = parseInt(bus.next_stop_sequence) || 0;
-      const lSeq  = parseInt(schedLeaderBus.next_stop_sequence) || 0;
-      bus._schedLeaderState = lSeq >= mySeq ? 'ahead' : 'behind';
+      // Both live, same direction. Raw next_stop_sequence is only comparable
+      // when they're on the SAME trip variation (same endpoint). A leader on
+      // a shorter variation — about to complete its block and go out of
+      // service — would otherwise look "passed" just because the follower's
+      // longer trip has more stops. Different endpoints → stay neutral.
+      const myLast = liveTripLast(bus), lLast = liveTripLast(schedLeaderBus);
+      if (myLast && lLast && myLast !== lLast) {
+        bus._schedLeaderState = 'ahead';
+      } else {
+        const mySeq = parseInt(bus.next_stop_sequence) || 0;
+        const lSeq  = parseInt(schedLeaderBus.next_stop_sequence) || 0;
+        bus._schedLeaderState = lSeq >= mySeq ? 'ahead' : 'behind';
+      }
     }
   }
   return merged;
