@@ -830,6 +830,7 @@ function annotateLayovers(merged) {
     bus._overdueMin    = Math.max(0, nowMin - due.dueOutMin);
     bus._firstStop     = due.first || '';
     bus._lastStop      = due.last  || '';
+    bus.next_stop_sequence = 0; // it's at the START of its next trip — anchor it there in the ordering
     const dirName = (sched.dirNames && sched.dirNames[due.direction]) ||
                     (due.direction != null ? 'Direction ' + due.direction : bus.Direction);
     bus.Direction = canonDir(dirName);
@@ -1170,7 +1171,17 @@ function buildAllBuses(merged, anim) {
   let h = '<div class="pages-wrap"><div class="pages-track" id="pagesTrack">';
   let idx = 0;
   dirKeys.forEach(dir => {
-    const buses = dirs[dir].sort((a, b) => (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
+    // Consistent visual geography across a route's two direction pages: the
+    // same physical point stays at the same vertical spot when you swipe.
+    // Westbound/Northbound anchor their START terminal at the TOP (stops run
+    // top→bottom as the bus travels); Eastbound/Southbound anchor START at
+    // the BOTTOM (stops run bottom→top). Since next_stop_sequence grows as a
+    // bus progresses, that's ascending sort for W/N and descending for E/S.
+    const topAnchored = /west|north/i.test(dir);
+    const buses = dirs[dir].sort((a, b) => {
+      const sa = a.next_stop_sequence || 0, sb = b.next_stop_sequence || 0;
+      return topAnchored ? sa - sb : sb - sa;
+    });
     h += '<div class="page"><div class="timeline-wrap"><div class="timeline">';
     h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + buses.length + ' bus' + (buses.length !== 1 ? 'es' : '') + '</div>';
     buses.forEach(bus => { h += buildNode(bus, idx++, anim); });
