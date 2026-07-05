@@ -292,7 +292,7 @@ const PADDLE_BASE = 'https://deenersin-png.github.io/septa-scheduler/data';
 const state = { route: '', status: 'idle', lastUpdate: null };
 
 // ── SCHEDULE DATA (SEPTA GTFS, via septa-gtfs pipeline) ───────
-const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map() };
+const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), dirNames: {} };
 let schedRequestId = 0;
 
 // Run-number / pull-out-in / paddle-link data, keyed by block number. Loaded
@@ -436,6 +436,7 @@ async function loadScheduleData(route) {
     sched.schedOrderByRoute = new Map([[route, order]]); // trips arrive pre-sorted by start time
     sched.observed = observed;
     sched.recoveryBlocks = recoveryBlocks;
+    sched.dirNames = data.directions || {}; // GTFS direction_id → "Eastbound" etc.
     sched.loaded = true;
   } catch(e) { console.warn('Schedule load failed:', e); }
 }
@@ -748,7 +749,7 @@ function knownVehicleFor(blk) {
 //  done               — finished its last trip
 function scheduledBlockStatus(blk, nowMin) {
   const trips = (sched.blockTrips.get(String(blk)) || [])
-    .map(t => ({ s: timeStrToMin(t.start), e: timeStrToMin(t.end), dir: t.direction, headsign: t.headsign }))
+    .map(t => ({ s: timeStrToMin(t.start), e: timeStrToMin(t.end), dir: t.direction, headsign: t.headsign, first: t.first, last: t.last }))
     .filter(x => x.s != null && x.e != null)
     .sort((a, b) => a.s - b.s);
   if (!trips.length) return null;
@@ -779,7 +780,13 @@ function mergeScheduledBlocks(merged, liveBuses) {
     if (!st || st.state === 'done') continue;
     if (st.state === 'not_started' && (st.dueOutMin - nowMin) > SCHED_LOOKAHEAD_MIN) continue;
 
-    const dirStr = dirMap.get(st.trip.dir) || (st.trip.dir != null ? 'Direction ' + st.trip.dir : 'Scheduled');
+    // Direction name straight from GTFS (directions.txt) first — always
+    // available, so scheduled blocks get a real "Eastbound"/"Westbound" even
+    // when no live bus is out that way. Fall back to the live-learned map,
+    // then a last-resort label.
+    const dirStr = (sched.dirNames && sched.dirNames[st.trip.dir]) ||
+                   dirMap.get(st.trip.dir) ||
+                   (st.trip.dir != null ? 'Direction ' + st.trip.dir : 'Scheduled');
     merged.push({
       BlockID: blk,
       VehicleID: knownVehicleFor(blk),
@@ -791,6 +798,8 @@ function mergeScheduledBlocks(merged, liveBuses) {
       _scheduledOnly: true,
       _schedState: st.state,
       _dueOutMin: st.dueOutMin != null ? st.dueOutMin : null,
+      _firstStop: st.trip.first || '',
+      _lastStop: st.trip.last || '',
     });
   }
   return merged;
@@ -1214,19 +1223,26 @@ function buildNode(bus, idx, anim) {
   // GTFS schedule. Show its scheduled status and destination, then stop —
   // the live-data rows below don't apply.
   if (isSched) {
+    // Badge shows the block's next DIRECTION (from GTFS), not "at terminal";
+    // detail shows the scheduled status; the from/to line shows where it
+    // actually is (its pull-out point) and where it's headed — clearer for an
+    // operator than a terminal-specific "→ final stop".
+    const dirAbbr = dirShort(bus.Direction);
     let badgeCls = 'sched-only-badge', detail;
-    if (bus._schedState === 'not_started') {
-      detail = 'Not due yet · Due out ' + fmtClock(bus._dueOutMin);
-    } else if (bus._schedState === 'layover_expected') {
-      detail = 'At terminal · Due out ' + fmtClock(bus._dueOutMin);
-    } else { // in_service_expected
+    if (bus._schedState === 'in_service_expected') {
       badgeCls += ' expected';
-      detail = 'Should be in service · no live data';
+      detail = 'No live data — should be in service';
+    } else { // not_started / layover_expected
+      detail = 'Due out ' + fmtClock(bus._dueOutMin);
     }
-    h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED</span>';
+    h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED ' + esc(dirAbbr) + '</span>';
     h += '<span class="sched-only-detail">' + detail + '</span></div>';
-    if (bus.destination) {
-      h += '<div class="node-bottom"><span class="stop-name">→ ' + esc(bus.destination) + '</span></div>';
+    if (bus._firstStop || bus._lastStop) {
+      let fromTo = '';
+      if (bus._firstStop) fromTo += 'From ' + esc(bus._firstStop);
+      if (bus._firstStop && bus._lastStop) fromTo += ' · ';
+      if (bus._lastStop) fromTo += 'to ' + esc(bus._lastStop);
+      h += '<div class="node-bottom"><span class="stop-name">' + fromTo + '</span></div>';
     }
     h += paddleRowHtml(blk);
     return h + '</div></div>';
