@@ -117,6 +117,7 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .sched-only-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--accent-dim);color:var(--accent);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .sched-only-badge.expected{background:var(--orange-dim);color:var(--orange)}
 .sched-only-detail{font-size:14px;color:var(--text);font-weight:600}
+.sched-only-detail.overdue{color:var(--red)}
 .vehicle-num{display:flex;align-items:center;gap:4px;font-size:15px;font-weight:700;color:var(--text-dim);margin-left:8px;background:var(--border);padding:3px 9px;border-radius:5px}
 .vehicle-num svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
 
@@ -505,7 +506,7 @@ function getNextDeparture(block, nowMin) {
   const trips = sched.blockTrips.get(String(block));
   if (!trips || !trips.length) return null;
   const times = trips
-    .map(t => ({ s: timeStrToMin(t.start), e: timeStrToMin(t.end), tripId: t.trip_id }))
+    .map(t => ({ s: timeStrToMin(t.start), e: timeStrToMin(t.end), tripId: t.trip_id, dir: t.direction, first: t.first, last: t.last }))
     .filter(x => x.s != null && x.e != null)
     .sort((a, b) => a.s - b.s);
   if (!times.length) return null;
@@ -514,7 +515,8 @@ function getNextDeparture(block, nowMin) {
   const next = times[lastFinishedIdx + 1];
   if (!next) return null;
   const observedMin = getObservedStart(block, next.tripId);
-  return { dueOutMin: observedMin != null ? observedMin : next.s, tripId: next.tripId, scheduledMin: next.s };
+  return { dueOutMin: observedMin != null ? observedMin : next.s, tripId: next.tripId, scheduledMin: next.s,
+           direction: next.dir, first: next.first, last: next.last };
 }
 
 // Prefer the real-world observed average pull-out for this exact trip_id
@@ -798,6 +800,7 @@ function mergeScheduledBlocks(merged, liveBuses) {
       _scheduledOnly: true,
       _schedState: st.state,
       _dueOutMin: st.dueOutMin != null ? st.dueOutMin : null,
+      _overdueMin: st.dueOutMin != null ? Math.max(0, nowMin - st.dueOutMin) : 0,
       _firstStop: st.trip.first || '',
       _lastStop: st.trip.last || '',
     });
@@ -805,35 +808,34 @@ function mergeScheduledBlocks(merged, liveBuses) {
   return merged;
 }
 
-// Attach due-out/overdue/possible-bunching info to layover ghost entries.
+// A bus that finished a trip and went out of service (layover ghost / server
+// recovery) is really "about to run its NEXT trip". So reposition it onto the
+// direction of that next trip and render it as a scheduled/next-trip card —
+// it disappears from the direction it just finished and shows on the one it's
+// about to run, starting from that terminal. Blocks with no next trip today
+// are dropped (done for the day). Live buses pass through untouched.
 function annotateLayovers(merged) {
-  const now = Date.now();
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const out = [];
   for (const bus of merged) {
-    if (!bus._isLayover) continue;
+    if (!bus._isLayover) { out.push(bus); continue; }
     const blk = String(bus.BlockID || '');
     const due = getNextDeparture(blk, nowMin);
-    bus._dueOutMin  = due ? due.dueOutMin : null;
-    bus._overdueMin = due ? Math.max(0, nowMin - due.dueOutMin) : null;
-    // No next departure at all (vs. one that just hasn't arrived yet) means
-    // it's finished its scheduled trips for the day — worth saying so
-    // explicitly, otherwise a bus sitting at the terminal for its last stop
-    // of the night looks identical to one that's stuck with no explanation.
-    bus._doneForDay = !due;
-    bus._flag = null;
-    if (bus._overdueMin > 0) {
-      const followerBlk = getSchedFollower(blk);
-      const fc = followerBlk ? busCache.get('blk_' + followerBlk) : null;
-      if (fc && !fc.isLayover && fc.departedAt) {
-        const minsAgo = Math.round((now - fc.departedAt) / 60000);
-        if (minsAgo >= 0 && minsAgo < 180) bus._flag = { followerBlk, minsAgo };
-      }
-    }
+    if (!due) continue; // finished for the day → remove entirely
+
+    bus._isLayover     = false;
+    bus._scheduledOnly = true;
+    bus._schedState    = 'layover_expected';
+    bus._dueOutMin     = due.dueOutMin;
+    bus._overdueMin    = Math.max(0, nowMin - due.dueOutMin);
+    bus._firstStop     = due.first || '';
+    bus._lastStop      = due.last  || '';
+    const dirName = (sched.dirNames && sched.dirNames[due.direction]) ||
+                    (due.direction != null ? 'Direction ' + due.direction : bus.Direction);
+    bus.Direction = canonDir(dirName);
+    out.push(bus);
   }
-  // Drop blocks parked at the terminal that have finished all their trips for
-  // the day — they've pulled in, not waiting to pull out, so keeping them (up
-  // to the 45-min ghost timeout) just clutters the tracker.
-  return merged.filter(b => !(b._isLayover && b._doneForDay));
+  return out;
 }
 
 // The scheduled start time relevant to this bus's current state: its next
@@ -1228,15 +1230,20 @@ function buildNode(bus, idx, anim) {
     // actually is (its pull-out point) and where it's headed — clearer for an
     // operator than a terminal-specific "→ final stop".
     const dirAbbr = dirShort(bus.Direction);
-    let badgeCls = 'sched-only-badge', detail;
+    let badgeCls = 'sched-only-badge', detailCls = 'sched-only-detail', detail;
     if (bus._schedState === 'in_service_expected') {
       badgeCls += ' expected';
       detail = 'No live data — should be in service';
-    } else { // not_started / layover_expected
+    } else if (bus._overdueMin > 0) {
+      // Past its scheduled pull-out and still not out — the key "why hasn't
+      // this bus left yet" signal.
+      detailCls += ' overdue';
+      detail = 'OVERDUE ' + bus._overdueMin + 'm · due out ' + fmtClock(bus._dueOutMin);
+    } else { // not_started / layover_expected, on time
       detail = 'Due out ' + fmtClock(bus._dueOutMin);
     }
     h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED ' + esc(dirAbbr) + '</span>';
-    h += '<span class="sched-only-detail">' + detail + '</span></div>';
+    h += '<span class="' + detailCls + '">' + detail + '</span></div>';
     if (bus._firstStop || bus._lastStop) {
       h += '<div class="node-bottom"><span class="stop-name">';
       if (bus._firstStop) h += 'From ' + esc(bus._firstStop);
