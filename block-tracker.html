@@ -442,23 +442,6 @@ async function loadScheduleData(route) {
   } catch(e) { console.warn('Schedule load failed:', e); }
 }
 
-function getSchedLeader(block) {
-  const trips = sched.blockTrips.get(block);
-  const route = trips && trips[0] && trips[0].route;
-  if (!route) return null;
-  const order = sched.schedOrderByRoute.get(route) || [];
-  const idx = order.indexOf(block);
-  return idx > 0 ? order[idx - 1] : null;
-}
-
-function getSchedFollower(block) {
-  const trips = sched.blockTrips.get(block);
-  const route = trips && trips[0] && trips[0].route;
-  if (!route) return null;
-  const order = sched.schedOrderByRoute.get(route) || [];
-  const idx = order.indexOf(block);
-  return (idx >= 0 && idx < order.length - 1) ? order[idx + 1] : null;
-}
 
 // The trip a block is on right now (in progress), else its next upcoming
 // trip, else its last trip of the day. Returns the raw GTFS trip object.
@@ -474,11 +457,11 @@ function relevantTripObj(trips, nowMin) {
 }
 
 // The block scheduled immediately ahead of `block` in the SAME direction as
-// its current/next trip, at `nowMin`. Unlike getSchedLeader() (fixed to
-// morning pull-out order, which goes stale once a morning leader finishes
-// for the day while you keep running), this reflects who is actually one
-// headway ahead of you right now — the block running the same-direction trip
-// whose start time is just before yours.
+// its current/next trip, at `nowMin`. Unlike a fixed morning-pull-out-order
+// approach (which goes stale once a morning leader finishes for the day
+// while you keep running), this reflects who is actually one headway ahead
+// of you right now — the block running the same-direction trip whose start
+// time is just before yours.
 function getCurrentSchedLeader(block, nowMin) {
   const myTrips = sched.blockTrips.get(String(block));
   if (!myTrips || !myTrips.length) return null;
@@ -494,6 +477,32 @@ function getCurrentSchedLeader(block, nowMin) {
       if (t.direction !== my.direction) continue;
       const s = timeStrToMin(t.start);
       if (s != null && s < myStart && s > bestStart) { bestStart = s; bestBlk = blk; }
+    }
+  }
+  return bestBlk;
+}
+
+// Mirror of getCurrentSchedLeader: the block scheduled immediately BEHIND
+// `block` in the same direction as its current/next trip, right now — the
+// same-direction trip whose start is just AFTER this block's. Dynamic, so a
+// shorter-variation bus that starts later and slots in behind a
+// longer-variation bus is correctly recognized as the follower (not locked
+// to a fixed morning pull-out order).
+function getCurrentSchedFollower(block, nowMin) {
+  const myTrips = sched.blockTrips.get(String(block));
+  if (!myTrips || !myTrips.length) return null;
+  const my = relevantTripObj(myTrips, nowMin);
+  if (!my || my.direction == null) return null;
+  const myStart = timeStrToMin(my.start);
+  if (myStart == null) return null;
+
+  let bestBlk = null, bestStart = Infinity;
+  for (const [blk, trips] of sched.blockTrips) {
+    if (blk === String(block)) continue;
+    for (const t of trips) {
+      if (t.direction !== my.direction) continue;
+      const s = timeStrToMin(t.start);
+      if (s != null && s > myStart && s < bestStart) { bestStart = s; bestBlk = blk; }
     }
   }
   return bestBlk;
@@ -901,7 +910,7 @@ function annotateOvertake(merged) {
     bus._overtake = null;
     if (bus._isLayover || bus._scheduledOnly) continue;
     const blk = String(bus.BlockID || '');
-    const followerBlk = getSchedFollower(blk);
+    const followerBlk = getCurrentSchedFollower(blk, nowMin);
     if (!followerBlk) continue;
     const followerBus = byBlock.get(followerBlk);
     if (!followerBus || followerBus._isLayover || followerBus._scheduledOnly) continue;
