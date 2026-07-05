@@ -1238,11 +1238,11 @@ function buildNode(bus, idx, anim) {
     h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED ' + esc(dirAbbr) + '</span>';
     h += '<span class="sched-only-detail">' + detail + '</span></div>';
     if (bus._firstStop || bus._lastStop) {
-      let fromTo = '';
-      if (bus._firstStop) fromTo += 'From ' + esc(bus._firstStop);
-      if (bus._firstStop && bus._lastStop) fromTo += ' · ';
-      if (bus._lastStop) fromTo += 'to ' + esc(bus._lastStop);
-      h += '<div class="node-bottom"><span class="stop-name">' + fromTo + '</span></div>';
+      h += '<div class="node-bottom"><span class="stop-name">';
+      if (bus._firstStop) h += 'From ' + esc(bus._firstStop);
+      if (bus._firstStop && bus._lastStop) h += '<br>';
+      if (bus._lastStop) h += 'to ' + esc(bus._lastStop);
+      h += '</span></div>';
     }
     h += paddleRowHtml(blk);
     return h + '</div></div>';
