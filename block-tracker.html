@@ -116,6 +116,8 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .sched-only-row{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
 .sched-only-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--accent-dim);color:var(--accent);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .sched-only-badge.expected{background:var(--orange-dim);color:var(--orange)}
+.sched-only-badge.served{background:var(--yellow-dim);color:var(--yellow)}
+.term-timer{font-size:13px;font-weight:700;color:var(--yellow);font-variant-numeric:tabular-nums;margin-left:auto}
 .sched-only-detail{font-size:14px;color:var(--text);font-weight:600}
 .sched-only-detail.overdue{color:var(--red)}
 .vehicle-num{display:flex;align-items:center;gap:4px;font-size:15px;font-weight:700;color:var(--text-dim);margin-left:8px;background:var(--border);padding:3px 9px;border-radius:5px}
@@ -143,7 +145,9 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 
 /* FLAG ROW (possible follower-bunching) */
 .flag-row{display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);flex-wrap:wrap}
-.flag-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--red-dim);color:var(--red);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.flag-badge{font-size:12px;font-weight:800;padding:4px 9px;border-radius:5px;background:var(--red-dim);color:var(--red);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.flag-badge.flag-follower{background:var(--red-dim);color:var(--red)}
+.flag-badge.flag-leader{background:var(--yellow-dim);color:var(--yellow)}
 .flag-detail{font-size:12px;color:var(--text-dim)}
 
 /* PADDLE ROW (pull-out/pull-in times + run-number paddle links) */
@@ -828,6 +832,18 @@ function mergeScheduledBlocks(merged, liveBuses) {
     if (!st || st.state === 'done') continue;
     if (st.state === 'not_started' && (st.dueOutMin - nowMin) > SCHED_LOOKAHEAD_MIN) continue;
 
+    // Terminal-arrival time for the layover timer: the poller's real ended-at
+    // if we have it, else the scheduled end of the last completed trip.
+    let arrivedMs = null;
+    if (st.state === 'layover_expected') {
+      arrivedMs = (sched.recoveryBlocks.get(blk) || {}).endedAtMs || null;
+      if (!arrivedMs) {
+        const ends = (sched.blockTrips.get(blk) || []).map(t => timeStrToMin(t.end)).filter(x => x != null).sort((a, b) => a - b);
+        let lastEnd = null; ends.forEach(e => { if (e <= nowMin) lastEnd = e; });
+        if (lastEnd != null) { const d = new Date(); d.setHours(0, 0, 0, 0); arrivedMs = d.getTime() + lastEnd * 60000; }
+      }
+    }
+
     // Direction name straight from GTFS (directions.txt) first — always
     // available, so scheduled blocks get a real "Eastbound"/"Westbound" even
     // when no live bus is out that way. Fall back to the live-learned map,
@@ -849,6 +865,9 @@ function mergeScheduledBlocks(merged, liveBuses) {
       _overdueMin: st.dueOutMin != null ? Math.max(0, nowMin - st.dueOutMin) : 0,
       _firstStop: st.trip.first || '',
       _lastStop: st.trip.last || '',
+      // When this block already ran and is between trips, its terminal-arrival
+      // time drives the layover timer on the yellow card.
+      _layoverSince: arrivedMs,
     });
   }
   return merged;
@@ -941,10 +960,9 @@ function relevantTripStart(bus, block, nowMin) {
 function annotateOvertake(merged) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const byBlock = new Map();
-  for (const b of merged) byBlock.set(String(b.BlockID || ''), b);
+  for (const b of merged) { byBlock.set(String(b.BlockID || ''), b); b._overtake = null; b._passedLeader = null; }
 
   for (const bus of merged) {
-    bus._overtake = null;
     if (bus._isLayover || bus._scheduledOnly) continue;
     const blk = String(bus.BlockID || '');
     const followerBlk = getCurrentSchedFollower(blk, nowMin);
@@ -976,7 +994,17 @@ function annotateOvertake(merged) {
     const followerLate = parseInt(followerBus.late) || 0;
     const overtakeMin  = leaderLate - headwayMin - followerLate;
 
-    if (overtakeMin > 0) bus._overtake = { followerBlk, overtakeMin, headwayMin };
+    if (overtakeMin > 0) {
+      const fVid = String(followerBus.VehicleID || '').trim();
+      const lVid = String(bus.VehicleID || '').trim();
+      const fBus = (fVid && fVid !== '0') ? fVid : (knownVehicleFor(followerBlk) || 'n/a');
+      const lBus = (lVid && lVid !== '0') ? lVid : (knownVehicleFor(blk) || 'n/a');
+      // On the leader's card: its follower is X min ahead (red).
+      bus._overtake = { followerBlk, followerBus: fBus, overtakeMin, headwayMin };
+      // Mirror on the follower's card: its leader is X min behind (yellow) —
+      // same event, opposite perspective.
+      followerBus._passedLeader = { leaderBlk: blk, leaderBus: lBus, overtakeMin };
+    }
   }
   return merged;
 }
@@ -1386,20 +1414,30 @@ function buildNode(bus, idx, anim) {
     // actually is (its pull-out point) and where it's headed — clearer for an
     // operator than a terminal-specific "→ final stop".
     const dirAbbr = dirShort(bus.Direction);
+    // "served" = already ran a trip today and is now between trips at the
+    // terminal → yellow label + a live layover timer. A block still waiting
+    // for its FIRST trip stays blue with no timer.
+    const served = bus._schedState === 'layover_expected';
     let badgeCls = 'sched-only-badge', detailCls = 'sched-only-detail', detail;
     if (bus._schedState === 'in_service_expected') {
       badgeCls += ' expected';
       detail = 'No live data — should be in service';
     } else if (bus._overdueMin > 0) {
-      // Past its scheduled pull-out and still not out — the key "why hasn't
-      // this bus left yet" signal.
       detailCls += ' overdue';
       detail = 'OVERDUE ' + bus._overdueMin + 'm · due out ' + fmtClock(bus._dueOutMin);
-    } else { // not_started / layover_expected, on time
+    } else {
       detail = 'Due out ' + fmtClock(bus._dueOutMin);
     }
+    if (served) badgeCls += ' served';
     h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED ' + esc(dirAbbr) + '</span>';
-    h += '<span class="' + detailCls + '">' + detail + '</span></div>';
+    h += '<span class="' + detailCls + '">' + detail + '</span>';
+    // Layover timer — counts up from terminal arrival; the card flips to a
+    // live one once the next trip starts, so the timer goes with it.
+    if (served && bus._layoverSince) {
+      h += '<span class="term-timer" data-layover-since="' + bus._layoverSince + '">' +
+           fmtDuration(Date.now() - bus._layoverSince) + '</span>';
+    }
+    h += '</div>';
     if (bus._firstStop || bus._lastStop) {
       h += '<div class="node-bottom"><span class="stop-name">';
       if (bus._firstStop) h += 'From ' + esc(bus._firstStop);
@@ -1440,14 +1478,17 @@ function buildNode(bus, idx, anim) {
     h += '</div>';
   }
 
+  // My follower has overtaken me (red) — shown on the leader's card.
   if (bus._overtake) {
-    h += '<div class="flag-row"><span class="flag-badge">FOLLOWER AHEAD</span>';
-    h += '<span class="flag-detail">Block ' + esc(bus._overtake.followerBlk) + ' is ~' + bus._overtake.overtakeMin + 'm ahead';
-    if (bus._flag) h += ' — left ' + bus._flag.minsAgo + 'm ago';
-    h += '</span></div>';
-  } else if (bus._flag) {
-    h += '<div class="flag-row"><span class="flag-badge">FOLLOWER ALREADY OUT</span>';
-    h += '<span class="flag-detail">Block ' + esc(bus._flag.followerBlk) + ' left ' + bus._flag.minsAgo + 'm ago</span></div>';
+    h += '<div class="flag-row"><span class="flag-badge flag-follower">FOLLOWER ' +
+         esc(bus._overtake.followerBlk) + ' &nbsp;Bus#: ' + esc(bus._overtake.followerBus) +
+         ' &nbsp;~' + bus._overtake.overtakeMin + 'm AHEAD</span></div>';
+  }
+  // I have overtaken my leader (yellow) — shown on the follower's card.
+  if (bus._passedLeader) {
+    h += '<div class="flag-row"><span class="flag-badge flag-leader">LEADER ' +
+         esc(bus._passedLeader.leaderBlk) + ' &nbsp;Bus#: ' + esc(bus._passedLeader.leaderBus) +
+         ' &nbsp;~' + bus._passedLeader.overtakeMin + 'm BEHIND</span></div>';
   }
 
   // Only surface the SCHED LEADER row when something is actually notable — a
@@ -1459,7 +1500,9 @@ function buildNode(bus, idx, anim) {
     const sState = bus._schedLeaderState; // 'ahead' | 'not_due_yet' | 'done_for_day' | 'missing' | 'no_data' | 'behind'
     const leaderLay    = !!(bus._schedLeaderBus && bus._schedLeaderBus._isLayover);
     const bothTerminal = isLay && leaderLay;
-    const notable = sState === 'behind' || sState === 'no_data' || sState === 'missing' || bothTerminal;
+    // 'behind' (you passed your leader) is now shown as the yellow LEADER
+    // …BEHIND flag above (with minutes), so it's not a "notable" row here.
+    const notable = sState === 'no_data' || sState === 'missing' || bothTerminal;
     if (notable) {
       // Real live vehicle number only — no block-number fallback (that showed a
       // misleading "Bus# <blocknum>" for leaders with no live data).
@@ -1469,9 +1512,7 @@ function buildNode(bus, idx, anim) {
       h += '<span class="sched-leader-label">SCHED LEADER</span>';
       h += '<span class="sched-leader-blk">' + esc(sBlk) + '</span>';
       h += '<span class="sched-leader-bus">Bus# ' + (sVid ? esc(sVid) : '—') + '</span>';
-      if (sState === 'behind') {
-        h += '<span class="sched-leader-passed">PASSED · you are ahead of your leader</span>';
-      } else if (sState === 'no_data') {
+      if (sState === 'no_data') {
         h += '<span class="sched-leader-missing">NO LIVE DATA · maybe not in service</span>';
       } else if (sState === 'missing') {
         h += '<span class="sched-leader-missing">NOT IN SERVICE</span>';
