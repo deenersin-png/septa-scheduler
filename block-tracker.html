@@ -163,6 +163,20 @@ a.run-chip:active{opacity:.7}
 .sched-leader-passed{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--orange-dim);color:var(--orange);letter-spacing:.03em}
 .not-tracking-tag{font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;background:var(--orange-dim);color:var(--orange)}
 
+/* LEADER TIMELINE (past / current / next leaders, collapsible) */
+.leader-tl{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px}
+.leader-tl summary{cursor:pointer;font-weight:700;color:var(--accent);list-style:none;padding:2px 0;touch-action:manipulation}
+.leader-tl summary::-webkit-details-marker{display:none}
+.leader-tl summary::before{content:'▸ ';color:var(--text-faint)}
+.leader-tl[open] summary::before{content:'▾ '}
+.tl-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);margin-top:7px;margin-bottom:2px}
+.tl-row{display:flex;align-items:center;gap:7px;padding:2px 0;flex-wrap:wrap}
+.tl-dir{font-weight:700;color:var(--text-dim);min-width:24px}
+.tl-time{font-variant-numeric:tabular-nums;color:var(--text-faint)}
+.tl-blk{font-weight:700;color:var(--text)}
+.tl-bus{color:var(--text-dim)}
+.tl-status{margin-left:auto;font-weight:600;color:var(--text-dim)}
+
 /* BOTTOM ROW (location) */
 .node-bottom{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
 
@@ -293,7 +307,7 @@ const PADDLE_BASE = 'https://deenersin-png.github.io/septa-scheduler/data';
 const state = { route: '', status: 'idle', lastUpdate: null };
 
 // ── SCHEDULE DATA (SEPTA GTFS, via septa-gtfs pipeline) ───────
-const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), dirNames: {} };
+const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), vehicleByBlock: new Map(), dirNames: {} };
 let schedRequestId = 0;
 
 // Run-number / pull-out-in / paddle-link data, keyed by block number. Loaded
@@ -416,12 +430,21 @@ async function loadScheduleData(route) {
     // this browser session never personally saw go quiet. Closes the gap
     // where a bus was already in recovery before the page was opened.
     let recoveryBlocks = new Map();
+    let vehicleByBlock = new Map(); // block → { vehicleId, ts } last-known bus on THIS route
     try {
       const stateRes = await fetch(GTFS_OBSERVED_BASE + '/state.json');
       if (stateRes.ok) {
         const stateJson = await stateRes.json();
         for (const b of Object.values(stateJson.blocks || {})) {
-          if (b.routeId === matchedName && b.isLive === false) {
+          if (b.routeId !== matchedName) continue;
+          // Last-known bus number for this block on this route — from ANY
+          // state entry (live or not), so a block that ran earlier today
+          // keeps its bus number while it sits scheduled. "None"/0 are junk.
+          const vid = String(b.vehicleId || '').trim();
+          if (vid && vid !== '0' && vid.toLowerCase() !== 'none') {
+            vehicleByBlock.set(String(b.blockId), { vehicleId: vid, ts: b.lastSeenAtMs || b.endedAtMs || 0 });
+          }
+          if (b.isLive === false) {
             recoveryBlocks.set(String(b.blockId), {
               direction: b.direction, vehicleId: b.vehicleId,
               sequence: b.sequence, destination: b.destination,
@@ -437,6 +460,7 @@ async function loadScheduleData(route) {
     sched.schedOrderByRoute = new Map([[route, order]]); // trips arrive pre-sorted by start time
     sched.observed = observed;
     sched.recoveryBlocks = recoveryBlocks;
+    sched.vehicleByBlock = vehicleByBlock;
     sched.dirNames = data.directions || {}; // GTFS direction_id → "Eastbound" etc.
     sched.loaded = true;
   } catch(e) { console.warn('Schedule load failed:', e); }
@@ -742,30 +766,27 @@ function buildGtfsDirMap(liveBuses) {
   return map;
 }
 
-// Epoch ms of the start of the CURRENT service day. Buses are reassigned to
-// blocks daily, so a bus number from a previous service day isn't a valid
-// predictor of today's assignment. Boundary ~3:30 AM local — SEPTA's quietest
-// point, between the end of owl service and the morning pull-outs. Before
-// 3:30 AM we're still in yesterday's service day (owl runs cross the boundary).
-function serviceDayStartMs() {
-  const now = new Date();
-  const b = new Date(now);
-  b.setHours(3, 30, 0, 0);
-  if (now < b) b.setDate(b.getDate() - 1);
-  return b.getTime();
+// Is a last-known bus number recent enough to still be this block's likely
+// assignment? Buses are reassigned to blocks daily, so a number from a
+// PREVIOUS day is stale (→ "pending"). But an owl run a few hours ago —
+// e.g. 12:51 AM when it's now 5 AM — is still the same bus, even though a
+// fixed "service day" clock line would call it yesterday. So: fresh if it's
+// the same local calendar day, OR within the last ~6 hours (covers owl runs
+// crossing midnight). Only a genuinely old, previous-day number is rejected.
+function isVehicleFresh(ts) {
+  if (!ts) return false;
+  if ((Date.now() - ts) <= 6 * 3600000) return true;
+  return new Date(ts).toDateString() === new Date().toDateString();
 }
 
-// Best-effort bus number for a block from any data we've seen — this
-// session's own live cache first, then the server poller's last-known
-// vehicle for it. Only counts activity from the current service day, so at
-// the first run of the day it returns '' (→ "pending") instead of yesterday's
-// bus. Empty string if this block has no current-day history.
+// Best-effort bus number for a block: this session's live cache first, then
+// the poller's last-known bus for it (live or not). Returns '' (→ "pending")
+// only when the newest number we have is stale (a previous day's assignment).
 function knownVehicleFor(blk) {
-  const cutoff = serviceDayStartMs();
   const c = busCache.get('blk_' + blk);
-  if (c && c.vehicleId && (c.lastSeenAt || 0) >= cutoff) return c.vehicleId;
-  const r = sched.recoveryBlocks.get(String(blk));
-  if (r && r.vehicleId && (r.endedAtMs || 0) >= cutoff) return r.vehicleId;
+  if (c && c.vehicleId && isVehicleFresh(c.lastSeenAt)) return c.vehicleId;
+  const v = sched.vehicleByBlock.get(String(blk));
+  if (v && v.vehicleId && isVehicleFresh(v.ts)) return v.vehicleId;
   return '';
 }
 
@@ -1166,6 +1187,83 @@ function annotateSchedLeader(merged) {
   return merged;
 }
 
+// For one same-direction trip (dir, startMin) of `block`, the block running
+// the trip that starts just before it (its leader for that leg) + that trip.
+function leaderForTrip(block, dir, startMin) {
+  let bestBlk = null, bestStart = -Infinity, bestTrip = null;
+  for (const [blk, trips] of sched.blockTrips) {
+    if (blk === String(block)) continue;
+    for (const t of trips) {
+      if (t.direction !== dir) continue;
+      const s = timeStrToMin(t.start);
+      if (s != null && s < startMin && s > bestStart) { bestStart = s; bestBlk = blk; bestTrip = t; }
+    }
+  }
+  return bestBlk ? { block: bestBlk, startMin: bestStart, trip: bestTrip } : null;
+}
+
+// Full leader history for a bus across its day: past / current / next leaders,
+// one row per trip, deduped per section. Attached as bus._leaderTimeline.
+function annotateLeaderTimeline(merged) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const byBlock = new Map();
+  for (const b of merged) byBlock.set(String(b.BlockID || ''), b);
+
+  const busNoOf = (blk) => {
+    const live = byBlock.get(blk);
+    if (live && !live._scheduledOnly) {
+      const v = String(live.VehicleID || '').trim();
+      if (v && v !== '0') return v;
+    }
+    return knownVehicleFor(blk) || 'n/a';
+  };
+  const liveStatusOf = (blk) => {
+    const live = byBlock.get(blk);
+    if (!live || live._scheduledOnly) return 'Scheduled';
+    const late = parseInt(live.late) || 0;
+    if (late === 0) return 'On time';
+    if (late < 0)   return Math.abs(late) + 'm early';
+    return '+' + late + 'm late';
+  };
+
+  for (const bus of merged) {
+    bus._leaderTimeline = null;
+    const block = String(bus.BlockID || '');
+    const trips = (sched.blockTrips.get(block) || [])
+      .map(t => ({ ...t, s: timeStrToMin(t.start), e: timeStrToMin(t.end) }))
+      .filter(t => t.s != null && t.e != null)
+      .sort((a, b) => a.s - b.s);
+    if (!trips.length) continue;
+
+    // Current trip = the one in progress; for a scheduled/out-of-service bus
+    // there's none in progress, so it's the NEXT upcoming trip — i.e. the trip
+    // it's about to run — which makes its "current leader" the leader of that
+    // next trip, as requested.
+    let curIdx = trips.findIndex(t => nowMin >= t.s && nowMin <= t.e);
+    if (curIdx < 0) curIdx = trips.findIndex(t => t.s > nowMin);
+    if (curIdx < 0) curIdx = trips.length - 1;
+
+    const past = [], next = []; let current = null;
+    trips.forEach((t, i) => {
+      const ldr = leaderForTrip(block, t.direction, t.s);
+      if (!ldr) return;
+      const row = {
+        blk: ldr.block,
+        dir: dirShort((sched.dirNames && sched.dirNames[t.direction]) || String(t.direction)),
+        start: ldr.startMin,
+        bus: busNoOf(ldr.block),
+        status: i < curIdx ? 'Past' : i > curIdx ? 'Scheduled' : liveStatusOf(ldr.block),
+      };
+      if (i < curIdx) past.push(row);
+      else if (i === curIdx) current = row;
+      else next.push(row);
+    });
+    const dedupe = arr => { const seen = new Set(); return arr.filter(r => !seen.has(r.blk) && seen.add(r.blk)); };
+    bus._leaderTimeline = { past: dedupe(past), current, next: dedupe(next) };
+  }
+  return merged;
+}
+
 // ── RENDER ───────────────────────────────────────────────────
 let lastHTML = '';
 let isFirstRender = true;
@@ -1201,6 +1299,7 @@ function renderMain(merged, route) {
   isFirstRender = false;
 
   annotateSchedLeader(merged);
+  annotateLeaderTimeline(merged);
   setContent(buildAllBuses(merged, anim));
   manageLayoverTimers();
   updatePagesTransform();
@@ -1309,6 +1408,7 @@ function buildNode(bus, idx, anim) {
       h += '</span></div>';
     }
     h += paddleRowHtml(blk);
+    h += leaderTimelineHtml(bus);
     return h + '</div></div>';
   }
 
@@ -1387,7 +1487,28 @@ function buildNode(bus, idx, anim) {
   }
 
   h += paddleRowHtml(blk);
+  h += leaderTimelineHtml(bus);
   return h + '</div></div>';
+}
+
+// Renders the past/current/next leader timeline for a card. Collapsed behind
+// a tappable "Leaders ▾" toggle so it doesn't bloat every card by default.
+function leaderTimelineHtml(bus) {
+  const tl = bus._leaderTimeline;
+  if (!tl || (!tl.past.length && !tl.current && !tl.next.length)) return '';
+  const row = r =>
+    '<div class="tl-row">' +
+      '<span class="tl-dir">' + esc(r.dir) + '</span>' +
+      '<span class="tl-time">' + fmtClock(r.start) + '</span>' +
+      '<span class="tl-blk">Blk ' + esc(r.blk) + '</span>' +
+      '<span class="tl-bus">Bus ' + esc(r.bus) + '</span>' +
+      '<span class="tl-status">' + esc(r.status) + '</span>' +
+    '</div>';
+  let inner = '';
+  if (tl.past.length)  inner += '<div class="tl-head">Past leaders</div>'    + tl.past.map(row).join('');
+  if (tl.current)      inner += '<div class="tl-head">Current leader</div>'  + row(tl.current);
+  if (tl.next.length)  inner += '<div class="tl-head">Next leaders</div>'    + tl.next.map(row).join('');
+  return '<details class="leader-tl"><summary>Leaders</summary>' + inner + '</details>';
 }
 
 // ── ALERTS / DETOURS ─────────────────────────────────────────
