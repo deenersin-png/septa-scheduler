@@ -742,14 +742,30 @@ function buildGtfsDirMap(liveBuses) {
   return map;
 }
 
+// Epoch ms of the start of the CURRENT service day. Buses are reassigned to
+// blocks daily, so a bus number from a previous service day isn't a valid
+// predictor of today's assignment. Boundary ~3:30 AM local — SEPTA's quietest
+// point, between the end of owl service and the morning pull-outs. Before
+// 3:30 AM we're still in yesterday's service day (owl runs cross the boundary).
+function serviceDayStartMs() {
+  const now = new Date();
+  const b = new Date(now);
+  b.setHours(3, 30, 0, 0);
+  if (now < b) b.setDate(b.getDate() - 1);
+  return b.getTime();
+}
+
 // Best-effort bus number for a block from any data we've seen — this
 // session's own live cache first, then the server poller's last-known
-// vehicle for it. Empty string if this block was never seen live at all.
+// vehicle for it. Only counts activity from the current service day, so at
+// the first run of the day it returns '' (→ "pending") instead of yesterday's
+// bus. Empty string if this block has no current-day history.
 function knownVehicleFor(blk) {
+  const cutoff = serviceDayStartMs();
   const c = busCache.get('blk_' + blk);
-  if (c && c.vehicleId) return c.vehicleId;
+  if (c && c.vehicleId && (c.lastSeenAt || 0) >= cutoff) return c.vehicleId;
   const r = sched.recoveryBlocks.get(String(blk));
-  if (r && r.vehicleId) return r.vehicleId;
+  if (r && r.vehicleId && (r.endedAtMs || 0) >= cutoff) return r.vehicleId;
   return '';
 }
 
@@ -1251,11 +1267,12 @@ function buildNode(bus, idx, anim) {
   h += '<div class="node-row1">';
   h += '<span class="block-num">' + esc(String(blk)) + '</span>';
   // Bus number comes only from the live feed; a scheduled-only block may not
-  // have one yet. Show it when known, otherwise a muted "Bus —" placeholder.
+  // have one yet (or its only history is from a previous service day). Show it
+  // when known from today, otherwise a muted "pending" placeholder.
   if (vid) {
     h += '<span class="vehicle-num">' + ICONS.bus + ' ' + esc(vid) + '</span>';
   } else if (isSched) {
-    h += '<span class="vehicle-num unknown">' + ICONS.bus + ' —</span>';
+    h += '<span class="vehicle-num unknown">' + ICONS.bus + ' Bus# pending</span>';
   } else {
     h += '<span class="vehicle-num">' + ICONS.bus + ' —</span>';
   }
