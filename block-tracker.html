@@ -97,9 +97,12 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 
 /* BUS NODES */
 .bus-node{position:relative;padding:0 0 0 50px;margin-bottom:5px}
-.bus-node::before{content:'';position:absolute;left:13px;top:18px;width:16px;height:16px;border-radius:50%;background:var(--border-light);border:2px solid var(--bg);z-index:2}
-.bus-node.layover::before{background:var(--yellow);opacity:.8}
-.bus-node.scheduled::before{background:var(--text-faint)}
+/* Direction-of-travel arrow on the timeline: down for east/south (buses move
+   down the list), up for west/north (buses move up). */
+.bus-node::before{content:'▼';position:absolute;left:12px;top:15px;width:18px;text-align:center;font-size:15px;line-height:1;z-index:2;color:var(--border-light);background:var(--bg)}
+.bus-node.up::before{content:'▲'}
+.bus-node.layover::before{color:var(--yellow)}
+.bus-node.scheduled::before{color:var(--text-faint)}
 
 .node-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
 .bus-node.layover .node-card{border-style:dashed;border-color:var(--yellow);background:linear-gradient(135deg,rgba(210,153,34,.06),var(--card))}
@@ -1397,8 +1400,11 @@ function buildNode(bus, idx, anim) {
   const isLay   = !!bus._isLayover;
   const isSched = !!bus._scheduledOnly;
   const nodeRole = isSched ? 'scheduled' : (isLay ? 'layover' : 'other');
+  // Timeline arrow points the way this direction of travel moves through the
+  // list: up for west/north, down for east/south.
+  const arrowDir = /west|north/i.test(bus.Direction || '') ? 'up' : 'down';
 
-  let h = '<div class="bus-node ' + nodeRole + (anim ? ' fade-in' : '') + '" style="animation-delay:' + (idx * 0.02) + 's">';
+  let h = '<div class="bus-node ' + nodeRole + ' ' + arrowDir + (anim ? ' fade-in' : '') + '" style="animation-delay:' + (idx * 0.02) + 's">';
   h += '<div class="node-card">';
 
   h += '<div class="node-row1">';
