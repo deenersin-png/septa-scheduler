@@ -1343,17 +1343,27 @@ function buildAllBuses(merged, anim) {
   let h = '<div class="pages-wrap"><div class="pages-track" id="pagesTrack">';
   let idx = 0;
   dirKeys.forEach(dir => {
-    // Consistent visual geography across a route's two direction pages: the
-    // same physical point stays at the same vertical spot when you swipe.
-    // Westbound/Northbound anchor their START terminal at the TOP (stops run
-    // top→bottom as the bus travels); Eastbound/Southbound anchor START at
-    // the BOTTOM (stops run bottom→top). Since next_stop_sequence grows as a
-    // bus progresses, that's ascending sort for W/N and descending for E/S.
-    const topAnchored = /west|north/i.test(dir);
-    const buses = dirs[dir].sort((a, b) => {
-      const sa = a.next_stop_sequence || 0, sb = b.next_stop_sequence || 0;
-      return topAnchored ? sa - sb : sb - sa;
-    });
+    // Consistent visual geography across a route's two direction pages, so the
+    // same physical point keeps its vertical spot when you swipe. Buses travel
+    // through the list in their direction of motion:
+    //   Eastbound/Southbound → START at TOP, destination at BOTTOM (buses move
+    //                          DOWN as they progress).
+    //   Westbound/Northbound → START at BOTTOM, destination at TOP (buses move
+    //                          UP as they progress).
+    // next_stop_sequence grows toward the destination. Scheduled (not-yet-
+    // started) buses sit at the START end, ordered by scheduled departure so
+    // the soonest-to-leave is nearest the last-started (lowest-sequence) bus.
+    const westNorth = /west|north/i.test(dir);
+    const active = dirs[dir].filter(b => !b._scheduledOnly)
+      .sort((a, b) => (a.next_stop_sequence || 0) - (b.next_stop_sequence || 0)); // start → destination
+    const sched = dirs[dir].filter(b => b._scheduledOnly)
+      .sort((a, b) => (a._dueOutMin != null ? a._dueOutMin : -Infinity) -
+                      (b._dueOutMin != null ? b._dueOutMin : -Infinity));         // soonest → latest
+    // EB/SB: scheduled (latest…soonest) at top, then active start→destination.
+    // WB/NB: active destination→start at top, then scheduled (soonest…latest).
+    const buses = westNorth
+      ? active.slice().reverse().concat(sched)
+      : sched.slice().reverse().concat(active);
     h += '<div class="page"><div class="timeline-wrap"><div class="timeline">';
     h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + buses.length + ' bus' + (buses.length !== 1 ? 'es' : '') + '</div>';
     buses.forEach(bus => { h += buildNode(bus, idx++, anim); });
