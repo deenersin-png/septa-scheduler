@@ -107,13 +107,26 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .node-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
 .bus-node.layover .node-card{border-style:dashed;border-color:var(--yellow);background:linear-gradient(135deg,rgba(210,153,34,.06),var(--card))}
 .bus-node.scheduled .node-card{border-style:dashed;border-color:var(--border-light);background:linear-gradient(135deg,rgba(139,148,158,.05),var(--card))}
+/* Overtake flags (persist through renumbering & direction changes): passer = yellow, passed = red */
+.bus-node.flag-yellow .node-card{border-color:var(--yellow);box-shadow:0 0 12px rgba(210,153,34,.22);background:linear-gradient(135deg,rgba(210,153,34,.10),var(--card))}
+.bus-node.flag-red .node-card{border-color:var(--red);box-shadow:0 0 12px rgba(248,81,73,.22);background:linear-gradient(135deg,rgba(248,81,73,.10),var(--card))}
+.bus-node.flag-yellow::before{color:var(--yellow)}
+.bus-node.flag-red::before{color:var(--red)}
 
 /* CARD CONTENT */
 .node-row1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pos-num{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--border);color:var(--text);font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.bus-node.flag-yellow .pos-num{background:var(--yellow-dim);color:var(--yellow)}
+.bus-node.flag-red .pos-num{background:var(--red-dim);color:var(--red)}
 .block-num{font-size:16px;font-weight:800;color:var(--text);letter-spacing:.05em}
 .bus-node.layover .block-num{color:var(--yellow)}
 .bus-node.scheduled .block-num{color:var(--text-dim)}
 .vehicle-num.unknown{color:var(--text-faint);background:transparent;border:1px dashed var(--border-light)}
+
+/* PASS STATUS LINE (leader/follower relationship after an overtake) */
+.pass-info{font-size:12px;font-weight:700;margin-top:7px;letter-spacing:.02em;text-transform:uppercase}
+.pass-info.yellow{color:var(--yellow)}
+.pass-info.red{color:var(--red)}
 
 /* SCHEDULED-ONLY ROW (no live data, from GTFS schedule) */
 .sched-only-row{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
@@ -1138,6 +1151,102 @@ function liveTripLast(bus) {
   return t ? (t.last || null) : null;
 }
 
+// ── DYNAMIC POSITION TRACKER ─────────────────────────────────
+// Numbers each in-service bus by its current sequence within its direction
+// (position 1 = leader / furthest along). When two buses swap order mid-route
+// (an overtake), the passer is flagged yellow and the passed one red. Those
+// flags PERSIST on each bus — through renumbering AND through a change of
+// direction (a passer that reaches the terminal, flips to the opposite
+// direction and keeps running stays yellow; its passed leader stays red).
+// Each flagged bus also carries a one-line status of where its pass-partner
+// is right now (direction + live position).
+const posPrevSeq = new Map();   // direction -> Map(blockId -> last next_stop_sequence)
+const posFlag    = new Map();   // blockId -> { flag:'yellow'|'red', role, partner }
+
+function resetPositionState() { posPrevSeq.clear(); posFlag.clear(); }
+
+function annotatePositions(merged) {
+  const byBlock = new Map();
+  for (const b of merged) {
+    b._posNum = null; b._posFlag = null; b._passInfo = null;
+    byBlock.set(String(b.BlockID || ''), b);
+  }
+
+  // group only in-service (live) buses by direction
+  const byDir = {};
+  for (const b of merged) {
+    if (b._scheduledOnly || b._isLayover) continue;
+    (byDir[b.Direction] = byDir[b.Direction] || []).push(b);
+  }
+
+  const nextPrev = new Map();
+  for (const dir of Object.keys(byDir)) {
+    // order by progress: most-advanced (highest sequence) = position 1
+    const buses = byDir[dir].slice().sort((a, b) =>
+      (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
+    buses.forEach((b, i) => { b._posNum = i + 1; });
+
+    // detect overtakes vs the previous frame: X currently ahead of Y but was
+    // behind Y last time → X passed Y. Flag X (passer) yellow, Y (passed) red,
+    // and remember each other as the pass-partner.
+    const prev = posPrevSeq.get(dir) || new Map();
+    for (let i = 0; i < buses.length; i++) {
+      for (let j = i + 1; j < buses.length; j++) {
+        const X = buses[i], Y = buses[j];               // X ahead (lower pos) of Y now
+        const bx = String(X.BlockID || ''), by = String(Y.BlockID || '');
+        const px = prev.get(bx), py = prev.get(by);
+        if (px == null || py == null) continue;          // one wasn't here last frame
+        const xSeq = X.next_stop_sequence || 0, ySeq = Y.next_stop_sequence || 0;
+        if (xSeq > ySeq && py > px) {                    // was behind, now ahead → passed Y
+          posFlag.set(bx, { flag: 'yellow', role: 'passer', partner: by });
+          posFlag.set(by, { flag: 'red',    role: 'passed', partner: bx });
+        }
+      }
+    }
+
+    const cur = new Map();
+    buses.forEach(b => cur.set(String(b.BlockID || ''), b.next_stop_sequence || 0));
+    nextPrev.set(dir, cur);
+  }
+  posPrevSeq.clear();
+  for (const [k, v] of nextPrev) posPrevSeq.set(k, v);
+
+  // Apply persistent flags to every card the bus appears on (live OR at
+  // terminal), regardless of direction — the flag follows the bus. Attach a
+  // status line pointing at where the pass-partner is right now.
+  for (const b of merged) {
+    const f = posFlag.get(String(b.BlockID || ''));
+    if (!f) continue;
+    b._posFlag = f.flag;
+    const partner = byBlock.get(f.partner);
+    b._passInfo = {
+      role: f.role,                                            // 'passer' | 'passed'
+      partnerBlk: f.partner,
+      partnerDir: partner ? dirShort(partner.Direction) : null,
+      partnerPos: partner ? partner._posNum : null,            // null if partner at terminal
+      partnerTerminal: partner ? !!(partner._scheduledOnly || partner._isLayover) : false,
+      partnerGone: !partner,                                   // finished / not on the board
+    };
+  }
+  return merged;
+}
+
+// One-line leader/follower status shown above the location tag on a flagged
+// card. Passer → "Leader behind"; passed → "Follower ahead"; both append the
+// partner's current direction + live position (or terminal / off-service).
+function passInfoHtml(bus) {
+  const pi = bus._passInfo;
+  if (!pi) return '';
+  const who = pi.role === 'passer' ? 'Leader behind' : 'Follower ahead';
+  let where;
+  if (pi.partnerGone)            where = 'partner off service';
+  else if (pi.partnerPos != null) where = 'serving ' + esc(pi.partnerDir) + ' · #' + pi.partnerPos;
+  else if (pi.partnerTerminal)   where = 'at ' + esc(pi.partnerDir || '') + ' terminal';
+  else                           where = 'serving ' + esc(pi.partnerDir || '');
+  return '<div class="pass-info ' + (pi.role === 'passer' ? 'yellow' : 'red') + '">' +
+         who + ' · ' + where + '</div>';
+}
+
 function annotateSchedLeader(merged) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const byBlock = new Map();
@@ -1331,6 +1440,7 @@ function renderMain(merged, route) {
 
   annotateSchedLeader(merged);
   annotateLeaderTimeline(merged);
+  annotatePositions(merged);
   setContent(buildAllBuses(merged, anim));
   manageLayoverTimers();
   updatePagesTransform();
@@ -1403,11 +1513,14 @@ function buildNode(bus, idx, anim) {
   // Timeline arrow points the way this direction of travel moves through the
   // list: up for west/north, down for east/south.
   const arrowDir = /west|north/i.test(bus.Direction || '') ? 'up' : 'down';
+  // Overtake flag colour persists on the bus across renumbering & direction changes.
+  const flagCls = bus._posFlag ? ' flag-' + bus._posFlag : '';
 
-  let h = '<div class="bus-node ' + nodeRole + ' ' + arrowDir + (anim ? ' fade-in' : '') + '" style="animation-delay:' + (idx * 0.02) + 's">';
+  let h = '<div class="bus-node ' + nodeRole + ' ' + arrowDir + flagCls + (anim ? ' fade-in' : '') + '" style="animation-delay:' + (idx * 0.02) + 's">';
   h += '<div class="node-card">';
 
   h += '<div class="node-row1">';
+  if (bus._posNum != null) h += '<span class="pos-num">' + bus._posNum + '</span>';
   h += '<span class="block-num">' + esc(String(blk)) + '</span>';
   // Bus number comes only from the live feed; a scheduled-only block may not
   // have one yet (or its only history is from a previous service day). Show it
@@ -1454,6 +1567,7 @@ function buildNode(bus, idx, anim) {
            fmtDuration(Date.now() - bus._layoverSince) + '</span>';
     }
     h += '</div>';
+    h += passInfoHtml(bus);
     if (bus._firstStop || bus._lastStop) {
       h += '<div class="node-bottom"><span class="stop-name">';
       if (bus._firstStop) h += 'From ' + esc(bus._firstStop);
@@ -1538,6 +1652,8 @@ function buildNode(bus, idx, anim) {
       h += '</div>';
     }
   }
+
+  h += passInfoHtml(bus);
 
   if (stop && !isLay) {
     h += '<div class="node-bottom"><span class="stop-name">→ ' + esc(stop) + '</span></div>';
@@ -1712,6 +1828,7 @@ async function onRouteChange() {
   if (!state.route) return;
 
   busCache.clear();
+  resetPositionState(); // different route → fresh position numbers & pass flags
   loadScheduleData(state.route);
   isFirstRender = true;
   lastHTML = '';
