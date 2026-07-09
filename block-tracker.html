@@ -118,6 +118,11 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .pos-num{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--border);color:var(--text);font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
 .bus-node.flag-yellow .pos-num{background:var(--yellow-dim);color:var(--yellow)}
 .bus-node.flag-red .pos-num{background:var(--red-dim);color:var(--red)}
+/* FIXED sequence number, far right of the main line — larger & bold. Number
+   never changes; only its colour does when a bus is out of order. */
+.seq-num{margin-left:auto;padding-left:10px;font-size:22px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+.seq-num.flag-yellow{color:var(--yellow)}
+.seq-num.flag-red{color:var(--red)}
 .block-num{font-size:16px;font-weight:800;color:var(--text);letter-spacing:.05em}
 .bus-node.layover .block-num{color:var(--yellow)}
 .bus-node.scheduled .block-num{color:var(--text-dim)}
@@ -185,10 +190,15 @@ a.run-chip:active{opacity:.7}
 
 /* LEADER TIMELINE (past / current / next leaders, collapsible) */
 .leader-tl{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px}
-.leader-tl summary{cursor:pointer;font-weight:700;color:var(--accent);list-style:none;padding:2px 0;touch-action:manipulation}
-.leader-tl summary::-webkit-details-marker{display:none}
-.leader-tl summary::before{content:'▸ ';color:var(--text-faint)}
-.leader-tl[open] summary::before{content:'▾ '}
+/* Run chips + crowding sit left; only the "Leaders" control on the right end
+   expands the card (chips just open their PDFs). JS-driven toggle so a tap on
+   a chip never opens/closes the panel. */
+.leader-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:3px 0}
+.lead-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-weight:800;color:var(--accent);font-size:13px;text-transform:uppercase;letter-spacing:.03em;touch-action:manipulation;user-select:none}
+.lead-toggle .arrow{font-size:22px;line-height:1;display:inline-block;transition:transform .2s}
+.leader-tl.open .lead-toggle .arrow{transform:rotate(90deg)}
+.leader-body{margin-top:2px}
+.leader-body.hidden{display:none}
 .tl-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);margin-top:7px;margin-bottom:2px}
 .tl-row{display:flex;align-items:center;gap:7px;padding:2px 0;flex-wrap:wrap}
 .tl-dir{font-weight:700;color:var(--text-dim);min-width:24px}
@@ -196,6 +206,13 @@ a.run-chip:active{opacity:.7}
 .tl-blk{font-weight:700;color:var(--text)}
 .tl-bus{color:var(--text-dim)}
 .tl-status{margin-left:auto;font-weight:600;color:var(--text-dim)}
+
+/* COLLAPSED "N more scheduled" section (not-yet-pulled-out blue blocks) */
+.more-sched{margin:2px 0 6px}
+.more-sched>summary{display:inline-block;margin-left:50px;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent);list-style:none;padding:7px 12px;background:var(--card);border:1px dashed var(--border-light);border-radius:10px;touch-action:manipulation}
+.more-sched>summary::-webkit-details-marker{display:none}
+.more-sched>summary::before{content:'▸ ';color:var(--text-faint)}
+.more-sched[open]>summary::before{content:'▾ '}
 
 /* BOTTOM ROW (location) */
 .node-bottom{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
@@ -649,22 +666,30 @@ async function loadPaddleData() {
 
 // HTML for the run / pull-out-in line under a card. Empty if this block has
 // no pick data.
+// Pull-out / pull-in times only. The run-number chips moved down onto the
+// Leaders line (see runChipsHtml / leaderTimelineHtml).
 function paddleRowHtml(blk) {
   const rec = paddle.byBlock.get(String(blk));
-  if (!rec) return '';
-  let h = '<div class="paddle-row">';
-  if (rec.poTime || rec.piTime) {
-    h += '<span class="po-pi">';
-    if (rec.poTime) h += 'PO ' + esc(rec.poTime);
-    if (rec.poTime && rec.piTime) h += ' · ';
-    if (rec.piTime) h += 'PI ' + esc(rec.piTime);
-    h += '</span>';
-  }
+  if (!rec || (!rec.poTime && !rec.piTime)) return '';
+  let h = '<div class="paddle-row"><span class="po-pi">';
+  if (rec.poTime) h += 'PO ' + esc(rec.poTime);
+  if (rec.poTime && rec.piTime) h += ' · ';
+  if (rec.piTime) h += 'PI ' + esc(rec.piTime);
+  return h + '</span></div>';
+}
+
+// Run-number chips (each opens its paddle PDF in a new tab). Rendered on the
+// left of the Leaders line. Only the right-side "Leaders" control toggles the
+// panel (JS handler), so a chip tap just opens its PDF.
+function runChipsHtml(blk) {
+  const rec = paddle.byBlock.get(String(blk));
+  if (!rec || !rec.runs.length) return '';
+  let h = '';
   for (const r of rec.runs) {
     if (r.link) h += '<a class="run-chip" href="' + esc(r.link) + '" target="_blank" rel="noopener">RUN ' + esc(r.runno) + '</a>';
     else        h += '<span class="run-chip nolink">RUN ' + esc(r.runno) + '</span>';
   }
-  return h + '</div>';
+  return h;
 }
 
 // ── BUS CACHE ────────────────────────────────────────────────
@@ -1162,8 +1187,10 @@ function liveTripLast(bus) {
 // is right now (direction + live position).
 const posPrevSeq = new Map();   // direction -> Map(blockId -> last next_stop_sequence)
 const posFlag    = new Map();   // blockId -> { flag:'yellow'|'red', role, partner }
+const posFixed   = new Map();   // direction -> Map(blockId -> FIXED position number, never changes)
+const openLeaders = new Set();  // block ids whose Leaders panel is expanded (persists across re-renders)
 
-function resetPositionState() { posPrevSeq.clear(); posFlag.clear(); }
+function resetPositionState() { posPrevSeq.clear(); posFlag.clear(); posFixed.clear(); }
 
 function annotatePositions(merged) {
   const byBlock = new Map();
@@ -1184,7 +1211,18 @@ function annotatePositions(merged) {
     // order by progress: most-advanced (highest sequence) = position 1
     const buses = byDir[dir].slice().sort((a, b) =>
       (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
-    buses.forEach((b, i) => { b._posNum = i + 1; });
+    // Assign each block a FIXED position number the first time it's seen in
+    // this direction (leader-first on that first frame) and never renumber it
+    // again. When buses later go out of order it's the COLOUR (posFlag) that
+    // changes, not the number — so #2 can sit physically ahead of #1.
+    let dirFixed = posFixed.get(dir);
+    if (!dirFixed) { dirFixed = new Map(); posFixed.set(dir, dirFixed); }
+    let maxNum = 0; for (const n of dirFixed.values()) if (n > maxNum) maxNum = n;
+    buses.forEach(b => {
+      const blk = String(b.BlockID || '');
+      if (!dirFixed.has(blk)) dirFixed.set(blk, ++maxNum);
+    });
+    buses.forEach(b => { b._posNum = dirFixed.get(String(b.BlockID || '')); });
 
     // detect overtakes vs the previous frame: X currently ahead of Y but was
     // behind Y last time → X passed Y. Flag X (passer) yellow, Y (passed) red,
@@ -1469,17 +1507,44 @@ function buildAllBuses(merged, anim) {
     const westNorth = /west|north/i.test(dir);
     const active = dirs[dir].filter(b => !b._scheduledOnly)
       .sort((a, b) => (a.next_stop_sequence || 0) - (b.next_stop_sequence || 0)); // start → destination
-    const sched = dirs[dir].filter(b => b._scheduledOnly)
-      .sort((a, b) => (a._dueOutMin != null ? a._dueOutMin : -Infinity) -
-                      (b._dueOutMin != null ? b._dueOutMin : -Infinity));         // soonest → latest
-    // EB/SB: scheduled (latest…soonest) at top, then active start→destination.
-    // WB/NB: active destination→start at top, then scheduled (soonest…latest).
-    const buses = westNorth
-      ? active.slice().reverse().concat(sched)
-      : sched.slice().reverse().concat(active);
+    const dueSort = (a, b) => (a._dueOutMin != null ? a._dueOutMin : -Infinity) -
+                              (b._dueOutMin != null ? b._dueOutMin : -Infinity);  // soonest → latest
+    const schedAll = dirs[dir].filter(b => b._scheduledOnly).sort(dueSort);
+
+    // Scheduled buses still waiting for their FIRST trip (blue tag, no bus
+    // number) are collapsed: show only the NEXT (soonest) one inline, tuck the
+    // rest behind a tappable "N more scheduled" section. Already-served /
+    // expected scheduled buses stay visible normally.
+    const notStarted = schedAll.filter(b => b._schedState === 'not_started');
+    const otherSched = schedAll.filter(b => b._schedState !== 'not_started');
+    const schedVisible = otherSched.concat(notStarted.slice(0, 1)).sort(dueSort);
+    const schedHidden  = notStarted.slice(1);
+
+    const totalCount = active.length + schedAll.length;
     h += '<div class="page"><div class="timeline-wrap"><div class="timeline">';
-    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + buses.length + ' bus' + (buses.length !== 1 ? 'es' : '') + '</div>';
-    buses.forEach(bus => { h += buildNode(bus, idx++, anim); });
+    h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + totalCount + ' bus' + (totalCount !== 1 ? 'es' : '') + '</div>';
+
+    // Collapsed extras sit at the far START end (furthest from active buses),
+    // matching the scheduled-bus geography.
+    const hiddenHtml = schedHidden.length
+      ? '<details class="more-sched"><summary>' + schedHidden.length +
+        ' more scheduled</summary>' + schedHidden.map(b => buildNode(b, idx++, anim)).join('') +
+        '</details>'
+      : '';
+
+    if (westNorth) {
+      // WB/NB: active (destination→start) on top, then scheduled soonest→latest,
+      // then the collapsed extras at the bottom (start end).
+      active.slice().reverse().forEach(bus => { h += buildNode(bus, idx++, anim); });
+      schedVisible.forEach(bus => { h += buildNode(bus, idx++, anim); });
+      h += hiddenHtml;
+    } else {
+      // EB/SB: collapsed extras on top (start end), then scheduled latest→soonest,
+      // then active start→destination.
+      h += hiddenHtml;
+      schedVisible.slice().reverse().forEach(bus => { h += buildNode(bus, idx++, anim); });
+      active.forEach(bus => { h += buildNode(bus, idx++, anim); });
+    }
     h += '</div></div></div>';
   });
   h += '</div></div>';
@@ -1520,7 +1585,6 @@ function buildNode(bus, idx, anim) {
   h += '<div class="node-card">';
 
   h += '<div class="node-row1">';
-  if (bus._posNum != null) h += '<span class="pos-num">' + bus._posNum + '</span>';
   h += '<span class="block-num">' + esc(String(blk)) + '</span>';
   // Bus number comes only from the live feed; a scheduled-only block may not
   // have one yet (or its only history is from a previous service day). Show it
@@ -1531,6 +1595,16 @@ function buildNode(bus, idx, anim) {
     h += '<span class="vehicle-num unknown">' + ICONS.bus + ' Bus# pending</span>';
   } else {
     h += '<span class="vehicle-num">' + ICONS.bus + ' —</span>';
+  }
+  // Live status (on time / late / early ±min) now sits on the main line for
+  // in-service buses; layover & scheduled cards carry their own status rows.
+  if (!isLay && !isSched) {
+    if (bus._notTracking) h += '<span class="not-tracking-tag">NOT TRACKING</span>';
+    else h += '<span class="late-tag ' + lateClass + '">' + lateText + '</span>';
+  }
+  // Fixed sequence number, far right, colour-coded by overtake state.
+  if (bus._posNum != null) {
+    h += '<span class="seq-num' + (bus._posFlag ? ' flag-' + bus._posFlag : '') + '">' + bus._posNum + '</span>';
   }
   h += '</div>';
 
@@ -1553,12 +1627,13 @@ function buildNode(bus, idx, anim) {
       detail = 'No live data — should be in service';
     } else if (bus._overdueMin > 0) {
       detailCls += ' overdue';
-      detail = 'OVERDUE ' + bus._overdueMin + 'm · due out ' + fmtClock(bus._dueOutMin);
+      detail = 'OVERDUE ' + bus._overdueMin + 'm · ' + fmtClock(bus._dueOutMin);
     } else {
-      detail = 'Due out ' + fmtClock(bus._dueOutMin);
+      // Just the time — "SCHD WB:" badge already says it's a scheduled pull-out.
+      detail = fmtClock(bus._dueOutMin);
     }
     if (served) badgeCls += ' served';
-    h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHEDULED ' + esc(dirAbbr) + '</span>';
+    h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHD ' + esc(dirAbbr) + ':</span>';
     h += '<span class="' + detailCls + '">' + detail + '</span>';
     // Layover timer — counts up from terminal arrival; the card flips to a
     // live one once the next trip starts, so the timer goes with it.
@@ -1580,16 +1655,8 @@ function buildNode(bus, idx, anim) {
     return h + '</div></div>';
   }
 
-  if (!isLay) {
-    h += '<div class="node-row2">';
-    if (bus._notTracking) {
-      h += '<span class="not-tracking-tag">NOT TRACKING</span>';
-    } else {
-      h += '<span class="late-tag ' + lateClass + '">' + lateText + '</span>';
-    }
-    if (seat.show) h += '<span class="seat-tag ' + seat.c + '">' + ICONS.seat + ' ' + seat.t + '</span>';
-    h += '</div>';
-  }
+  // Status & crowding no longer live here: status is on the main line above,
+  // crowding moved down into the expandable "Leaders" line (see below).
 
   if (isLay) {
     const dur = fmtDuration(Date.now() - (bus._layoverSince || Date.now()));
@@ -1639,14 +1706,14 @@ function buildNode(bus, idx, anim) {
       const lvRaw = bus._schedLeaderBus ? String(bus._schedLeaderBus.VehicleID || '').trim() : '';
       const sVid  = lvRaw && lvRaw !== '0' ? lvRaw : null;
       h += '<div class="sched-leader-row">';
-      h += '<span class="sched-leader-label">SCHED LEADER</span>';
+      h += '<span class="sched-leader-label">Scheduled leader</span>';
       h += '<span class="sched-leader-blk">' + esc(sBlk) + '</span>';
-      h += '<span class="sched-leader-bus">Bus# ' + (sVid ? esc(sVid) : '—') + '</span>';
-      if (sState === 'no_data') {
-        h += '<span class="sched-leader-missing">NO LIVE DATA · maybe not in service</span>';
-      } else if (sState === 'missing') {
-        h += '<span class="sched-leader-missing">NOT IN SERVICE</span>';
+      if (sState === 'no_data' || sState === 'missing') {
+        // Special case — no bus in service for the leader. Compact one-liner:
+        // "Scheduled leader · <block> · Bus# n/a".
+        h += '<span class="sched-leader-bus">Bus# n/a</span>';
       } else if (bothTerminal) {
+        h += '<span class="sched-leader-bus">Bus# ' + (sVid ? esc(sVid) : '—') + '</span>';
         h += '<span class="sched-leader-notdue">BOTH AT TERMINAL</span>';
       }
       h += '</div>';
@@ -1668,7 +1735,19 @@ function buildNode(bus, idx, anim) {
 // a tappable "Leaders ▾" toggle so it doesn't bloat every card by default.
 function leaderTimelineHtml(bus) {
   const tl = bus._leaderTimeline;
-  if (!tl || (!tl.past.length && !tl.current && !tl.next.length)) return '';
+  const isLive = !bus._scheduledOnly && !bus._isLayover;
+  const hasTL  = !!(tl && (tl.past.length || tl.current || tl.next.length));
+  const blk    = bus.BlockID || bus.label || '';
+
+  // Left side of the Leaders line: run-number chips first, then crowding.
+  const runChips = runChipsHtml(blk);
+  const seat = seatInfo(bus.estimated_seat_availability);
+  const seatHtml = (isLive && seat.show)
+    ? '<span class="seat-tag ' + seat.c + '">' + ICONS.seat + ' ' + seat.t + '</span>' : '';
+
+  // Nothing to show at all → render nothing.
+  if (!hasTL && !seatHtml && !runChips) return '';
+
   const row = r =>
     '<div class="tl-row">' +
       '<span class="tl-dir">' + esc(r.dir) + '</span>' +
@@ -1678,10 +1757,22 @@ function leaderTimelineHtml(bus) {
       '<span class="tl-status">' + esc(r.status) + '</span>' +
     '</div>';
   let inner = '';
-  if (tl.past.length)  inner += '<div class="tl-head">Past leaders</div>'    + tl.past.map(row).join('');
-  if (tl.current)      inner += '<div class="tl-head">Current leader</div>'  + row(tl.current);
-  if (tl.next.length)  inner += '<div class="tl-head">Next leaders</div>'    + tl.next.map(row).join('');
-  return '<details class="leader-tl"><summary>Leaders</summary>' + inner + '</details>';
+  if (hasTL) {
+    if (tl.past.length)  inner += '<div class="tl-head">Past leaders</div>'    + tl.past.map(row).join('');
+    if (tl.current)      inner += '<div class="tl-head">Current leader</div>'  + row(tl.current);
+    if (tl.next.length)  inner += '<div class="tl-head">Next leaders</div>'    + tl.next.map(row).join('');
+  } else {
+    inner = '<div class="tl-head">No leader info</div>';
+  }
+  // Row: run chips + crowding on the left, "Leaders ▸" control on the right.
+  // Only the control toggles the panel (see the delegated click handler).
+  const isOpen = openLeaders.has(String(blk));
+  return '<div class="leader-tl' + (isOpen ? ' open' : '') + '" data-lead-blk="' + esc(String(blk)) + '">' +
+           '<div class="leader-sum">' + runChips + seatHtml +
+             '<span class="lead-toggle" data-lead-toggle>Leaders <span class="arrow">▸</span></span>' +
+           '</div>' +
+           '<div class="leader-body' + (isOpen ? '' : ' hidden') + '">' + inner + '</div>' +
+         '</div>';
 }
 
 // ── ALERTS / DETOURS ─────────────────────────────────────────
@@ -1793,7 +1884,21 @@ function goToPage(i) {
   // Tap-to-switch fallback for non-touch input (and easier automated testing).
   content.addEventListener('click', e => {
     const dot = e.target.closest('.page-dot');
-    if (dot) goToPage(parseInt(dot.dataset.page, 10));
+    if (dot) { goToPage(parseInt(dot.dataset.page, 10)); return; }
+
+    // Leaders expand/collapse — only the right-side "Leaders" control toggles
+    // the panel; run chips (also on this line) fall through to open their PDF.
+    const toggle = e.target.closest('[data-lead-toggle]');
+    if (toggle) {
+      const tl  = toggle.closest('.leader-tl');
+      const blk = tl && tl.dataset.leadBlk;
+      const body = tl && tl.querySelector('.leader-body');
+      if (tl && body) {
+        const nowOpen = body.classList.toggle('hidden') === false;
+        tl.classList.toggle('open', nowOpen);
+        if (blk) { if (nowOpen) openLeaders.add(blk); else openLeaders.delete(blk); }
+      }
+    }
   });
 })();
 
@@ -1829,6 +1934,7 @@ async function onRouteChange() {
 
   busCache.clear();
   resetPositionState(); // different route → fresh position numbers & pass flags
+  openLeaders.clear();  // don't carry expanded Leaders panels onto a new route
   loadScheduleData(state.route);
   isFirstRender = true;
   lastHTML = '';
