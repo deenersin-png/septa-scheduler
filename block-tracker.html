@@ -123,6 +123,9 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .seq-num{margin-left:auto;padding-left:10px;font-size:22px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
 .seq-num.flag-yellow{color:var(--yellow)}
 .seq-num.flag-red{color:var(--red)}
+/* No-data in-service ghost: blue number with a red "!" before it. */
+.seq-num.ghost{color:var(--accent)}
+.seq-alert{color:var(--red);font-weight:800;margin-right:2px}
 .block-num{font-size:16px;font-weight:800;color:var(--text);letter-spacing:.05em}
 .bus-node.layover .block-num{color:var(--yellow)}
 .bus-node.scheduled .block-num{color:var(--text-dim)}
@@ -906,6 +909,10 @@ function mergeScheduledBlocks(merged, liveBuses) {
       _overdueMin: st.dueOutMin != null ? Math.max(0, nowMin - st.dueOutMin) : 0,
       _firstStop: st.trip.first || '',
       _lastStop: st.trip.last || '',
+      // Scheduled start of the trip this block should be running now — lets a
+      // no-data in_service_expected ghost be numbered at its real scheduled
+      // slot (see startOf/annotatePositions).
+      _curTripStartMin: st.state === 'in_service_expected' ? st.trip.s : null,
       // When this block already ran and is between trips, its terminal-arrival
       // time drives the layover timer on the yellow card.
       _layoverSince: arrivedMs,
@@ -1199,43 +1206,72 @@ function annotatePositions(merged) {
     byBlock.set(String(b.BlockID || ''), b);
   }
 
-  // group only in-service (live) buses by direction
+  // Group the buses to be NUMBERED by direction: live in-service buses PLUS
+  // "should be in service" no-data ghosts (in_service_expected — no bus number
+  // / location, driver likely not logged in, but the schedule says it's
+  // mid-service). Ghosts hold a numbered slot as if running (marked _numGhost
+  // → blue "!" rendering). Layover / not-started / done blocks aren't numbered.
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const byDir = {};
   for (const b of merged) {
-    if (b._scheduledOnly || b._isLayover) continue;
+    const isGhost = b._scheduledOnly && b._schedState === 'in_service_expected';
+    const isLive  = !b._scheduledOnly && !b._isLayover;
+    if (!isLive && !isGhost) continue;
+    b._numGhost = isGhost;
     (byDir[b.Direction] = byDir[b.Direction] || []).push(b);
   }
 
+  // Scheduled start time of a bus's CURRENT trip — the basis for its fixed
+  // number (earlier start = further along = leader = lower number). This is
+  // what RESERVES a slot for a scheduled bus whether or not it's transmitting,
+  // so a no-data ghost lands at its real position (e.g. #4 ahead of #5) instead
+  // of being appended last. A ghost carries it as _curTripStartMin; a live bus
+  // derives it from its live trip id. Falls back to live stop-sequence order
+  // only when no schedule start is known (e.g. GTFS not loaded).
+  const startOf = b => b._numGhost
+    ? (b._curTripStartMin != null ? b._curTripStartMin : null)
+    : relevantTripStart(b, String(b.BlockID || ''), nowMin);
+
   const nextPrev = new Map();
   for (const dir of Object.keys(byDir)) {
-    // order by progress: most-advanced (highest sequence) = position 1
-    const buses = byDir[dir].slice().sort((a, b) =>
-      (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
-    // Assign each block a FIXED position number the first time it's seen in
-    // this direction (leader-first on that first frame) and never renumber it
-    // again. When buses later go out of order it's the COLOUR (posFlag) that
-    // changes, not the number — so #2 can sit physically ahead of #1.
+    const group = byDir[dir];
+    const live  = group.filter(b => !b._numGhost);
+
+    // FIXED NUMBERING — assign each block, the first time it's seen in this
+    // direction, a number by SCHEDULED order (leader first) and never renumber
+    // it again. When buses later run out of order it's the COLOUR (posFlag)
+    // that changes, not the number — so #2 can sit physically ahead of #1.
+    const ordered = group.slice().sort((a, b) => {
+      const sa = startOf(a), sb = startOf(b);
+      if (sa != null && sb != null && sa !== sb) return sa - sb;
+      return (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0);
+    });
     let dirFixed = posFixed.get(dir);
     if (!dirFixed) { dirFixed = new Map(); posFixed.set(dir, dirFixed); }
     let maxNum = 0; for (const n of dirFixed.values()) if (n > maxNum) maxNum = n;
-    buses.forEach(b => {
+    ordered.forEach(b => {
       const blk = String(b.BlockID || '');
       if (!dirFixed.has(blk)) dirFixed.set(blk, ++maxNum);
     });
-    buses.forEach(b => { b._posNum = dirFixed.get(String(b.BlockID || '')); });
+    ordered.forEach(b => {
+      b._posNum = dirFixed.get(String(b.BlockID || ''));
+      if (b._numGhost) b._posGhost = true;
+    });
 
-    // detect overtakes vs the previous frame: X currently ahead of Y but was
-    // behind Y last time → X passed Y. Flag X (passer) yellow, Y (passed) red,
-    // and remember each other as the pass-partner.
+    // OVERTAKE DETECTION — live buses only, by current physical stop-sequence.
+    // X currently ahead of Y but was behind last frame → X passed Y. Flag X
+    // (passer) yellow, Y (passed) red; remember each other as the pass-partner.
+    const bySeq = live.slice().sort((a, b) =>
+      (b.next_stop_sequence || 0) - (a.next_stop_sequence || 0));
     const prev = posPrevSeq.get(dir) || new Map();
-    for (let i = 0; i < buses.length; i++) {
-      for (let j = i + 1; j < buses.length; j++) {
-        const X = buses[i], Y = buses[j];               // X ahead (lower pos) of Y now
+    for (let i = 0; i < bySeq.length; i++) {
+      for (let j = i + 1; j < bySeq.length; j++) {
+        const X = bySeq[i], Y = bySeq[j];
         const bx = String(X.BlockID || ''), by = String(Y.BlockID || '');
         const px = prev.get(bx), py = prev.get(by);
-        if (px == null || py == null) continue;          // one wasn't here last frame
+        if (px == null || py == null) continue;
         const xSeq = X.next_stop_sequence || 0, ySeq = Y.next_stop_sequence || 0;
-        if (xSeq > ySeq && py > px) {                    // was behind, now ahead → passed Y
+        if (xSeq > ySeq && py > px) {
           posFlag.set(bx, { flag: 'yellow', role: 'passer', partner: by });
           posFlag.set(by, { flag: 'red',    role: 'passed', partner: bx });
         }
@@ -1243,7 +1279,7 @@ function annotatePositions(merged) {
     }
 
     const cur = new Map();
-    buses.forEach(b => cur.set(String(b.BlockID || ''), b.next_stop_sequence || 0));
+    bySeq.forEach(b => cur.set(String(b.BlockID || ''), b.next_stop_sequence || 0));
     nextPrev.set(dir, cur);
   }
   posPrevSeq.clear();
@@ -1484,6 +1520,23 @@ function renderMain(merged, route) {
   updatePagesTransform();
 }
 
+// Insert each no-data in-service ghost into the live active list at its fixed
+// position number — e.g. #4 lands just ahead of #3 (between #5 and #3) — so a
+// bus that should be running but isn't transmitting still holds its slot in
+// the sequence. `active` is ordered start→destination (≈ position number
+// descending), so we drop each ghost before the first lower-numbered bus.
+function weaveGhosts(active, ghosts) {
+  if (!ghosts.length) return active;
+  const out = active.slice();
+  for (const g of ghosts.slice().sort((a, b) => (b._posNum || 0) - (a._posNum || 0))) {
+    const gp = g._posNum || 0;
+    let idx = out.findIndex(b => (b._posNum || 0) < gp);
+    if (idx < 0) idx = out.length;
+    out.splice(idx, 0, g);
+  }
+  return out;
+}
+
 // Groups all buses into one swipeable "page" per direction. Touch-swipe
 // (or tap a dot) switches pages — see setupSwipe()/goToPage() below.
 function buildAllBuses(merged, anim) {
@@ -1505,22 +1558,27 @@ function buildAllBuses(merged, anim) {
     // started) buses sit at the START end, ordered by scheduled departure so
     // the soonest-to-leave is nearest the last-started (lowest-sequence) bus.
     const westNorth = /west|north/i.test(dir);
-    const active = dirs[dir].filter(b => !b._scheduledOnly)
+    // No-data "should be in service" ghosts are woven into the live sequence
+    // (numbered as if in service), not parked in the scheduled section below.
+    const inServiceGhosts = dirs[dir].filter(b => b._scheduledOnly && b._schedState === 'in_service_expected');
+    const liveActive = dirs[dir].filter(b => !b._scheduledOnly)
       .sort((a, b) => (a.next_stop_sequence || 0) - (b.next_stop_sequence || 0)); // start → destination
+    const active = weaveGhosts(liveActive, inServiceGhosts);
+
     const dueSort = (a, b) => (a._dueOutMin != null ? a._dueOutMin : -Infinity) -
                               (b._dueOutMin != null ? b._dueOutMin : -Infinity);  // soonest → latest
-    const schedAll = dirs[dir].filter(b => b._scheduledOnly).sort(dueSort);
+    const schedAll = dirs[dir].filter(b => b._scheduledOnly && b._schedState !== 'in_service_expected').sort(dueSort);
 
     // Scheduled buses still waiting for their FIRST trip (blue tag, no bus
     // number) are collapsed: show only the NEXT (soonest) one inline, tuck the
-    // rest behind a tappable "N more scheduled" section. Already-served /
-    // expected scheduled buses stay visible normally.
+    // rest behind a tappable "N more scheduled" section. Already-served
+    // scheduled buses stay visible normally.
     const notStarted = schedAll.filter(b => b._schedState === 'not_started');
     const otherSched = schedAll.filter(b => b._schedState !== 'not_started');
     const schedVisible = otherSched.concat(notStarted.slice(0, 1)).sort(dueSort);
     const schedHidden  = notStarted.slice(1);
 
-    const totalCount = active.length + schedAll.length;
+    const totalCount = dirs[dir].length;
     h += '<div class="page"><div class="timeline-wrap"><div class="timeline">';
     h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">' + dirShort(dir) + ' · ' + totalCount + ' bus' + (totalCount !== 1 ? 'es' : '') + '</div>';
 
@@ -1578,8 +1636,10 @@ function buildNode(bus, idx, anim) {
   // Timeline arrow points the way this direction of travel moves through the
   // list: up for west/north, down for east/south.
   const arrowDir = /west|north/i.test(bus.Direction || '') ? 'up' : 'down';
-  // Overtake flag colour persists on the bus across renumbering & direction changes.
-  const flagCls = bus._posFlag ? ' flag-' + bus._posFlag : '';
+  // Overtake flag colour persists on the bus across renumbering & direction
+  // changes. No-data in-service ghosts are shown in their own blue style, so
+  // they don't carry an overtake border tint.
+  const flagCls = (bus._posFlag && !bus._posGhost) ? ' flag-' + bus._posFlag : '';
 
   let h = '<div class="bus-node ' + nodeRole + ' ' + arrowDir + flagCls + (anim ? ' fade-in' : '') + '" style="animation-delay:' + (idx * 0.02) + 's">';
   h += '<div class="node-card">';
@@ -1602,9 +1662,14 @@ function buildNode(bus, idx, anim) {
     if (bus._notTracking) h += '<span class="not-tracking-tag">NOT TRACKING</span>';
     else h += '<span class="late-tag ' + lateClass + '">' + lateText + '</span>';
   }
-  // Fixed sequence number, far right, colour-coded by overtake state.
+  // Fixed sequence number, far right. Normal buses: colour-coded by overtake
+  // state. No-data in-service ghost: blue number with a red "!" before it.
   if (bus._posNum != null) {
-    h += '<span class="seq-num' + (bus._posFlag ? ' flag-' + bus._posFlag : '') + '">' + bus._posNum + '</span>';
+    if (bus._posGhost) {
+      h += '<span class="seq-num ghost"><span class="seq-alert">!</span>' + bus._posNum + '</span>';
+    } else {
+      h += '<span class="seq-num' + (bus._posFlag ? ' flag-' + bus._posFlag : '') + '">' + bus._posNum + '</span>';
+    }
   }
   h += '</div>';
 
