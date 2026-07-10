@@ -217,6 +217,11 @@ a.run-chip:active{opacity:.7}
 .more-sched>summary::before{content:'▸ ';color:var(--text-faint)}
 .more-sched[open]>summary::before{content:'▾ '}
 
+/* DEP / ARR times (scheduled trip start & end) — kept during layover & serving */
+.deparr-row{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.da-dir{font-weight:800;color:var(--accent);font-size:12px;background:var(--accent-dim);padding:1px 7px;border-radius:4px;letter-spacing:.03em}
+.da-t{white-space:nowrap}
+
 /* BOTTOM ROW (location) */
 .node-bottom{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
 
@@ -470,21 +475,26 @@ async function loadScheduleData(route) {
     // this browser session never personally saw go quiet. Closes the gap
     // where a bus was already in recovery before the page was opened.
     let recoveryBlocks = new Map();
-    let vehicleByBlock = new Map(); // block → { vehicleId, ts } last-known bus on THIS route
+    let vehicleByBlock = new Map(); // block → { vehicleId, ts } last-known bus, ANY route
     try {
       const stateRes = await fetch(GTFS_OBSERVED_BASE + '/state.json');
       if (stateRes.ok) {
         const stateJson = await stateRes.json();
         for (const b of Object.values(stateJson.blocks || {})) {
-          if (b.routeId !== matchedName) continue;
-          // Last-known bus number for this block on this route — from ANY
-          // state entry (live or not), so a block that ran earlier today
-          // keeps its bus number while it sits scheduled. "None"/0 are junk.
+          // Last-known bus number for this block from ANY route it's on — blocks
+          // interline across routes (e.g. a bus runs route 21, then continues the
+          // SAME block onto route 65), so the vehicle currently live on route 21
+          // is the one that will appear on route 65's scheduled card. Capture
+          // globally, keyed by block id, freshest sighting wins. "None"/0 junk.
           const vid = String(b.vehicleId || '').trim();
           if (vid && vid !== '0' && vid.toLowerCase() !== 'none') {
-            vehicleByBlock.set(String(b.blockId), { vehicleId: vid, ts: b.lastSeenAtMs || b.endedAtMs || 0 });
+            const ts = b.lastSeenAtMs || b.endedAtMs || 0;
+            const ex = vehicleByBlock.get(String(b.blockId));
+            if (!ex || ts >= ex.ts) vehicleByBlock.set(String(b.blockId), { vehicleId: vid, ts });
           }
-          if (b.isLive === false) {
+          // Recovery ("at terminal") stays route-specific — it's about which
+          // blocks are quietly sitting at THIS route's terminal right now.
+          if (b.routeId === matchedName && b.isLive === false) {
             recoveryBlocks.set(String(b.blockId), {
               direction: b.direction, vehicleId: b.vehicleId,
               sequence: b.sequence, destination: b.destination,
@@ -589,7 +599,7 @@ function getNextDeparture(block, nowMin) {
   if (!next) return null;
   const observedMin = getObservedStart(block, next.tripId);
   return { dueOutMin: observedMin != null ? observedMin : next.s, tripId: next.tripId, scheduledMin: next.s,
-           direction: next.dir, first: next.first, last: next.last };
+           arrMin: next.e, direction: next.dir, first: next.first, last: next.last };
 }
 
 // Prefer the real-world observed average pull-out for this exact trip_id
@@ -909,6 +919,9 @@ function mergeScheduledBlocks(merged, liveBuses) {
       _overdueMin: st.dueOutMin != null ? Math.max(0, nowMin - st.dueOutMin) : 0,
       _firstStop: st.trip.first || '',
       _lastStop: st.trip.last || '',
+      // Scheduled departure/arrival of the relevant trip, shown as "Dep/Arr".
+      _depMin: st.trip.s,
+      _arrMin: st.trip.e,
       // Scheduled start of the trip this block should be running now — lets a
       // no-data in_service_expected ghost be numbered at its real scheduled
       // slot (see startOf/annotatePositions).
@@ -933,6 +946,34 @@ function annotateLayovers(merged) {
   for (const bus of merged) {
     if (!bus._isLayover) { out.push(bus); continue; }
     const blk = String(bus.BlockID || '');
+
+    // A bus that dropped off the live feed isn't necessarily parked — check the
+    // schedule. If its CURRENT trip should still be running right now, it lost
+    // signal MID-TRIP: keep it as an "in service, no data" ghost so it stays
+    // numbered and woven into the running sequence at its real position (its
+    // live-seen bus number is preserved), instead of being demoted to an
+    // unnumbered next-departure terminal card.
+    const st = scheduledBlockStatus(blk, nowMin);
+    if (st && st.state === 'in_service_expected') {
+      bus._isLayover       = false;
+      bus._scheduledOnly   = true;
+      bus._schedState      = 'in_service_expected';
+      bus._dueOutMin       = null;
+      bus._overdueMin      = 0;
+      bus._firstStop       = st.trip.first || '';
+      bus._lastStop        = st.trip.last  || '';
+      bus._depMin          = st.trip.s;
+      bus._arrMin          = st.trip.e;
+      bus._curTripStartMin = st.trip.s;   // its scheduled slot, for numbering
+      bus.next_stop_sequence = 0;
+      const dName = (sched.dirNames && sched.dirNames[st.trip.dir]) ||
+                    (st.trip.dir != null ? 'Direction ' + st.trip.dir : bus.Direction);
+      bus.Direction = canonDir(dName);
+      out.push(bus);
+      continue;
+    }
+
+    // Otherwise it's genuinely between trips → next-departure terminal card.
     const due = getNextDeparture(blk, nowMin);
     if (!due) continue; // finished for the day → remove entirely
 
@@ -943,6 +984,8 @@ function annotateLayovers(merged) {
     bus._overdueMin    = Math.max(0, nowMin - due.dueOutMin);
     bus._firstStop     = due.first || '';
     bus._lastStop      = due.last  || '';
+    bus._depMin        = due.scheduledMin != null ? due.scheduledMin : due.dueOutMin;
+    bus._arrMin        = due.arrMin;
     bus.next_stop_sequence = 0; // it's at the START of its next trip — anchor it there in the ordering
     const dirName = (sched.dirNames && sched.dirNames[due.direction]) ||
                     (due.direction != null ? 'Direction ' + due.direction : bus.Direction);
@@ -1617,6 +1660,37 @@ function buildAllBuses(merged, anim) {
   return h;
 }
 
+// Scheduled departure (trip start) & arrival (trip end) minutes for the trip a
+// bus is on / about to run. Scheduled ghosts carry these directly; a live bus
+// derives them from its live trip id (fallback: the last trip already started).
+function depArrOf(bus) {
+  if (bus._scheduledOnly) return { dep: bus._depMin, arr: bus._arrMin };
+  const trips = sched.blockTrips.get(String(bus.BlockID || ''));
+  if (!trips || !trips.length) return { dep: null, arr: null };
+  const tid = bus.trip != null ? String(bus.trip) : null;
+  let t = tid ? trips.find(x => String(x.trip_id) === tid) : null;
+  if (!t) {
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const sorted = trips.map(x => ({ x, s: timeStrToMin(x.start) }))
+      .filter(o => o.s != null).sort((a, b) => a.s - b.s);
+    for (const o of sorted) if (o.s <= nowMin) t = o.x;
+    if (!t && sorted.length) t = sorted[0].x;
+  }
+  return t ? { dep: timeStrToMin(t.start), arr: timeStrToMin(t.end) } : { dep: null, arr: null };
+}
+
+// "Dep: H:MM · Arr: H:MM" line, kept visible for a bus both while it's waiting
+// (layover / scheduled) and while it's serving.
+function depArrLineHtml(bus) {
+  const da = depArrOf(bus);
+  if (da.dep == null && da.arr == null) return '';
+  let s = '<div class="deparr-row">';
+  s += '<span class="da-dir">' + esc(dirShort(bus.Direction)) + '</span>';
+  if (da.dep != null) s += '<span class="da-t">Dep: ' + fmtClock(da.dep) + '</span>';
+  if (da.arr != null) s += '<span class="da-t">Arr: ' + fmtClock(da.arr) + '</span>';
+  return s + '</div>';
+}
+
 function buildNode(bus, idx, anim) {
   const late = parseInt(bus.late) || 0;
   let lateClass, lateText;
@@ -1686,20 +1760,19 @@ function buildNode(bus, idx, anim) {
     // terminal → yellow label + a live layover timer. A block still waiting
     // for its FIRST trip stays blue with no timer.
     const served = bus._schedState === 'layover_expected';
-    let badgeCls = 'sched-only-badge', detailCls = 'sched-only-detail', detail;
-    if (bus._schedState === 'in_service_expected') {
-      badgeCls += ' expected';
-      detail = 'No live data — should be in service';
-    } else if (bus._overdueMin > 0) {
-      detailCls += ' overdue';
-      detail = 'OVERDUE ' + bus._overdueMin + 'm · ' + fmtClock(bus._dueOutMin);
-    } else {
-      // Just the time — "SCHD WB:" badge already says it's a scheduled pull-out.
-      detail = fmtClock(bus._dueOutMin);
-    }
+    let badgeCls = 'sched-only-badge';
+    if (bus._schedState === 'in_service_expected') badgeCls += ' expected';
     if (served) badgeCls += ' served';
+    // Dep/Arr of the relevant trip — shown for every scheduled/ghost state
+    // (waiting OR should-be-serving). Location (From/to) intentionally omitted
+    // for ghosts.
+    let deparr = '';
+    if (bus._depMin != null) deparr += 'Dep: ' + fmtClock(bus._depMin);
+    if (bus._depMin != null && bus._arrMin != null) deparr += ' · ';
+    if (bus._arrMin != null) deparr += 'Arr: ' + fmtClock(bus._arrMin);
     h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHD ' + esc(dirAbbr) + ':</span>';
-    h += '<span class="' + detailCls + '">' + detail + '</span>';
+    h += '<span class="sched-only-detail">' + deparr + '</span>';
+    if (bus._overdueMin > 0) h += '<span class="sched-only-detail overdue">OVERDUE ' + bus._overdueMin + 'm</span>';
     // Layover timer — counts up from terminal arrival; the card flips to a
     // live one once the next trip starts, so the timer goes with it.
     if (served && bus._layoverSince) {
@@ -1708,13 +1781,6 @@ function buildNode(bus, idx, anim) {
     }
     h += '</div>';
     h += passInfoHtml(bus);
-    if (bus._firstStop || bus._lastStop) {
-      h += '<div class="node-bottom"><span class="stop-name">';
-      if (bus._firstStop) h += 'From ' + esc(bus._firstStop);
-      if (bus._firstStop && bus._lastStop) h += '<br>';
-      if (bus._lastStop) h += 'to ' + esc(bus._lastStop);
-      h += '</span></div>';
-    }
     h += paddleRowHtml(blk);
     h += leaderTimelineHtml(bus);
     return h + '</div></div>';
@@ -1722,6 +1788,9 @@ function buildNode(bus, idx, anim) {
 
   // Status & crowding no longer live here: status is on the main line above,
   // crowding moved down into the expandable "Leaders" line (see below).
+
+  // Dep/Arr of the trip this bus is serving — kept visible after departure.
+  h += depArrLineHtml(bus);
 
   if (isLay) {
     const dur = fmtDuration(Date.now() - (bus._layoverSince || Date.now()));
