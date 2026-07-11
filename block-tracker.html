@@ -486,20 +486,28 @@ async function loadScheduleData(route) {
       if (stateRes.ok) {
         const stateJson = await stateRes.json();
         for (const b of Object.values(stateJson.blocks || {})) {
-          // Last-known bus number for this block from ANY route it's on — blocks
-          // interline across routes (e.g. a bus runs route 21, then continues the
-          // SAME block onto route 65), so the vehicle currently live on route 21
-          // is the one that will appear on route 65's scheduled card. Capture
-          // globally, keyed by block id, freshest sighting wins. "None"/0 junk.
+          // Last-known bus number for this block. Block NUMBERS repeat across
+          // routes and days (route 42's 9110 has nothing to do with route 21's
+          // 9110), so cross-route data is only trustworthy when it's a true
+          // interline: the SAME bus currently LIVE on another route, about to
+          // continue this block here (e.g. 9128 live on route 21 → route 65).
+          //  - same route            → keep it (a block that ran earlier today
+          //                            keeps its bus while it sits scheduled);
+          //  - different route, LIVE  → keep it (interlining bus);
+          //  - different route, ended → IGNORE (a finished run that merely
+          //                            shares the block number — was showing a
+          //                            wrong bus e.g. route 42's 3655 on 9110).
+          // Staleness is still gated per-lookup by isVehicleFresh().
           const vid = String(b.vehicleId || '').trim();
-          if (vid && vid !== '0' && vid.toLowerCase() !== 'none') {
+          const sameRoute = b.routeId === matchedName;
+          if (vid && vid !== '0' && vid.toLowerCase() !== 'none' && (sameRoute || b.isLive === true)) {
             const ts = b.lastSeenAtMs || b.endedAtMs || 0;
             const ex = vehicleByBlock.get(String(b.blockId));
             if (!ex || ts >= ex.ts) vehicleByBlock.set(String(b.blockId), { vehicleId: vid, ts });
           }
           // Recovery ("at terminal") stays route-specific — it's about which
           // blocks are quietly sitting at THIS route's terminal right now.
-          if (b.routeId === matchedName && b.isLive === false) {
+          if (sameRoute && b.isLive === false) {
             recoveryBlocks.set(String(b.blockId), {
               direction: b.direction, vehicleId: b.vehicleId,
               sequence: b.sequence, destination: b.destination,
@@ -892,10 +900,14 @@ function mergeScheduledBlocks(merged, liveBuses) {
     if (st.state === 'not_started' && (st.dueOutMin - nowMin) > SCHED_LOOKAHEAD_MIN) continue;
 
     // Terminal-arrival time for the layover timer: the poller's real ended-at
-    // if we have it, else the scheduled end of the last completed trip.
+    // if it's RECENT, else the scheduled end of the last completed trip. The
+    // recency gate is essential — a weekly block's state.json entry can be days
+    // old (last week's run), which without this showed a bogus "137h at
+    // terminal". Stale → fall back to today's schedule.
     let arrivedMs = null;
     if (st.state === 'layover_expected') {
-      arrivedMs = (sched.recoveryBlocks.get(blk) || {}).endedAtMs || null;
+      const rb = sched.recoveryBlocks.get(blk);
+      if (rb && rb.endedAtMs && (Date.now() - rb.endedAtMs) <= LAYOVER_TIMEOUT_MS) arrivedMs = rb.endedAtMs;
       if (!arrivedMs) {
         const ends = (sched.blockTrips.get(blk) || []).map(t => timeStrToMin(t.end)).filter(x => x != null).sort((a, b) => a - b);
         let lastEnd = null; ends.forEach(e => { if (e <= nowMin) lastEnd = e; });
