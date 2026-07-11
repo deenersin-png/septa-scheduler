@@ -217,10 +217,15 @@ a.run-chip:active{opacity:.7}
 .more-sched>summary::before{content:'▸ ';color:var(--text-faint)}
 .more-sched[open]>summary::before{content:'▾ '}
 
-/* DEP / ARR times (scheduled trip start & end) — kept during layover & serving */
-.deparr-row{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums;flex-wrap:wrap}
-.da-dir{font-weight:800;color:var(--accent);font-size:12px;background:var(--accent-dim);padding:1px 7px;border-radius:4px;letter-spacing:.03em}
-.da-t{white-space:nowrap}
+/* DEP / ARR two-line block (trip start/end + from/at terminals) — kept during
+   layover & serving. Each line is single-line; the terminal name truncates. */
+.deparr{margin-top:6px;font-size:13px;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.da-line{display:flex;align-items:center;gap:8px;min-width:0}
+.da-line+.da-line{margin-top:2px}
+.da-dir,.da-dir-spacer{flex:0 0 30px;width:30px;box-sizing:border-box}
+.da-dir{text-align:center;font-weight:800;color:var(--accent);font-size:12px;background:var(--accent-dim);padding:2px 0;border-radius:4px;letter-spacing:.02em}
+.da-t{white-space:nowrap;flex:0 0 auto}
+.da-loc{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-faint);font-weight:500}
 
 /* BOTTOM ROW (location) */
 .node-bottom{display:flex;align-items:center;gap:7px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
@@ -1664,9 +1669,9 @@ function buildAllBuses(merged, anim) {
 // bus is on / about to run. Scheduled ghosts carry these directly; a live bus
 // derives them from its live trip id (fallback: the last trip already started).
 function depArrOf(bus) {
-  if (bus._scheduledOnly) return { dep: bus._depMin, arr: bus._arrMin };
+  if (bus._scheduledOnly) return { dep: bus._depMin, arr: bus._arrMin, from: bus._firstStop || '', to: bus._lastStop || '' };
   const trips = sched.blockTrips.get(String(bus.BlockID || ''));
-  if (!trips || !trips.length) return { dep: null, arr: null };
+  if (!trips || !trips.length) return { dep: null, arr: null, from: '', to: '' };
   const tid = bus.trip != null ? String(bus.trip) : null;
   let t = tid ? trips.find(x => String(x.trip_id) === tid) : null;
   if (!t) {
@@ -1676,19 +1681,31 @@ function depArrOf(bus) {
     for (const o of sorted) if (o.s <= nowMin) t = o.x;
     if (!t && sorted.length) t = sorted[0].x;
   }
-  return t ? { dep: timeStrToMin(t.start), arr: timeStrToMin(t.end) } : { dep: null, arr: null };
+  return t ? { dep: timeStrToMin(t.start), arr: timeStrToMin(t.end), from: t.first || '', to: t.last || '' }
+           : { dep: null, arr: null, from: '', to: '' };
 }
 
-// "Dep: H:MM · Arr: H:MM" line, kept visible for a bus both while it's waiting
-// (layover / scheduled) and while it's serving.
-function depArrLineHtml(bus) {
+// Two-line Dep/Arr block, kept visible for a bus both while it's waiting
+// (layover / scheduled) and while it's serving:
+//   [EB] Dep: H:MM  from: <origin>
+//        Arr: H:MM  at:   <destination>
+// showDir=true puts the direction chip on line 1 and indents line 2 to align
+// (live cards); for ghosts the "SCHD EB:" badge already carries direction, so
+// showDir=false and both lines sit flush-left. Each line stays single-line —
+// the origin/destination text truncates (CSS ellipsis) if it's too long.
+function depArrLineHtml(bus, showDir) {
   const da = depArrOf(bus);
   if (da.dep == null && da.arr == null) return '';
-  let s = '<div class="deparr-row">';
-  s += '<span class="da-dir">' + esc(dirShort(bus.Direction)) + '</span>';
-  if (da.dep != null) s += '<span class="da-t">Dep: ' + fmtClock(da.dep) + '</span>';
-  if (da.arr != null) s += '<span class="da-t">Arr: ' + fmtClock(da.arr) + '</span>';
-  return s + '</div>';
+  const lead   = showDir ? '<span class="da-dir">' + esc(dirShort(bus.Direction)) + '</span>' : '';
+  const spacer = showDir ? '<span class="da-dir-spacer"></span>' : '';
+  const depTxt = da.dep != null ? 'Dep: ' + fmtClock(da.dep) : '';
+  const arrTxt = da.arr != null ? 'Arr: ' + fmtClock(da.arr) : '';
+  const fromLoc = da.from ? '<span class="da-loc">from: ' + esc(da.from) + '</span>' : '';
+  const toLoc   = da.to   ? '<span class="da-loc">at: '   + esc(da.to)   + '</span>' : '';
+  let h = '<div class="deparr">';
+  h += '<div class="da-line">' + lead   + '<span class="da-t">' + depTxt + '</span>' + fromLoc + '</div>';
+  h += '<div class="da-line">' + spacer + '<span class="da-t">' + arrTxt + '</span>' + toLoc   + '</div>';
+  return h + '</div>';
 }
 
 function buildNode(bus, idx, anim) {
@@ -1763,23 +1780,17 @@ function buildNode(bus, idx, anim) {
     let badgeCls = 'sched-only-badge';
     if (bus._schedState === 'in_service_expected') badgeCls += ' expected';
     if (served) badgeCls += ' served';
-    // Dep/Arr of the relevant trip — shown for every scheduled/ghost state
-    // (waiting OR should-be-serving). Location (From/to) intentionally omitted
-    // for ghosts.
-    let deparr = '';
-    if (bus._depMin != null) deparr += 'Dep: ' + fmtClock(bus._depMin);
-    if (bus._depMin != null && bus._arrMin != null) deparr += ' · ';
-    if (bus._arrMin != null) deparr += 'Arr: ' + fmtClock(bus._arrMin);
+    // Badge row: "SCHD EB:" + any overdue flag + layover timer. The Dep/Arr
+    // times and from/at terminals live in the two-line block below (the badge
+    // already carries the direction, so no chip there).
     h += '<div class="sched-only-row"><span class="' + badgeCls + '">SCHD ' + esc(dirAbbr) + ':</span>';
-    h += '<span class="sched-only-detail">' + deparr + '</span>';
     if (bus._overdueMin > 0) h += '<span class="sched-only-detail overdue">OVERDUE ' + bus._overdueMin + 'm</span>';
-    // Layover timer — counts up from terminal arrival; the card flips to a
-    // live one once the next trip starts, so the timer goes with it.
     if (served && bus._layoverSince) {
       h += '<span class="term-timer" data-layover-since="' + bus._layoverSince + '">' +
            fmtDuration(Date.now() - bus._layoverSince) + '</span>';
     }
     h += '</div>';
+    h += depArrLineHtml(bus, false);
     h += passInfoHtml(bus);
     h += paddleRowHtml(blk);
     h += leaderTimelineHtml(bus);
@@ -1790,7 +1801,7 @@ function buildNode(bus, idx, anim) {
   // crowding moved down into the expandable "Leaders" line (see below).
 
   // Dep/Arr of the trip this bus is serving — kept visible after departure.
-  h += depArrLineHtml(bus);
+  h += depArrLineHtml(bus, true);
 
   if (isLay) {
     const dur = fmtDuration(Date.now() - (bus._layoverSince || Date.now()));
