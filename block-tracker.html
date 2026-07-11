@@ -86,9 +86,23 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .pages-wrap{overflow:hidden}
 .pages-track{display:flex;transition:transform .25s ease-out}
 .page{flex:0 0 100%;min-width:0}
-.page-dots{display:flex;justify-content:center;gap:8px;padding:10px 16px 16px;position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border)}
+.page-dots{display:flex;justify-content:center;gap:8px;padding:10px 16px 16px;position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);flex-wrap:wrap}
 .page-dot{font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;background:var(--card);color:var(--text-faint);cursor:pointer;touch-action:manipulation;border:1px solid var(--border-light)}
 .page-dot.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.page-dot.detour-dot.active{background:var(--yellow-dim);color:var(--yellow);border-color:var(--yellow)}
+.page-dot .dot-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:3px;border-radius:8px;background:var(--yellow);color:#1a1300;font-size:10px;font-weight:800;vertical-align:middle}
+
+/* DETOURS PAGE */
+.detours-page{padding-bottom:8px}
+.detour-list{padding:6px 16px 20px}
+.detour-card{background:var(--card);border:1px solid var(--border-light);border-left:3px solid var(--yellow);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.detour-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.detour-badge{font-size:12px;font-weight:800;padding:2px 8px;border-radius:5px;background:var(--accent-dim);color:var(--accent);white-space:nowrap}
+.detour-dir{font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;background:var(--yellow-dim);color:var(--yellow);letter-spacing:.03em}
+.detour-title{font-size:14px;font-weight:700;color:var(--text);flex:1;min-width:0}
+.detour-body{display:flex;flex-direction:column;gap:9px}
+.detour-slabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);margin-bottom:2px}
+.detour-scontent{font-size:13px;line-height:1.5;color:var(--text-dim);word-break:break-word}
 
 /* TIMELINE */
 .timeline-wrap{padding:18px 16px 24px;will-change:transform;-webkit-overflow-scrolling:touch}
@@ -353,8 +367,18 @@ const GTFS_OBSERVED_BASE = 'https://deenersin-png.github.io/septa-gtfs/data-obse
 // the septa-scheduler repo itself.
 const PADDLE_BASE = 'https://deenersin-png.github.io/septa-scheduler/data';
 
+// SEPTA's BusDetours API doesn't send CORS headers, so (like the standalone
+// detours app) fetch it through a proxy. `corsproxy.io/?url=<encoded>`.
+const DETOUR_PROXY = 'https://corsproxy.io/?url=';
+const DETOUR_API   = 'https://www3.septa.org/api/BusDetours/';
+
 // ── STATE ────────────────────────────────────────────────────
 const state = { route: '', status: 'idle', lastUpdate: null };
+
+// Active detours for the current route (flattened from the API's route_info
+// groups), shown on the swipeable "Detours" page. Loaded per route change.
+let routeDetours = [];
+let detourReqId  = 0;
 
 // ── SCHEDULE DATA (SEPTA GTFS, via septa-gtfs pipeline) ───────
 const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), vehicleByBlock: new Map(), dirNames: {} };
@@ -632,6 +656,54 @@ function getObservedStart(block, tripId) {
 // operator pulls in) — so the pull-OUT time is the segment marked potype 'O'
 // and the pull-IN time is the segment marked pitype 'I', each appearing on a
 // different run; both run numbers are collected. Loaded once, all districts.
+// Fetch active detours for `route` (via the CORS proxy) and flatten the API's
+// route_info groups into simple detour-card objects. Guarded by a request id
+// so a stale in-flight load can't clobber a newer route's detours. Best-effort
+// — proxy/network failure just leaves the Detours page empty.
+async function loadDetours(route) {
+  const reqId = ++detourReqId;
+  routeDetours = [];
+  if (!route) return;
+  const cards = [];
+  const seen = new Set();
+  for (const name of getAliases(route)) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+      let data;
+      try {
+        const res = await fetch(DETOUR_PROXY + encodeURIComponent(DETOUR_API + name), { signal: ctrl.signal });
+        if (!res.ok) continue;
+        data = await res.json();
+      } finally { clearTimeout(timer); }
+      if (!Array.isArray(data)) continue;
+      for (const group of data) {
+        const rid = String(group.route_id || name);
+        for (const d of (group.route_info || [])) {
+          const card = {
+            routeId: rid,
+            direction:     String(d.route_direction || '').trim(),
+            reason:        String(d.reason || '').trim(),
+            startLocation: String(d.start_location || '').trim(),
+            endLocation:   String(d.end_location || '').trim(),
+            startDate:     String(d.start_date_time || '').trim(),
+            endDate:       String(d.end_date_time || '').trim(),
+            message:       String(d.current_message || '').trim(),
+          };
+          const key = card.direction + '|' + card.reason + '|' + card.message;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          cards.push(card);
+        }
+      }
+    } catch (e) { /* alias failed — try the next */ }
+  }
+  if (reqId !== detourReqId) return; // a newer route change superseded us
+  routeDetours = cards;
+  // Re-render so the freshly-loaded detours show without waiting a full tick.
+  if (state.route && !ticking) { lastHTML = ''; tick(); }
+}
+
 async function loadPaddleData() {
   if (paddle.loaded || paddle.loading) return;
   paddle.loading = true;
@@ -1665,16 +1737,64 @@ function buildAllBuses(merged, anim) {
     }
     h += '</div></div></div>';
   });
+
+  // Extra final page: all detours for this route, both directions together.
+  h += buildDetoursPage(anim);
   h += '</div></div>';
 
-  if (dirKeys.length > 1) {
-    h += '<div class="page-dots">';
-    dirKeys.forEach((dir, i) => {
-      h += '<span class="page-dot' + (i === 0 ? ' active' : '') + '" data-page="' + i + '">' + dirShort(dir) + '</span>';
-    });
+  // Dots: one per direction + a Detours dot. Always shown now (there's always
+  // the detours page in addition to the direction pages).
+  h += '<div class="page-dots">';
+  dirKeys.forEach((dir, i) => {
+    h += '<span class="page-dot' + (i === 0 ? ' active' : '') + '" data-page="' + i + '">' + dirShort(dir) + '</span>';
+  });
+  const detourCount = routeDetours.length;
+  h += '<span class="page-dot detour-dot' + (dirKeys.length === 0 ? ' active' : '') + '" data-page="' + dirKeys.length + '">⚠ Detours' +
+       (detourCount ? ' <span class="dot-count">' + detourCount + '</span>' : '') + '</span>';
+  h += '</div>';
+  return h;
+}
+
+// The final swipeable page: every active detour on this route, both directions
+// in one list (mirrors the standalone septa-scheduler detours app).
+function buildDetoursPage(anim) {
+  let h = '<div class="page"><div class="detours-page">';
+  h += '<div class="section-label' + (anim ? ' fade-in' : '') + '">⚠ Detours · ' + routeDetours.length + '</div>';
+  if (!routeDetours.length) {
+    h += '<div class="msg"><div class="icon">✅</div><div class="main">No active detours</div>' +
+         '<div class="sub">Route ' + esc(state.route) + ' is running its regular route</div></div>';
+  } else {
+    h += '<div class="detour-list">';
+    routeDetours.forEach(d => { h += detourCardHtml(d); });
     h += '</div>';
   }
-  return h;
+  return h + '</div></div>';
+}
+
+function detourCardHtml(d) {
+  let h = '<div class="detour-card">';
+  h += '<div class="detour-header">';
+  h += '<span class="detour-badge">Route ' + esc(d.routeId) + '</span>';
+  if (d.direction) h += '<span class="detour-dir">' + esc(d.direction) + '</span>';
+  h += '<span class="detour-title">' + esc(d.reason || 'Bus Route Detour') + '</span>';
+  h += '</div>';
+  h += '<div class="detour-body">';
+  if (d.startLocation || d.endLocation) {
+    h += '<div class="detour-section"><div class="detour-slabel">Location</div><div class="detour-scontent">';
+    if (d.startLocation) h += 'From: ' + esc(d.startLocation) + (d.endLocation ? '<br>' : '');
+    if (d.endLocation)   h += 'To: ' + esc(d.endLocation);
+    h += '</div></div>';
+  }
+  if (d.message) {
+    h += '<div class="detour-section"><div class="detour-slabel">Details</div><div class="detour-scontent">' + esc(d.message) + '</div></div>';
+  }
+  if (d.startDate || d.endDate) {
+    h += '<div class="detour-section"><div class="detour-slabel">Timeline</div><div class="detour-scontent">';
+    if (d.startDate) h += 'Start: ' + esc(d.startDate) + (d.endDate ? '<br>' : '');
+    if (d.endDate)   h += 'End: ' + esc(d.endDate);
+    h += '</div></div>';
+  }
+  return h + '</div></div>';
 }
 
 // Scheduled departure (trip start) & arrival (trip end) minutes for the trip a
@@ -2093,6 +2213,7 @@ async function onRouteChange() {
   resetPositionState(); // different route → fresh position numbers & pass flags
   openLeaders.clear();  // don't carry expanded Leaders panels onto a new route
   loadScheduleData(state.route);
+  loadDetours(state.route);  // detours page for the new route
   isFirstRender = true;
   lastHTML = '';
   activePage = 0; // a new route may have a different direction ordering/count
