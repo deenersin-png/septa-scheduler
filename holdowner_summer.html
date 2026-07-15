@@ -50,6 +50,11 @@
   .hours-value{color:var(--accent);font-weight:700;font-family:var(--mono);}
   .sort-select{width:100%;background:var(--w05);border:1px solid var(--w08);border-radius:8px;padding:12px 14px;color:#fff;font-size:14px;outline:none;cursor:pointer;font-family:var(--sans);margin-bottom:16px;}
   .sort-select option{background:#1a1f2e;}
+  .vs-buttons{display:flex;gap:8px;margin-bottom:12px;}
+  .vs-btn{flex:1;background:var(--w05);border:1px solid var(--w10);border-radius:8px;padding:11px 12px;color:var(--w55);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all 0.2s;text-align:center;}
+  .vs-btn:hover{border-color:rgba(243,115,33,0.4);color:#fff;}
+  .vs-btn.active{background:var(--accent);border-color:var(--accent);color:#0a0f1a;}
+  .vs-badge{font-size:10px;background:rgba(155,93,229,0.25);color:#b98cf0;padding:2px 8px;border-radius:4px;font-weight:700;letter-spacing:0.5px;font-family:var(--mono);}
   .main{max-width:1200px;margin:0 auto;padding:0 20px 40px;}
   .pkg-wrap{margin-bottom:10px;}
   .pkg-card{background:var(--w03);border:2px solid var(--w06);border-radius:12px;padding:16px;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
@@ -114,7 +119,7 @@
         &nbsp;·&nbsp; Summer 2026 A-Pick · Callowhill
       </div>
     </div>
-    <div class="header-count"><span id="count">0</span> reliefs</div>
+    <div class="header-count"><span id="count">0</span> <span id="countNoun">reliefs</span></div>
   </div>
 </div>
 
@@ -125,6 +130,10 @@
     <div class="hours-label">Minimum Weekly Hours: <span class="hours-value" id="minHrsLabel">40 hrs</span></div>
     <input type="range" min="40" max="65" step="1" value="40" id="minHrs">
     <div class="range-info"><span>40 hrs</span><span>65 hrs</span></div>
+  </div>
+  <div class="vs-buttons" id="vsButtons" style="display:none;">
+    <button class="vs-btn" id="vsAddBtn">+ Add Vac/Sick Runs</button>
+    <button class="vs-btn" id="vsOnlyBtn">Vac/Sick Runs Only</button>
   </div>
   <select class="sort-select" id="sortBy">
     <option value="relief">Sort: Relief #</option>
@@ -155,6 +164,11 @@ const CSV_URLS = {
   pdfs:      BASE + "pdfs.csv",
 };
 
+// Vac/Sick runs — live Google Sheet (Callowhill). A2 (online) = master switch.
+const SHEET_ID  = "1XY9tVEzQGxCO010RNkCFARXEt_5nqxUm_etTlh7cjZA";
+const SHEET_GID = "176321248";
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&gid="+SHEET_GID;
+
 const ROUTE_COLORS = {
   "21-42":"#e63946","43":"#457b9d","52":"#2a9d8f","65":"#e9c46a",
   "44":"#f4a261","30":"#264653","38":"#6a4c93","31":"#1d3557",
@@ -168,6 +182,11 @@ let holdowner  = [];
 let allRoutes  = [];
 let excludedRoutes = new Set();
 let openRelief = null;
+
+// Vac/Sick state
+let vacSick       = [];        // parsed packages from the sheet
+let vacSickOnline = false;     // A2 master switch
+let viewMode      = localStorage.getItem("vacSickViewMode") || "reliefs"; // "reliefs" | "add" | "vsonly"
 
 // pdfLinks[dayType][runno] = moblink URL
 // e.g. pdfLinks["Weekday"]["51"] = "https://...#page=1"
@@ -266,6 +285,30 @@ function parseHoldownerCSV(text){
   return pkgs;
 }
 
+// ── Vac/Sick sheet parser (position-based) ────────────────────
+// Cols: 0 online | 1 Vac/Sick# | 2 Weekday(fills Mon-Fri) | 3-9 Mon..Sun
+function parseVacSickCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
+  if(lines.length<2) return {online:false, pkgs:[]};
+  let online=false; const pkgs=[];
+  const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  for(let i=1;i<lines.length;i++){
+    const v=parseCSVRow(lines[i]).map(s=>cleanStr(s));
+    if(i===1 && (v[0]||"").toLowerCase()==="yes") online=true; // A2 master switch
+    const num=v[1]; if(!num) continue;
+    const days={Mon:"OFF",Tue:"OFF",Wed:"OFF",Thu:"OFF",Fri:"OFF",Sat:"OFF",Sun:"OFF"};
+    const wk=v[2]||"";
+    if(wk){ days.Mon=days.Tue=days.Wed=days.Thu=days.Fri=wk; }   // weekday-only shortcut
+    const perDay=[v[3],v[4],v[5],v[6],v[7],v[8],v[9]];           // Mon..Sun overrides
+    DAYS.forEach((d,idx)=>{ if(perDay[idx]) days[d]=perDay[idx]; });
+    pkgs.push({reliefRun:"Vac/Sick "+num, days, isVacSick:true});
+  }
+  return {online, pkgs};
+}
+
+// Safe DOM id from a relief label (handles the space/slash in "Vac/Sick 1")
+function safeId(s){ return String(s).replace(/[^a-zA-Z0-9]+/g,"-"); }
+
 // ── Fetch ─────────────────────────────────────────────────────
 async function fetchCSV(url){
   try{
@@ -278,24 +321,40 @@ async function fetchCSV(url){
 }
 
 async function loadData(){
-  const [wdText,satText,sunText,hoText,pdfText] = await Promise.all([
+  const [wdText,satText,sunText,hoText,pdfText,vsText] = await Promise.all([
     fetchCSV(CSV_URLS.weekday), fetchCSV(CSV_URLS.saturday),
     fetchCSV(CSV_URLS.sunday),  fetchCSV(CSV_URLS.holdowner),
-    fetchCSV(CSV_URLS.pdfs),
+    fetchCSV(CSV_URLS.pdfs),    fetchCSV(SHEET_CSV),
   ]);
   if(wdText){  parseScheduleCSV(wdText).forEach(r=>{runsByDay.Weekday[r.runno]=r;}); }
   if(satText){ parseScheduleCSV(satText).forEach(r=>{runsByDay.Saturday[r.runno]=r;}); }
   if(sunText){ parseScheduleCSV(sunText).forEach(r=>{runsByDay.Sunday[r.runno]=r;}); }
   if(hoText)  holdowner=parseHoldownerCSV(hoText);
   if(pdfText) parsePdfsCSV(pdfText);
+  if(vsText){ const vs=parseVacSickCSV(vsText); vacSickOnline=vs.online; vacSick=vs.pkgs; }
 
   const rs=new Set();
   Object.values(runsByDay).forEach(day=>Object.values(day).forEach(r=>r.routes.forEach(rt=>rs.add(rt.r))));
   allRoutes=[...rs].sort();
 
   buildRouteFilters();
+  applyVacSickUI();
   render();
   document.getElementById("loadingMsg").style.display="none";
+}
+
+// Show/hide the two buttons based on the A2 master switch; force reliefs-only when off.
+function applyVacSickUI(){
+  const box=document.getElementById("vsButtons");
+  const available = vacSickOnline && vacSick.length>0;
+  if(available){
+    box.style.display="flex";
+  }else{
+    box.style.display="none";
+    if(viewMode!=="reliefs"){ viewMode="reliefs"; localStorage.setItem("vacSickViewMode","reliefs"); }
+  }
+  document.getElementById("vsAddBtn").classList.toggle("active", viewMode==="add");
+  document.getElementById("vsOnlyBtn").classList.toggle("active", viewMode==="vsonly");
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -380,7 +439,13 @@ function render(){
   const sortBy = document.getElementById("sortBy").value;
   const minHrs = parseFloat(document.getElementById("minHrs").value)||40;
 
-  let pkgs=holdowner.map(pkg=>{ const d=getPackageDetails(pkg); return{...pkg,...d}; });
+  // Pick the source list based on the current view mode.
+  let source;
+  if(viewMode==="vsonly")   source=vacSick;
+  else if(viewMode==="add") source=holdowner.concat(vacSick);
+  else                      source=holdowner;
+
+  let pkgs=source.map(pkg=>{ const d=getPackageDetails(pkg); return{...pkg,...d}; });
   if(excludedRoutes.size>0) pkgs=pkgs.filter(p=>!p.routes.some(r=>excludedRoutes.has(r)));
   if(minHrs>40) pkgs=pkgs.filter(p=>p.totalPay>=minHrs);
   if(sortBy==="pay-high") pkgs.sort((a,b)=>b.totalPay-a.totalPay);
@@ -388,21 +453,27 @@ function render(){
   else pkgs.sort((a,b)=>a.reliefRun.localeCompare(b.reliefRun,undefined,{numeric:true}));
 
   document.getElementById("count").textContent=pkgs.length;
+  document.getElementById("countNoun").textContent =
+    viewMode==="vsonly" ? "vac/sick runs" : (viewMode==="add" ? "runs" : "reliefs");
   const list=document.getElementById("listPanel");
 
   if(pkgs.length===0){
-    list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No reliefs found</div><div class="empty-sub">Try adjusting your filters</div></div>';
+    const what = viewMode==="reliefs" ? "reliefs" : "vac/sick runs";
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No '+what+' found</div><div class="empty-sub">Try adjusting your filters</div></div>';
     return;
   }
 
   list.innerHTML=pkgs.map(p=>{
     const offDayText=p.offDays.length>0?'Off: '+p.offDays.join(', '):'No days off';
     const isOpen=openRelief===p.reliefRun;
-    return '<div class="pkg-wrap" id="wrap-'+p.reliefRun+'">'+
+    const sid=safeId(p.reliefRun);
+    const vsTag=p.isVacSick?'<span class="vs-badge">VAC/SICK</span>':'';
+    return '<div class="pkg-wrap" id="wrap-'+sid+'">'+
       '<div class="pkg-card'+(isOpen?' open':'')+'" data-relief="'+p.reliefRun+'">'+
         '<div class="pkg-header">'+
           '<span class="pkg-name">'+p.reliefRun+'</span>'+
           '<div class="pkg-right">'+
+            vsTag+
             '<span class="pkg-pay">'+p.totalPay.toFixed(1)+' hrs/wk</span>'+
             '<span class="pkg-chevron'+(isOpen?' open':'')+'">&#9660;</span>'+
           '</div>'+
@@ -410,8 +481,8 @@ function render(){
         '<div class="pkg-routes">'+p.routes.map(r=>routeTag(r,true)).join('')+'</div>'+
         '<div class="pkg-meta">'+offDayText+'</div>'+
       '</div>'+
-      '<div class="pkg-detail'+(isOpen?' open':'')+'" id="detail-'+p.reliefRun+'">'+
-        (isOpen?'<div class="pkg-detail-inner">'+buildDetailHTML(holdowner.find(h=>h.reliefRun===p.reliefRun))+'</div>':'')+
+      '<div class="pkg-detail'+(isOpen?' open':'')+'" id="detail-'+sid+'">'+
+        (isOpen?'<div class="pkg-detail-inner">'+buildDetailHTML(p)+'</div>':'')+
       '</div>'+
     '</div>';
   }).join('');
@@ -422,7 +493,7 @@ function render(){
       openRelief=(openRelief===relief)?null:relief;
       render();
       if(openRelief){
-        setTimeout(()=>{ document.getElementById("wrap-"+openRelief)?.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
+        setTimeout(()=>{ document.getElementById("wrap-"+safeId(openRelief))?.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
       }
     });
   });
@@ -446,6 +517,17 @@ document.getElementById("minHrs").addEventListener("input",function(){
   document.getElementById("minHrsLabel").textContent=this.value+" hrs";
   render();
 });
+
+// Vac/Sick toggle buttons (mutually exclusive; click active one to return to reliefs).
+function setViewMode(mode){
+  viewMode = (viewMode===mode) ? "reliefs" : mode;
+  localStorage.setItem("vacSickViewMode",viewMode);
+  openRelief=null;
+  applyVacSickUI();
+  render();
+}
+document.getElementById("vsAddBtn").addEventListener("click",()=>setViewMode("add"));
+document.getElementById("vsOnlyBtn").addEventListener("click",()=>setViewMode("vsonly"));
 
 loadData();
 </script>
