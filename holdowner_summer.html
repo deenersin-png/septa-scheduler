@@ -287,6 +287,23 @@ function parseHoldownerCSV(text){
 
 // ── Vac/Sick sheet parser (position-based) ────────────────────
 // Cols: 0 online | 1 Vac/Sick# | 2 Weekday(fills Mon-Fri) | 3-9 Mon..Sun
+
+// A2 master switch. Keep identical to tools/ingest.py's VS_ON/VS_OFF — the app
+// and this picker read the same cell, and must never disagree about it.
+// Unrecognised values fail closed but warn: the old rule was === "yes", so
+// typing "on" hid the feature silently with nothing to explain why.
+const VS_ON  = ["yes","y","true","on","1","enabled"];
+const VS_OFF = ["no","n","false","off","0","disabled",""];
+function readVacSickSwitch(raw){
+  const v=String(raw||"").trim().toLowerCase();
+  if(VS_ON.includes(v))  return true;
+  if(VS_OFF.includes(v)) return false;
+  console.warn("Vac/Sick master switch A2 is "+JSON.stringify(raw)+
+               " — neither on ("+VS_ON.join("/")+") nor off ("+VS_OFF.filter(Boolean).join("/")+
+               "). Treating as OFF.");
+  return false;
+}
+
 function parseVacSickCSV(text){
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
   if(lines.length<2) return {online:false, pkgs:[]};
@@ -294,7 +311,7 @@ function parseVacSickCSV(text){
   const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   for(let i=1;i<lines.length;i++){
     const v=parseCSVRow(lines[i]).map(s=>cleanStr(s));
-    if(i===1 && (v[0]||"").toLowerCase()==="yes") online=true; // A2 master switch
+    if(i===1) online=readVacSickSwitch(v[0]); // A2 master switch
     const num=v[1]; if(!num) continue;
     const days={Mon:"OFF",Tue:"OFF",Wed:"OFF",Thu:"OFF",Fri:"OFF",Sat:"OFF",Sun:"OFF"};
     const wk=v[2]||"";
