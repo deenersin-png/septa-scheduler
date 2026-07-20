@@ -773,7 +773,7 @@ header {
       <div class="hd-pick">Summer 2026 A-Pick</div>
     </div>
   </div>
-  <a href="https://deenersin-png.github.io/live-tracker/" class="btn-live">LIVE</a>
+  <a href="https://deenersin-png.github.io/septa-scheduler/block-tracker" class="btn-live">LIVE</a>
 </header>
 
 <div class="toolbar">
@@ -864,7 +864,7 @@ function getRunRoutes(run) {
 
 async function loadManifest() {
   try {
-    const response = await fetch('data/manifest.json');
+    const response = await fetch('data/manifest_summer.json');
     if (!response.ok) throw new Error('Manifest not found');
     STATE.manifest = await response.json();
     initializeDistricts();
