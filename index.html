@@ -85,6 +85,28 @@ header {
 
 @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
 
+.hd-selects {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.hd-season-select {
+  font-family:var(--mono);
+  font-size:12px;
+  background:none;border:none;
+  color:var(--amber);
+  padding:0;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.04em;
+  max-width:100%;
+}
+
+.hd-season-select:hover {
+  color:var(--bright);
+}
+
 .hd-depot-select {
   font-family:var(--mono);
   font-size:15px;
@@ -94,16 +116,17 @@ header {
   cursor:pointer;
   font-weight:600;
   letter-spacing:.04em;
+  max-width:100%;
 }
 
 .hd-depot-select:hover {
   color:var(--amber);
 }
 
-.hd-pick { 
+.hd-pick {
   font-size:12px;
   color:var(--dim);
-  margin-top:2px; 
+  margin-top:2px;
 }
 
 .btn-live {
@@ -766,11 +789,13 @@ header {
 <header>
   <div class="hd-depot">
     <div class="hd-dot"></div>
-    <div>
+    <div class="hd-selects">
+      <select class="hd-season-select" id="season-select" onchange="changeSeason()">
+        <option value="">Loading...</option>
+      </select>
       <select class="hd-depot-select" id="district-select" onchange="changeDistrict()">
         <option value="">Loading districts...</option>
       </select>
-      <div class="hd-pick">Summer 2026 A-Pick</div>
     </div>
   </div>
   <a href="https://deenersin-png.github.io/septa-scheduler/block-tracker" class="btn-live">LIVE</a>
@@ -815,7 +840,23 @@ header {
 const isMobile = window.innerWidth <= 768;
 const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
 
+// ==========================================================================
+// SEASONS — step 1 of the picker. Each entry becomes one option in the
+// "Season" dropdown and points at its own manifest file.
+//
+// To RETIRE SUMMER later: just delete the summer line below. Fall then
+// becomes the default, and the Season dropdown auto-hides while only one
+// season remains (so it looks like the single-dropdown app does today).
+// The order here is the display order; the first entry is the default.
+// ==========================================================================
+const SEASONS = [
+  { id: 'summer2026', label: 'Summer 2026', manifest: 'data/manifest_summer.json' },
+  { id: 'fall2026',   label: 'Fall 2026',   manifest: 'data/manifest-fall-2026.json' },
+  { id: 'spring2026',   label: 'Spring 2026',   manifest: 'data/manifest_fall2026.json' }
+];
+
 let STATE = {
+  currentSeason: null,
   manifest: null,
   currentDistrict: null,
   currentDay: 'Weekday',
@@ -862,9 +903,35 @@ function getRunRoutes(run) {
   return routes;
 }
 
-async function loadManifest() {
+function initSeasons() {
+  const select = document.getElementById('season-select');
+  if (!SEASONS || SEASONS.length === 0) {
+    document.getElementById('grid').innerHTML = `<div class="error">No seasons configured</div>`;
+    return;
+  }
+
+  select.innerHTML = SEASONS
+    .map(s => `<option value="${s.id}">${s.label}</option>`)
+    .join('');
+
+  // Only one season left (e.g. summer retired) -> hide the season dropdown
+  // so it looks like the original single-dropdown app.
+  select.style.display = SEASONS.length > 1 ? '' : 'none';
+
+  const saved = localStorage.getItem('paddleSeason');
+  const validSaved = SEASONS.find(s => s.id === saved);
+  select.value = validSaved ? saved : SEASONS[0].id;
+  changeSeason();
+}
+
+async function changeSeason() {
+  const select = document.getElementById('season-select');
+  const season = SEASONS.find(s => s.id === select.value) || SEASONS[0];
+  STATE.currentSeason = season.id;
+  localStorage.setItem('paddleSeason', season.id);
+
   try {
-    const response = await fetch('data/manifest_summer.json');
+    const response = await fetch(season.manifest);
     if (!response.ok) throw new Error('Manifest not found');
     STATE.manifest = await response.json();
     initializeDistricts();
@@ -883,7 +950,7 @@ function initializeDistricts() {
     .map(d => `<option value="${d.name}">${d.label || d.name}</option>`)
     .join('');
   if (STATE.manifest.districts.length > 0) {
-    const saved = localStorage.getItem('paddleDepot');
+    const saved = localStorage.getItem('paddleDepot_' + STATE.currentSeason);
     const validSaved = STATE.manifest.districts.find(d => d.name === saved);
     select.value = validSaved ? saved : STATE.manifest.districts[0].name;
     changeDistrict();
@@ -894,7 +961,7 @@ async function changeDistrict() {
   const select = document.getElementById('district-select');
   STATE.currentDistrict = select.value;
   if (!STATE.currentDistrict) return;
-  localStorage.setItem('paddleDepot', STATE.currentDistrict);
+  localStorage.setItem('paddleDepot_' + STATE.currentSeason, STATE.currentDistrict);
   
   try {
     STATE.runs = [];
@@ -1103,7 +1170,7 @@ function render() {
   }).join('');
 }
 
-loadManifest();
+initSeasons();
 </script>
 </body>
 </html>
