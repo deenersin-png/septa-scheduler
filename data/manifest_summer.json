@@ -2,52 +2,52 @@
   "districts": [
     {
       "name": "callowhillb-summer2026",
-      "label": "Callowhill Summer",
+      "label": "Callowhill",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "allegheny-summer2026",
-      "label": "Allegheny Summer",
+      "label": "Allegheny",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "victory-summer2026",
-      "label": "Victory-Summer",
+      "label": "Victory",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frontier-summer2026",
-      "label": "Frontier Summer",
+      "label": "Frontier",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "southern-summer2026",
-      "label": "Southern Summer",
+      "label": "Southern",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "elmwood-summer2026",
-      "label": "Elmwood Summer",
+      "label": "Elmwood",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "comly-summer2026",
-      "label": "Comly Summer",
+      "label": "Comly",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frankfordb-summer2026",
-      "label": "Frankford Bus Summer",
+      "label": "Frankford Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frankford-rail-summer2026",
-      "label": "Frankford Rail Summer",
+      "label": "Frankford Rail",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "midvale-summer2026",
-      "label": "Midvale Summer",
+      "label": "Midvale",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
