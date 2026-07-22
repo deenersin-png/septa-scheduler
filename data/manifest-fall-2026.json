@@ -2,52 +2,52 @@
   "districts": [
     {
       "name": "victory-fall-2026",
-      "label": "Victory Fall",
+      "label": "Victory",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frankford-rail-fall-2026",
-      "label": "Frankford Rail Fall",
+      "label": "Frankford Rail",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "midvale-fall-2026",
-      "label": "Midvale Fall",
+      "label": "Midvale",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "elmwood-fall-2026",
-      "label": "Elmwood Fall",
+      "label": "Elmwood",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "callowhillb-fall-2026",
-      "label": "Callowhill Fall",
+      "label": "Callowhill",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "allegheny-fall-2026",
-      "label": "Allegheny Fall",
+      "label": "Allegheny",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frontier-fall-2026",
-      "label": "Frontier Fall",
+      "label": "Frontier",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "southern-fall-2026",
-      "label": "Southern Fall",
+      "label": "Southern",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "comly-fall-2026",
-      "label": "Comly Fall",
+      "label": "Comly",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
       "name": "frankfordb-fall-2026",
-      "label": "Frankford Bus Fall",
+      "label": "Frankford Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
