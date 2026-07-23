@@ -73,7 +73,8 @@ header {
 
 .hd-depot {
   display:flex;align-items:center;gap:12px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .hd-dot {
@@ -87,8 +88,11 @@ header {
 
 .hd-selects {
   display:flex;
-  flex-direction:column;
-  gap:2px;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:12px;
+  min-width:0;
 }
 
 .hd-season-select {
@@ -100,7 +104,8 @@ header {
   cursor:pointer;
   font-weight:600;
   letter-spacing:.04em;
-  max-width:100%;
+  width:clamp(130px, 22vw, 220px);
+  min-width:0;
 }
 
 .hd-season-select:hover {
@@ -116,7 +121,8 @@ header {
   cursor:pointer;
   font-weight:600;
   letter-spacing:.04em;
-  max-width:100%;
+  width:clamp(160px, 28vw, 280px);
+  min-width:0;
 }
 
 .hd-depot-select:hover {
@@ -841,7 +847,7 @@ const isMobile = window.innerWidth <= 768;
 const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
 
 // ==========================================================================
-// SEASONS — step 1 of the picker. Each entry becomes one option in the
+// SEASONS â€” step 1 of the picker. Each entry becomes one option in the
 // "Season" dropdown and points at its own manifest file.
 //
 // To RETIRE SUMMER later: just delete the summer line below. Fall then
@@ -850,7 +856,7 @@ const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
 // The order here is the display order; the first entry is the default.
 // ==========================================================================
 const SEASONS = [
-  { id: 'summer2026', label: 'Summer 2026', manifest: 'data/manifest_summer.json' },
+  { id: 'summer2026', label: 'Summer 2026', manifest: 'data/manifest.json' },
   { id: 'fall2026',   label: 'Fall 2026',   manifest: 'data/manifest-fall-2026.json' },
   { id: 'spring2026',   label: 'Spring 2026',   manifest: 'data/manifest_fall2026.json' }
 ];
@@ -1107,7 +1113,7 @@ function render() {
     const pdfLink = STATE.pdfLinks[run.day + '-' + run.runno] || {};
     const paddleLink = isMobile ? pdfLink.moblink : pdfLink.pclink;
     const paddleBtn = paddleLink
-      ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE ↗</a>`
+      ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE â†—</a>`
       : '';
 
     const runRoutes = getRunRoutes(run);
@@ -1131,7 +1137,7 @@ function render() {
             <div class="seg-times">
               <span class="seg-time-tag">${run['potype' + i] || ''}</span>
               <span>${run['pot' + i] || ''}</span>
-              <span class="seg-arrow">→</span>
+              <span class="seg-arrow">â†’</span>
               <span class="seg-time-tag">${run['pitype' + i] || ''}</span>
               <span>${run['pit' + i] || ''}</span>
             </div>
@@ -1144,7 +1150,7 @@ function render() {
 
     let swingHtml = '';
     if (run.pullout2) {
-      swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '—'}</div></div>`;
+      swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || 'â€”'}</div></div>`;
     }
 
     return `
@@ -1156,13 +1162,13 @@ function render() {
             <div class="run-actions">${paddleBtn}</div>
           </div>
           <div class="card-head-bottom">
-            <div class="run-routes">${routesDisplay || '—'}</div>
+            <div class="run-routes">${routesDisplay || 'â€”'}</div>
           </div>
         </div>
         <div class="stats-row">
-          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '—'}</div></div>
-          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '—'}</div></div>
-          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '—'}</div></div>
+          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || 'â€”'}</div></div>
+          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || 'â€”'}</div></div>
+          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || 'â€”'}</div></div>
         </div>
         ${swingHtml}
         ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
