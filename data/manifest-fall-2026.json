@@ -1,6 +1,11 @@
 {
   "districts": [
     {
+      "name": "callowhillb-fall-2026",
+      "label": "Callowhill Bus",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
       "name": "victory-fall-2026",
       "label": "Victory Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
@@ -18,11 +23,6 @@
     {
       "name": "elmwood-fall-2026",
       "label": "Elmwood",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "callowhillb-fall-2026",
-      "label": "Callowhill Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
