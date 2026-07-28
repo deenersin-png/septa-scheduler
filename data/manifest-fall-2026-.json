@@ -1,0 +1,24 @@
+{
+  "districts": [
+    {
+      "name": "victory-fall-2026",
+      "label": "Victory",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankford-rail-fall-2026",
+      "label": "Frankford Rail",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "midvale-fall-2026",
+      "label": "Midvale",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "elmwood-fall-2026",
+      "label": "Elmwood",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    }
+  ]
+}

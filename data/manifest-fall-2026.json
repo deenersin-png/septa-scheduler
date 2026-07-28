@@ -19,6 +19,36 @@
       "name": "elmwood-fall-2026",
       "label": "Elmwood",
       "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "callowhillb-fall-2026",
+      "label": "Callowhill",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "allegheny-fall-2026",
+      "label": "Allegheny",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frontier-fall-2026",
+      "label": "Frontier",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "southern-fall-2026",
+      "label": "Southern",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "comly-fall-2026",
+      "label": "Comly",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankfordb-fall-2026",
+      "label": "Frankford Bus",
+      "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
 }
