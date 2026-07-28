@@ -2,7 +2,7 @@
   "districts": [
     {
       "name": "victory-fall-2026",
-      "label": "Victory",
+      "label": "Victory Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
@@ -22,7 +22,7 @@
     },
     {
       "name": "callowhillb-fall-2026",
-      "label": "Callowhill",
+      "label": "Callowhill Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
