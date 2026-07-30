@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paddle App</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QXEKGF4DXT');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ink: #0a0b0d;
+  --ink2: #13151a;
+  --ink3: #1d2028;
+  --line: rgba(255,255,255,0.07);
+  --line2: rgba(255,255,255,0.13);
+  --line3: rgba(255,255,255,0.22);
+  --dim: #4a4f5e;
+  --mid: #8a909f;
+  --text: #c8cdd8;
+  --bright: #e8ecf4;
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --green: #3dd68c;
+  --green-dim: rgba(61,214,140,0.1);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.1);
+  --red: #ff6b6b;
+  --red-dim: rgba(255,107,107,0.1);
+  --violet: #a78bfa;
+  --violet-dim: rgba(167,139,250,0.1);
+  --sans: 'IBM Plex Sans Condensed', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --card-w: 340px;
+}
+
+html { font-size: 16px; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events:none;z-index:1000;
+}
+
+header {
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line2);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: auto;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  justify-content: space-between;
+}
+
+.hd-depot {
+  display:flex;align-items:center;gap:12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hd-dot {
+  width:8px;height:8px;border-radius:50%;
+  background:var(--amber);
+  opacity: 0.7;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
+
+.hd-selects {
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:12px;
+  min-width:0;
+}
+
+.hd-season-select {
+  font-family:var(--mono);
+  font-size:12px;
+  background:none;border:none;
+  color:var(--amber);
+  padding:0;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.04em;
+  width:clamp(130px, 22vw, 220px);
+  min-width:0;
+}
+
+.hd-season-select:hover {
+  color:var(--bright);
+}
+
+.hd-depot-select {
+  font-family:var(--mono);
+  font-size:15px;
+  background:none;border:none;
+  color:var(--bright);
+  padding:0;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.04em;
+  width:clamp(160px, 28vw, 280px);
+  min-width:0;
+}
+
+.hd-depot-select:hover {
+  color:var(--amber);
+}
+
+.hd-pick {
+  font-size:12px;
+  color:var(--dim);
+  margin-top:2px;
+}
+
+.btn-live {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--red);
+  color: var(--bright);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+  letter-spacing: .04em;
+  flex: 0 0 auto;
+}
+
+.btn-live:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
+}
+
+.toolbar {
+  background:var(--ink2);
+  border-bottom:1px solid var(--line);
+  padding:14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.day-selector {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 250px;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  background:var(--ink3);
+  color:var(--mid);
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight: 600;
+  padding:10px 16px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+  border: none;
+}
+
+.day-btn:hover {
+  color:var(--text);
+  background: var(--ink2);
+}
+
+.day-btn.sunday { color: var(--green); }
+.day-btn.weekday { color: var(--amber); }
+.day-btn.saturday { color: var(--blue); }
+
+.day-btn.active.sunday { background: var(--green-dim); color: var(--green); }
+.day-btn.active.weekday { background: var(--amber-dim); color: var(--amber); }
+.day-btn.active.saturday { background: var(--blue-dim); color: var(--blue); }
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 280px;
+}
+
+.search-wrap {
+  position:relative;
+  flex: 1 1 auto;
+  min-width: 100px;
+}
+
+.search-wrap svg {
+  position:absolute;
+  left:9px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--dim);
+  pointer-events:none;
+}
+
+.search-wrap input {
+  width:100%;
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--bright);
+  font-family:var(--mono);
+  font-size:14px;
+  padding:10px 10px 10px 30px;
+  border-radius:4px;
+  outline:none;
+  transition:border-color .15s;
+}
+
+.search-wrap input:focus{border-color:var(--amber);}
+.search-wrap input::placeholder{color:var(--dim);}
+
+.filter-row { 
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  flex: 1 1 auto;
+}
+
+.fchip {
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--mid);
+  font-family:var(--mono);
+  font-size:12px;
+  padding:7px 12px;
+  border-radius:3px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+
+.fchip:hover{border-color:var(--line3);color:var(--text);}
+.fchip.active{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);}
+
+/* count badge inside a route chip: how many runs this route alone would show
+   under the CURRENT match mode */
+.fchip .cnt {
+  font-size:10px;
+  font-weight:600;
+  opacity:.6;
+  margin-left:5px;
+}
+
+/* route returns nothing under the current mode */
+.fchip.dead {
+  color:var(--dim);
+  border-color:var(--line);
+  border-style:dashed;
+}
+.fchip.dead .cnt { color:var(--red);opacity:.9; }
+.fchip.dead.active {
+  background:var(--red-dim);
+  border-color:var(--red);
+  color:var(--red);
+}
+
+/* ===== ROUTE FILTER BLOCK (mode toggle + chips) ===== */
+.route-block {
+  flex:1 1 100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+
+.route-mode-row {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.rm-label {
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--dim);
+  flex-shrink:0;
+}
+
+.mode-toggle {
+  display:inline-flex;
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  border-radius:4px;
+  overflow:hidden;
+  flex-shrink:0;
+}
+
+.mode-btn {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.05em;
+  background:none;
+  border:none;
+  color:var(--mid);
+  padding:7px 12px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+
+.mode-btn + .mode-btn { border-left:1px solid var(--line2); }
+.mode-btn:hover { color:var(--text);background:var(--ink2); }
+.mode-btn.active { background:var(--violet-dim);color:var(--violet); }
+
+.rm-hint {
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--dim);
+  min-width:0;
+}
+
+.btn-clear-routes {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  background:none;
+  border:1px solid var(--line2);
+  color:var(--mid);
+  padding:6px 10px;
+  border-radius:3px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+
+.btn-clear-routes:hover { border-color:var(--red);color:var(--red); }
+
+/* ===== SMART EMPTY STATE ===== */
+.empty-hint {
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--mid);
+  text-align:center;
+  max-width:440px;
+  line-height:1.5;
+}
+
+.empty-hint b { color:var(--amber); }
+
+.btn-switch-mode {
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.04em;
+  background:var(--violet);
+  border:1px solid var(--violet);
+  color:#12091f;
+  padding:9px 16px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+}
+
+.btn-switch-mode:hover { background:#c4aeff;border-color:#c4aeff; }
+
+.sort-sel {
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:13px;
+  padding:8px 10px;
+  border-radius:4px;
+  outline:none;
+  cursor:pointer;
+}
+
+.result-line {
+  font-size:13px;
+  color:var(--dim);
+  font-family:var(--mono);
+  white-space:nowrap;
+  flex: 0 0 auto;
+}
+
+.result-line strong { color:var(--amber); }
+
+.grid-wrap {
+  padding: 16px 12px 40px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-w), 100%), 1fr));
+  gap: 12px;
+}
+
+.card {
+  background:var(--ink2);
+  border:1px solid var(--line2);
+  border-radius:6px;
+  overflow:hidden;
+  transition:border-color .2s, transform .15s;
+  position:relative;
+}
+
+.card:hover {
+  border-color:var(--line3);
+  transform:translateY(-1px);
+}
+
+.card::before {
+  content:'';
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:4px;
+}
+
+.card.day-Sunday::before { background:var(--green); }
+.card.day-Weekday::before { background:var(--amber); }
+.card.day-Saturday::before { background:var(--blue); }
+
+.card-head {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 0;
+  border-bottom:1px solid var(--line);
+  background:var(--ink3);
+}
+
+.card-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.run-day {
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--amber);
+  flex-shrink: 0;
+}
+
+.card.day-Sunday .run-day { color:var(--green); }
+.card.day-Weekday .run-day { color:var(--amber); }
+.card.day-Saturday .run-day { color:var(--blue); }
+
+.run-num-label {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  color:var(--bright);
+  flex-shrink: 0;
+  display: none;
+}
+
+.run-num {
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:700;
+  color:var(--amber);
+  line-height:1;
+  flex-shrink: 0;
+}
+
+.card.day-Sunday .run-num { color:var(--green); }
+.card.day-Weekday .run-num { color:var(--amber); }
+.card.day-Saturday .run-num { color:var(--blue); }
+
+.run-actions {
+  margin-left: auto;
+}
+
+.btn-paddle {
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.06em;
+  background:var(--blue);
+  border:1px solid var(--blue);
+  color:#0a1020;
+  padding:4px 10px;
+  border-radius:4px;
+  cursor:pointer;
+  text-decoration:none;
+  display:none;
+  align-items:center;
+  gap:3px;
+  transition:all .15s;
+  white-space:nowrap;
+  flex-shrink: 0;
+}
+
+.btn-paddle.show {
+  display: inline-flex;
+}
+
+.btn-paddle:hover{
+  border-color:#6fb4ff;
+  background:#6fb4ff;
+  color:#0a1020;
+}
+
+.btn-paddle:active{
+  background:#3c8ae6;
+  border-color:#3c8ae6;
+}
+
+.card-head-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+}
+
+.run-routes {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  color:var(--bright);
+  letter-spacing:.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-row {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--line);
+}
+
+.stat {
+  padding:10px 12px;
+  border-right:1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat:last-child{border-right:none;}
+
+.stat-label {
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:3px;
+}
+
+.stat-val {
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:700;
+  color:var(--bright);
+  line-height: 1.1;
+}
+
+.stat-val.pay { color:var(--amber); }
+
+.swing-section {
+  padding:6px 12px;
+  border-top:1px solid var(--line);
+  background:var(--ink3);
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--mid);
+  display: flex;
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+.swing-label {
+  color:var(--dim);
+  font-weight: 600;
+}
+
+.swing-value {
+  color:var(--violet);
+  font-weight: 600;
+}
+
+.timeline { 
+  padding:12px 14px 12px 17px; 
+}
+
+.seg {
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  margin-bottom:6px;
+  position:relative;
+}
+
+.seg:last-child{ margin-bottom:0; }
+
+.seg-connector {
+  width:16px;
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  position:relative;
+  margin-right:8px;
+}
+
+.seg-dot {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  border:2px solid;
+  flex-shrink:0;
+  margin-top:4px;
+  z-index:1;
+  border-color:var(--green);
+  background:var(--green);
+}
+
+.seg-line {
+  width:1px;
+  background:var(--line2);
+  flex:1;
+  margin-top:2px;
+}
+
+.seg:last-child .seg-line { display:none; }
+
+.seg-body { 
+  flex:1;
+  min-width:0;
+  padding-bottom:6px; 
+}
+
+.seg-top {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  margin-bottom:3px;
+  flex-wrap: wrap;
+}
+
+.seg-route {
+  font-family:var(--mono);
+  font-size:14px;
+  font-weight:600;
+  color:var(--bright);
+  min-width:36px;
+}
+
+.seg-block {
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.08em;
+  color:var(--bright);
+  background:var(--ink3);
+  border:1px solid var(--line3);
+  border-radius:3px;
+  padding:2px 6px;
+}
+
+.seg-block-label {
+  font-family:var(--mono);
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.1em;
+  color:var(--dim);
+  margin-right:-2px;
+}
+
+.seg-sched {
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--mid);
+  margin-left:auto;
+}
+
+.seg-times {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--mid);
+  flex-wrap: wrap;
+}
+
+.seg-time-tag {
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.05em;
+  padding:1px 4px;
+  border-radius:2px;
+  background:var(--green-dim);
+  color:var(--green);
+}
+
+.seg-arrow { color:var(--dim);font-size:10px; }
+
+.empty {
+  grid-column:1/-1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:280px;
+  gap:12px;
+  color:var(--dim);
+}
+
+.empty p { font-size:16px; }
+
+#route-filters { 
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  min-width: 200px;
+}
+
+.error {
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 20px;
+  border-radius: 4px;
+  margin: 20px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+@media (max-width: 768px) {
+  html { font-size: 16px; }
+  
+  header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .btn-live {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .day-selector {
+    width: 100%;
+    min-width: unset;
+    justify-content: space-around;
+  }
+  
+  .day-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  .search-row {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .search-wrap {
+    flex: 1;
+    min-width: unset;
+  }
+  
+  .filter-row {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .route-block {
+    width: 100%;
+  }
+
+  .route-mode-row {
+    gap: 8px;
+  }
+
+  /* label on its own line so the toggle gets the full width */
+  .rm-label {
+    flex: 1 1 100%;
+  }
+
+  .mode-toggle {
+    flex: 1 1 auto;
+  }
+
+  /* bigger tap targets on phones */
+  .mode-btn {
+    flex: 1;
+    padding: 13px 8px;
+    font-size: 12px;
+  }
+
+  .btn-clear-routes {
+    padding: 13px 12px;
+    font-size: 12px;
+  }
+
+  .rm-hint {
+    flex: 1 1 100%;
+    font-size: 11px;
+  }
+
+  .sort-sel {
+    width: 100%;
+  }
+  
+  .result-line {
+    width: 100%;
+  }
+  
+  :root { --card-w: 100%; }
+  
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* --- CARD HEADER FIX: two clear rows, no overlap --- */
+  .card-head {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-head-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 4px 10px;
+    flex-wrap: nowrap;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  .run-day {
+    font-size: 12px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+
+  .run-num-label {
+    display: none;
+  }
+
+  .run-num {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .run-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .btn-paddle {
+    font-size: 10px;
+    padding: 4px 9px;
+    flex-shrink: 0;
+  }
+
+  .card-head-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
+  .run-routes {
+    font-size: 11px;
+    text-align: right;
+  }
+  /* --- END CARD HEADER FIX --- */
+
+  .swing-section {
+    font-size: 12px;
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  .stat-val {
+    font-size: 17px;
+  }
+  
+  .seg-route {
+    font-size: 13px;
+  }
+  
+  .fchip {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 16px; }
+  
+  .search-wrap input {
+    font-size: 16px;
+  }
+  
+  .day-btn {
+    padding: 12px 10px;
+    font-size: 13px;
+  }
+  
+  .run-num {
+    font-size: 18px;
+  }
+  
+  .stat-val {
+    font-size: 16px;
+  }
+  
+  .seg-times {
+    font-size: 11px;
+  }
+
+  .run-routes {
+    font-size: 10px;
+  }
+
+  .run-day {
+    font-size: 11px;
+  }
+  
+  .btn-live {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-depot">
+    <div class="hd-dot"></div>
+    <div class="hd-selects">
+      <select class="hd-season-select" id="season-select" onchange="changeSeason()">
+        <option value="">Loading...</option>
+      </select>
+      <select class="hd-depot-select" id="district-select" onchange="changeDistrict()">
+        <option value="">Loading districts...</option>
+      </select>
+    </div>
+  </div>
+  <a href="https://deenersin-png.github.io/septa-scheduler/block-tracker" class="btn-live">LIVE</a>
+</header>
+
+<div class="toolbar">
+  <div class="day-selector" id="day-selector"></div>
+
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-run" placeholder="Run #" maxlength="3" oninput="render()" inputmode="numeric">
+    </div>
+
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-block" placeholder="Block #" maxlength="4" oninput="render()" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="route-block">
+    <div class="route-mode-row">
+      <span class="rm-label">Route match</span>
+      <div class="mode-toggle">
+        <button class="mode-btn" id="mode-any" onclick="setRouteMode('any')" title="Show every run that works the selected route, even when it is combined with other routes">MULTI-ROUTE OK</button>
+        <button class="mode-btn" id="mode-only" onclick="setRouteMode('only')" title="Show only runs that work nothing but the selected route(s)">SELECTED ONLY</button>
+      </div>
+      <button class="btn-clear-routes" id="btn-clear-routes" onclick="clearRoutes()" style="display:none">CLEAR</button>
+      <span class="rm-hint" id="rm-hint"></span>
+    </div>
+    <div class="filter-row" id="route-filters"></div>
+  </div>
+
+  <select class="sort-sel" id="sort-sel" onchange="render()">
+    <option value="run-asc">Run</option>
+    <option value="pay-desc">Pay (Highest)</option>
+    <option value="pay-asc">Pay (Lowest)</option>
+    <option value="start-asc">Earliest Start</option>
+    <option value="start-desc">Latest Start</option>
+    <option value="finish-asc">Earliest Finish</option>
+    <option value="finish-desc">Latest Finish</option>
+    <option value="swing-desc">Swing (Longest)</option>
+  </select>
+
+  <div class="result-line"><strong id="res-n">0</strong> runs</div>
+</div>
+
+<div class="grid-wrap">
+  <div class="cards-grid" id="grid"></div>
+</div>
+
+<script>
+const isMobile = window.innerWidth <= 768;
+const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
+
+// ==========================================================================
+// SEASONS - step 1 of the picker. Each entry becomes one option in the
+// "Season" dropdown and points at its own manifest file.
+//
+// To RETIRE SUMMER later: just delete the summer line below. Fall then
+// becomes the default, and the Season dropdown auto-hides while only one
+// season remains (so it looks like the single-dropdown app does today).
+// The order here is the display order; the first entry is the default.
+// ==========================================================================
+const SEASONS = [
+  { id: 'summer2026', label: 'Summer 2026', manifest: 'data/manifest.json' },
+  { id: 'fall2026',   label: 'Fall 2026',   manifest: 'data/manifest-fall-2026.json' },
+  { id: 'spring2026',   label: 'Spring 2026',   manifest: 'data/manifest_fall2026.json' }
+];
+
+// ==========================================================================
+// ROUTE MATCH MODES
+//
+//   'any'  MULTI-ROUTE OK  - a run shows if it works AT LEAST ONE selected
+//                            route. Combination runs (e.g. 112 + 118) still
+//                            show when you pick just 112. This is what most
+//                            people expect from a route filter.
+//
+//   'only' SELECTED ONLY   - a run shows only if EVERY route it works is in
+//                            the selected set. Pick 112 alone and you get
+//                            pure-112 runs only; combination runs drop out.
+//                            (This is how the original app always behaved,
+//                            which is why some routes looked empty.)
+// ==========================================================================
+const ROUTE_MODES = {
+  any:  { label: 'MULTI-ROUTE OK', other: 'only' },
+  only: { label: 'SELECTED ONLY',  other: 'any'  }
+};
+
+let STATE = {
+  currentSeason: null,
+  manifest: null,
+  currentDistrict: null,
+  currentDay: 'Weekday',
+  activeRoutes: new Set(),
+  routeMode: 'any',
+  runs: [],
+  availableDays: [],
+  pdfLinks: {}
+};
+
+function parseCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  return lines.slice(1)
+    .filter(line => line.trim())
+    .map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const obj = {};
+      headers.forEach((header, i) => { obj[header] = values[i] || ''; });
+      return obj;
+    });
+}
+
+function parseFullDateTime(dateTimeStr) {
+  if (!dateTimeStr) return new Date(0);
+  try {
+    const parts = dateTimeStr.split(' ');
+    const [year, month, day] = parts[0].split('-').map(Number);
+    const [hours, minutes] = parts[1].split(':').map(Number);
+    const ampm = parts[2];
+    let hour = hours;
+    if (ampm === 'AM' && hours === 12) hour = 0;
+    if (ampm === 'PM' && hours !== 12) hour += 12;
+    return new Date(year, month - 1, day, hour, minutes);
+  } catch (e) { return new Date(0); }
+}
+
+function getRunRoutes(run) {
+  const routes = [];
+  for (let i = 1; i <= 10; i++) {
+    const route = run['r' + i];
+    if (route && route.trim()) routes.push(route.trim());
+  }
+  return routes;
+}
+
+function initSeasons() {
+  const savedMode = localStorage.getItem('paddleRouteMode');
+  if (ROUTE_MODES[savedMode]) STATE.routeMode = savedMode;
+  updateModeUI();
+
+  const select = document.getElementById('season-select');
+  if (!SEASONS || SEASONS.length === 0) {
+    document.getElementById('grid').innerHTML = `<div class="error">No seasons configured</div>`;
+    return;
+  }
+
+  select.innerHTML = SEASONS
+    .map(s => `<option value="${s.id}">${s.label}</option>`)
+    .join('');
+
+  // Only one season left (e.g. summer retired) -> hide the season dropdown
+  // so it looks like the original single-dropdown app.
+  select.style.display = SEASONS.length > 1 ? '' : 'none';
+
+  const saved = localStorage.getItem('paddleSeason');
+  const validSaved = SEASONS.find(s => s.id === saved);
+  select.value = validSaved ? saved : SEASONS[0].id;
+  changeSeason();
+}
+
+async function changeSeason() {
+  const select = document.getElementById('season-select');
+  const season = SEASONS.find(s => s.id === select.value) || SEASONS[0];
+  STATE.currentSeason = season.id;
+  localStorage.setItem('paddleSeason', season.id);
+
+  try {
+    const response = await fetch(season.manifest);
+    if (!response.ok) throw new Error('Manifest not found');
+    STATE.manifest = await response.json();
+    initializeDistricts();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = `<div class="error">Error loading districts: ${e.message}</div>`;
+  }
+}
+
+function initializeDistricts() {
+  const select = document.getElementById('district-select');
+  if (!STATE.manifest || !STATE.manifest.districts || STATE.manifest.districts.length === 0) {
+    select.innerHTML = '<option>No districts available</option>';
+    return;
+  }
+  select.innerHTML = STATE.manifest.districts
+    .map(d => `<option value="${d.name}">${d.label || d.name}</option>`)
+    .join('');
+  if (STATE.manifest.districts.length > 0) {
+    const saved = localStorage.getItem('paddleDepot_' + STATE.currentSeason);
+    const validSaved = STATE.manifest.districts.find(d => d.name === saved);
+    select.value = validSaved ? saved : STATE.manifest.districts[0].name;
+    changeDistrict();
+  }
+}
+
+async function changeDistrict() {
+  const select = document.getElementById('district-select');
+  STATE.currentDistrict = select.value;
+  if (!STATE.currentDistrict) return;
+  localStorage.setItem('paddleDepot_' + STATE.currentSeason, STATE.currentDistrict);
+  
+  try {
+    STATE.runs = [];
+    STATE.availableDays = [];
+    STATE.pdfLinks = {};
+    STATE.currentDay = 'Weekday';
+    
+    const districtConfig = STATE.manifest.districts.find(d => d.name === STATE.currentDistrict);
+    if (!districtConfig || !districtConfig.days) throw new Error('District configuration not found');
+    
+    for (const day of districtConfig.days) {
+      const dayLower = day.toLowerCase();
+      try {
+        const response = await fetch(`data/${STATE.currentDistrict}/${dayLower}.csv`);
+        if (!response.ok) continue;
+        const csvText = await response.text();
+        const dayRuns = parseCSV(csvText);
+        if (dayRuns.length > 0) {
+          STATE.availableDays.push(day);
+          dayRuns.forEach(run => { run.day = day; });
+          STATE.runs.push(...dayRuns);
+        }
+      } catch (e) { console.log(`${day}.csv not found for ${STATE.currentDistrict}`); }
+    }
+    
+    STATE.availableDays.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+    
+    try {
+      const response = await fetch(`data/${STATE.currentDistrict}/pdfs.csv`);
+      if (response.ok) {
+        const csvText = await response.text();
+        const pdfData = parseCSV(csvText);
+        pdfData.forEach(row => {
+          const runno = row.runno || '';
+          const day = row.day || '';
+          if (runno && day) STATE.pdfLinks[day + '-' + runno] = { moblink: row.moblink || '', pclink: row.pclink || '' };
+        });
+      }
+    } catch (e) { console.log('pdfs.csv not found'); }
+    
+    initializeDayButtons();
+    render();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = `<div class="error">Error loading district: ${e.message}</div>`;
+  }
+}
+
+function initializeDayButtons() {
+  const selectorContainer = document.getElementById('day-selector');
+  const dayCounts = {};
+  STATE.runs.forEach(r => { dayCounts[r.day] = (dayCounts[r.day] || 0) + 1; });
+  
+  let buttonsHtml = '';
+  STATE.availableDays.forEach(day => {
+    const count = dayCounts[day] || 0;
+    const dayLower = day.toLowerCase();
+    const isActive = STATE.currentDay === day ? 'active' : '';
+    buttonsHtml += `<button class="day-btn ${dayLower} ${isActive}" onclick="changeDay('${day}')" title="${day}: ${count} runs">${day} (${count})</button>`;
+  });
+  
+  selectorContainer.innerHTML = buttonsHtml;
+  buildRouteChips();
+}
+
+function changeDay(day) {
+  STATE.currentDay = day;
+  STATE.activeRoutes.clear();
+  document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  buildRouteChips();
+  render();
+}
+
+function buildRouteChips() {
+  const routes = getRoutes(STATE.currentDay);
+  const wrap = document.getElementById('route-filters');
+
+  wrap.innerHTML = routes
+    .map(r => {
+      const n = countForRoute(r, STATE.routeMode);
+      const cls = 'fchip'
+        + (STATE.activeRoutes.has(r) ? ' active' : '')
+        + (n === 0 ? ' dead' : '');
+      const title = n === 0
+        ? `Route ${r}: no runs in ${ROUTE_MODES[STATE.routeMode].label} mode`
+        : `Route ${r}: ${n} run${n === 1 ? '' : 's'}`;
+      return `<button class="${cls}" onclick="toggleRoute('${escAttr(r)}')" title="${title}">${r}<span class="cnt">${n}</span></button>`;
+    })
+    .join('');
+
+  updateModeUI();
+}
+
+// Every route the day actually operates - scanning ALL segments (r1..r10),
+// not just r1. Routes that only ever appear as a later leg of a combination
+// run used to have no chip at all and were impossible to filter on.
+function getRoutes(day) {
+  const set = new Set();
+  STATE.runs.forEach(r => {
+    if (r.day !== day) return;
+    getRunRoutes(r).forEach(route => set.add(route));
+  });
+  return [...set].sort((a, b) => {
+    const na = parseInt(a, 10), nb = parseInt(b, 10);
+    const aNum = !isNaN(na) && /^\d/.test(a), bNum = !isNaN(nb) && /^\d/.test(b);
+    if (aNum && bNum && na !== nb) return na - nb;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+    return a.localeCompare(b);
+  });
+}
+
+function escAttr(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// Does this run satisfy the route filter under the given mode?
+function matchesRoutes(run, mode, activeRoutes) {
+  if (activeRoutes.size === 0) return true;
+  const runRoutes = getRunRoutes(run);
+  if (runRoutes.length === 0) return false;
+  return mode === 'only'
+    ? runRoutes.every(route => activeRoutes.has(route))
+    : runRoutes.some(route => activeRoutes.has(route));
+}
+
+// How many cards you would get for the current day under `mode` with
+// `activeRoutes` selected. Mirrors render()'s filter + de-dupe order so the
+// number on a chip always matches what you actually see.
+function countRuns(mode, activeRoutes) {
+  const seen = new Set();
+  let n = 0;
+  STATE.runs.forEach(r => {
+    if (r.day !== STATE.currentDay) return;
+    if (!matchesRoutes(r, mode, activeRoutes)) return;
+    const runno = r.runno || '';
+    if (seen.has(runno)) return;
+    seen.add(runno);
+    n++;
+  });
+  return n;
+}
+
+// Runs you would get if this route were the only one selected.
+function countForRoute(route, mode) {
+  return countRuns(mode, new Set([route]));
+}
+
+function setRouteMode(mode) {
+  if (!ROUTE_MODES[mode]) return;
+  STATE.routeMode = mode;
+  localStorage.setItem('paddleRouteMode', mode);
+  buildRouteChips();
+  render();
+}
+
+function clearRoutes() {
+  STATE.activeRoutes.clear();
+  buildRouteChips();
+  render();
+}
+
+function updateModeUI() {
+  document.getElementById('mode-any').classList.toggle('active', STATE.routeMode === 'any');
+  document.getElementById('mode-only').classList.toggle('active', STATE.routeMode === 'only');
+  document.getElementById('btn-clear-routes').style.display =
+    STATE.activeRoutes.size > 0 ? '' : 'none';
+
+  const picked = [...STATE.activeRoutes];
+  const hint = document.getElementById('rm-hint');
+
+  if (picked.length === 0) {
+    hint.textContent = STATE.routeMode === 'any'
+      ? 'Tap a route \u2014 combination runs included'
+      : 'Tap a route \u2014 combination runs excluded';
+    return;
+  }
+
+  const list = picked.length <= 3 ? picked.join(', ') : picked.length + ' routes';
+  hint.textContent = STATE.routeMode === 'any'
+    ? `Runs touching ${list} (may also work other routes)`
+    : `Runs working nothing but ${list}`;
+}
+
+function toggleRoute(r) {
+  STATE.activeRoutes.has(r) ? STATE.activeRoutes.delete(r) : STATE.activeRoutes.add(r);
+  buildRouteChips();
+  render();
+}
+
+// Applies day + run + block + route filters, then de-dupes by run number.
+// `mode` is passed in so the empty state can ask "what would the OTHER mode
+// have shown?" using exactly the same rules.
+function filterRuns(mode) {
+  const searchRun = document.getElementById('search-run').value.trim();
+  const searchBlock = document.getElementById('search-block').value.trim();
+
+  const matched = STATE.runs.filter(r => {
+    if (r.day !== STATE.currentDay) return false;
+    if (searchRun && String(r.runno || '').trim() !== searchRun) return false;
+    if (searchBlock && ![1,2,3,4,5,6,7,8,9,10].some(i => String(r['b'+i]||'').trim() === searchBlock)) return false;
+    if (!matchesRoutes(r, mode, STATE.activeRoutes)) return false;
+    return true;
+  });
+
+  const seenRuns = new Set();
+  return matched.filter(r => {
+    const runno = r.runno || '';
+    if (seenRuns.has(runno)) return false;
+    seenRuns.add(runno);
+    return true;
+  });
+}
+
+function buildEmptyState() {
+  const mode = STATE.routeMode;
+  const otherMode = ROUTE_MODES[mode].other;
+
+  if (STATE.activeRoutes.size > 0) {
+    const otherCount = filterRuns(otherMode).length;
+    if (otherCount > 0) {
+      const picked = [...STATE.activeRoutes].join(', ');
+      const why = mode === 'only'
+        ? `Every run on <b>${picked}</b> is paired with another route, so nothing qualifies as &ldquo;selected only&rdquo;.`
+        : `No run works <b>${picked}</b> at all today.`;
+      return `<div class="empty">
+        <p>No runs match your filters</p>
+        <div class="empty-hint">${why}<br>Switching to <b>${ROUTE_MODES[otherMode].label}</b> would show
+          <b>${otherCount}</b> run${otherCount === 1 ? '' : 's'}.</div>
+        <button class="btn-switch-mode" onclick="setRouteMode('${otherMode}')">
+          SWITCH TO ${ROUTE_MODES[otherMode].label}
+        </button>
+      </div>`;
+    }
+  }
+
+  return '<div class="empty"><p>No runs match your filters</p></div>';
+}
+
+function render() {
+  const sort = document.getElementById('sort-sel').value;
+  let filtered = filterRuns(STATE.routeMode);
+
+  const [sk, sd] = sort.split('-');
+  filtered.sort((a, b) => {
+    let av, bv;
+    if (sk === 'run') { av = parseInt(a.runno) || 0; bv = parseInt(b.runno) || 0; return av - bv; }
+    else if (sk === 'pay') { av = parseFloat(a.pay) || 0; bv = parseFloat(b.pay) || 0; }
+    else if (sk === 'start') { av = parseFullDateTime(a.start).getTime(); bv = parseFullDateTime(b.start).getTime(); }
+    else if (sk === 'finish') { av = parseFullDateTime(a.finish).getTime(); bv = parseFullDateTime(b.finish).getTime(); }
+    else if (sk === 'swing') { av = parseInt(a.swingdursec) || 0; bv = parseInt(b.swingdursec) || 0; }
+    return sd === 'asc' ? av - bv : bv - av;
+  });
+
+  document.getElementById('res-n').textContent = filtered.length;
+  const grid = document.getElementById('grid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = buildEmptyState();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(run => {
+    const pdfLink = STATE.pdfLinks[run.day + '-' + run.runno] || {};
+    const paddleLink = isMobile ? pdfLink.moblink : pdfLink.pclink;
+    const paddleBtn = paddleLink
+      ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE</a>`
+      : '';
+
+    const runRoutes = getRunRoutes(run);
+    const uniqueRoutes = [...new Set(runRoutes)];
+    const routesDisplay = uniqueRoutes.join(' | ');
+
+    let segsHtml = '';
+    for (let i = 1; i <= 10; i++) {
+      const r = run['r' + i];
+      const b = run['b' + i];
+      if (!r || !b) break;
+      segsHtml += `
+        <div class="seg">
+          <div class="seg-connector"><div class="seg-dot"></div><div class="seg-line"></div></div>
+          <div class="seg-body">
+            <div class="seg-top">
+              <span class="seg-route">${r}</span>
+              <span class="seg-block-label">BLK</span><span class="seg-block">${b}</span>
+              <span class="seg-sched">${run['stime' + i] || ''}</span>
+            </div>
+            <div class="seg-times">
+              <span class="seg-time-tag">${run['potype' + i] || ''}</span>
+              <span>${run['pot' + i] || ''}</span>
+              <span class="seg-arrow">-&gt;</span>
+              <span class="seg-time-tag">${run['pitype' + i] || ''}</span>
+              <span>${run['pit' + i] || ''}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const startTime = (run.start || '').split(' ').slice(1, 3).join(' ');
+    const finishTime = (run.finish || '').split(' ').slice(1, 3).join(' ');
+
+    let swingHtml = '';
+    if (run.pullout2) {
+      swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '&mdash;'}</div></div>`;
+    }
+
+    return `
+      <div class="card day-${run.day}">
+        <div class="card-head">
+          <div class="card-head-top">
+            ${pdfLink.pclink ? `<a class="run-num" href="${pdfLink.pclink}" target="_blank" style="text-decoration:none;">${run.runno}</a>` : `<div class="run-num">${run.runno}</div>`}
+            <div class="run-day">${run.day}</div>
+            <div class="run-actions">${paddleBtn}</div>
+          </div>
+          <div class="card-head-bottom">
+            <div class="run-routes">${routesDisplay || '&mdash;'}</div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '&mdash;'}</div></div>
+        </div>
+        ${swingHtml}
+        ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+initSeasons();
+</script>
+</body>
+</html>
