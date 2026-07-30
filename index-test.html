@@ -502,15 +502,15 @@ header {
 
 .run-picked-badge {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: .04em;
+  letter-spacing: .02em;
   text-transform: uppercase;
   color: var(--red);
   background: var(--red-dim);
   border: 1px solid var(--red);
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -1597,7 +1597,7 @@ function render() {
 
     const goneInfo = STATE.goneRuns.get(String(run.runno || '').trim());
     const pickedBadge = goneInfo
-      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}, ${goneInfo.off || '&mdash;'}</div>`
+      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}</div>`
       : '';
 
     return `
