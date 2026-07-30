@@ -284,81 +284,56 @@ header {
   color:var(--red);
 }
 
-/* ===== ROUTE FILTER BLOCK (mode toggle + chips) ===== */
-.route-block {
-  flex:1 1 100%;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  min-width:0;
-}
+/* route chips get their own full-width row so 20+ routes stay readable */
+#route-filters { flex:1 1 100%; }
 
-.route-mode-row {
+/* ===== END-OF-TOOLBAR GROUP: sort + SELECTED ONLY + run count =====
+   Kept in one flex box so the three always sit on a line together and
+   wrap as a single unit rather than splitting up. */
+.tool-end {
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:12px;
   flex-wrap:wrap;
-}
-
-.rm-label {
-  font-family:var(--mono);
-  font-size:10px;
-  font-weight:600;
-  letter-spacing:.1em;
-  text-transform:uppercase;
-  color:var(--dim);
-  flex-shrink:0;
-}
-
-.mode-toggle {
-  display:inline-flex;
-  background:var(--ink3);
-  border:1px solid var(--line2);
-  border-radius:4px;
-  overflow:hidden;
-  flex-shrink:0;
-}
-
-.mode-btn {
-  font-family:var(--mono);
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:.05em;
-  background:none;
-  border:none;
-  color:var(--mid);
-  padding:7px 12px;
-  cursor:pointer;
-  transition:all .15s;
-  white-space:nowrap;
-}
-
-.mode-btn + .mode-btn { border-left:1px solid var(--line2); }
-.mode-btn:hover { color:var(--text);background:var(--ink2); }
-.mode-btn.active { background:var(--violet-dim);color:var(--violet); }
-
-.rm-hint {
-  font-family:var(--mono);
-  font-size:11px;
-  color:var(--dim);
+  flex:1 1 auto;
   min-width:0;
 }
 
-.btn-clear-routes {
+/* Route-match toggle. Hidden until at least one route chip is picked;
+   OFF (default) = multi-route OK, ON = selected route(s) only. */
+.btn-only {
   font-family:var(--mono);
-  font-size:11px;
+  font-size:12px;
   font-weight:600;
-  background:none;
+  letter-spacing:.04em;
+  background:var(--ink3);
   border:1px solid var(--line2);
   color:var(--mid);
-  padding:6px 10px;
-  border-radius:3px;
+  padding:8px 12px;
+  border-radius:4px;
   cursor:pointer;
   transition:all .15s;
   white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
 }
 
-.btn-clear-routes:hover { border-color:var(--red);color:var(--red); }
+.btn-only:hover { border-color:var(--line3);color:var(--text); }
+
+.btn-only.active {
+  background:var(--violet-dim);
+  border-color:var(--violet);
+  color:var(--violet);
+}
+
+/* little on/off marker so the pressed state reads at a glance */
+.btn-only .tick {
+  font-size:10px;
+  opacity:.55;
+}
+
+.btn-only.active .tick { opacity:1; }
 
 /* ===== SMART EMPTY STATE ===== */
 .empty-hint {
@@ -400,15 +375,18 @@ header {
   cursor:pointer;
 }
 
+/* bare match count - no label, so give the digits enough weight to read
+   as a value rather than stray text */
 .result-line {
-  font-size:13px;
-  color:var(--dim);
   font-family:var(--mono);
+  font-size:15px;
+  font-weight:700;
+  color:var(--amber);
   white-space:nowrap;
   flex: 0 0 auto;
 }
 
-.result-line strong { color:var(--amber); }
+.result-line strong { color:var(--amber);font-weight:700; }
 
 .grid-wrap {
   padding: 16px 12px 40px;
@@ -809,46 +787,25 @@ header {
     min-width: unset;
   }
 
-  .route-block {
+  .tool-end {
     width: 100%;
-  }
-
-  .route-mode-row {
     gap: 8px;
   }
 
-  /* label on its own line so the toggle gets the full width */
-  .rm-label {
-    flex: 1 1 100%;
-  }
-
-  .mode-toggle {
-    flex: 1 1 auto;
-  }
-
-  /* bigger tap targets on phones */
-  .mode-btn {
-    flex: 1;
-    padding: 13px 8px;
-    font-size: 12px;
-  }
-
-  .btn-clear-routes {
-    padding: 13px 12px;
-    font-size: 12px;
-  }
-
-  .rm-hint {
-    flex: 1 1 100%;
-    font-size: 11px;
-  }
-
+  /* sort takes the remaining room; the toggle keeps its own width */
   .sort-sel {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
   }
-  
+
+  /* bigger tap target on phones */
+  .btn-only {
+    padding: 12px;
+    font-size: 12px;
+  }
+
   .result-line {
-    width: 100%;
+    width: auto;
   }
   
   :root { --card-w: 100%; }
@@ -1004,31 +961,24 @@ header {
     </div>
   </div>
 
-  <div class="route-block">
-    <div class="route-mode-row">
-      <span class="rm-label">Route match</span>
-      <div class="mode-toggle">
-        <button class="mode-btn" id="mode-any" onclick="setRouteMode('any')" title="Show every run that works the selected route, even when it is combined with other routes">MULTI-ROUTE OK</button>
-        <button class="mode-btn" id="mode-only" onclick="setRouteMode('only')" title="Show only runs that work nothing but the selected route(s)">SELECTED ONLY</button>
-      </div>
-      <button class="btn-clear-routes" id="btn-clear-routes" onclick="clearRoutes()" style="display:none">CLEAR</button>
-      <span class="rm-hint" id="rm-hint"></span>
-    </div>
-    <div class="filter-row" id="route-filters"></div>
+  <div class="filter-row" id="route-filters"></div>
+
+  <div class="tool-end">
+    <select class="sort-sel" id="sort-sel" onchange="render()">
+      <option value="run-asc">Run</option>
+      <option value="pay-desc">Pay (Highest)</option>
+      <option value="pay-asc">Pay (Lowest)</option>
+      <option value="start-asc">Earliest Start</option>
+      <option value="start-desc">Latest Start</option>
+      <option value="finish-asc">Earliest Finish</option>
+      <option value="finish-desc">Latest Finish</option>
+      <option value="swing-desc">Swing (Longest)</option>
+    </select>
+
+    <button class="btn-only" id="btn-only" onclick="toggleOnlyMode()" style="display:none"></button>
+
+    <div class="result-line"><strong id="res-n">0</strong></div>
   </div>
-
-  <select class="sort-sel" id="sort-sel" onchange="render()">
-    <option value="run-asc">Run</option>
-    <option value="pay-desc">Pay (Highest)</option>
-    <option value="pay-asc">Pay (Lowest)</option>
-    <option value="start-asc">Earliest Start</option>
-    <option value="start-desc">Latest Start</option>
-    <option value="finish-asc">Earliest Finish</option>
-    <option value="finish-desc">Latest Finish</option>
-    <option value="swing-desc">Swing (Longest)</option>
-  </select>
-
-  <div class="result-line"><strong id="res-n">0</strong> runs</div>
 </div>
 
 <div class="grid-wrap">
@@ -1057,21 +1007,20 @@ const SEASONS = [
 // ==========================================================================
 // ROUTE MATCH MODES
 //
-//   'any'  MULTI-ROUTE OK  - a run shows if it works AT LEAST ONE selected
-//                            route. Combination runs (e.g. 112 + 118) still
-//                            show when you pick just 112. This is what most
-//                            people expect from a route filter.
+//   'any'  (DEFAULT, button OFF) - a run shows if it works AT LEAST ONE
+//          selected route. Combination runs (e.g. 112 + 118) still show when
+//          you pick just 112. This is what most people expect from a route
+//          filter, so it is always the starting point.
 //
-//   'only' SELECTED ONLY   - a run shows only if EVERY route it works is in
-//                            the selected set. Pick 112 alone and you get
-//                            pure-112 runs only; combination runs drop out.
-//                            (This is how the original app always behaved,
-//                            which is why some routes looked empty.)
+//   'only' (button ON) - a run shows only if EVERY route it works is in the
+//          selected set. Pick 112 alone and you get pure-112 runs only;
+//          combination runs drop out. (This is how the original app always
+//          behaved, which is why some routes looked empty.)
+//
+// The SELECTED ONLY button is only meaningful once a route is picked, so it
+// stays hidden until then and resets to OFF whenever the selection empties.
 // ==========================================================================
-const ROUTE_MODES = {
-  any:  { label: 'MULTI-ROUTE OK', other: 'only' },
-  only: { label: 'SELECTED ONLY',  other: 'any'  }
-};
+const ROUTE_MODES = { any: 1, only: 1 };
 
 let STATE = {
   currentSeason: null,
@@ -1123,8 +1072,6 @@ function getRunRoutes(run) {
 }
 
 function initSeasons() {
-  const savedMode = localStorage.getItem('paddleRouteMode');
-  if (ROUTE_MODES[savedMode]) STATE.routeMode = savedMode;
   updateModeUI();
 
   const select = document.getElementById('season-select');
@@ -1180,54 +1127,78 @@ function initializeDistricts() {
   }
 }
 
+// Bumped on every district load. Each load captures its own token and drops
+// its results if a newer load has started meanwhile - otherwise two overlapping
+// loads (switch depot twice on a slow connection) both push into STATE.runs and
+// every run is counted twice.
+let loadToken = 0;
+
 async function changeDistrict() {
   const select = document.getElementById('district-select');
   STATE.currentDistrict = select.value;
   if (!STATE.currentDistrict) return;
   localStorage.setItem('paddleDepot_' + STATE.currentSeason, STATE.currentDistrict);
-  
+
+  const myToken = ++loadToken;
+
   try {
     STATE.runs = [];
     STATE.availableDays = [];
     STATE.pdfLinks = {};
     STATE.currentDay = 'Weekday';
-    
-    const districtConfig = STATE.manifest.districts.find(d => d.name === STATE.currentDistrict);
+
+    // Load into locals, then publish to STATE only if this is still the
+    // newest request. Capture the district name too, so a mid-flight switch
+    // cannot make us fetch one depot's files under another's name.
+    const district = STATE.currentDistrict;
+    const districtConfig = STATE.manifest.districts.find(d => d.name === district);
     if (!districtConfig || !districtConfig.days) throw new Error('District configuration not found');
-    
+
+    const runs = [];
+    const availableDays = [];
+    const pdfLinks = {};
+
     for (const day of districtConfig.days) {
       const dayLower = day.toLowerCase();
       try {
-        const response = await fetch(`data/${STATE.currentDistrict}/${dayLower}.csv`);
+        const response = await fetch(`data/${district}/${dayLower}.csv`);
+        if (myToken !== loadToken) return;          // superseded
         if (!response.ok) continue;
         const csvText = await response.text();
         const dayRuns = parseCSV(csvText);
         if (dayRuns.length > 0) {
-          STATE.availableDays.push(day);
+          availableDays.push(day);
           dayRuns.forEach(run => { run.day = day; });
-          STATE.runs.push(...dayRuns);
+          runs.push(...dayRuns);
         }
-      } catch (e) { console.log(`${day}.csv not found for ${STATE.currentDistrict}`); }
+      } catch (e) { console.log(`${day}.csv not found for ${district}`); }
     }
-    
-    STATE.availableDays.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
-    
+
+    availableDays.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+
     try {
-      const response = await fetch(`data/${STATE.currentDistrict}/pdfs.csv`);
+      const response = await fetch(`data/${district}/pdfs.csv`);
+      if (myToken !== loadToken) return;             // superseded
       if (response.ok) {
         const csvText = await response.text();
         const pdfData = parseCSV(csvText);
         pdfData.forEach(row => {
           const runno = row.runno || '';
           const day = row.day || '';
-          if (runno && day) STATE.pdfLinks[day + '-' + runno] = { moblink: row.moblink || '', pclink: row.pclink || '' };
+          if (runno && day) pdfLinks[day + '-' + runno] = { moblink: row.moblink || '', pclink: row.pclink || '' };
         });
       }
     } catch (e) { console.log('pdfs.csv not found'); }
-    
+
+    if (myToken !== loadToken) return;               // superseded
+    STATE.runs = runs;
+    STATE.availableDays = availableDays;
+    STATE.pdfLinks = pdfLinks;
+
     initializeDayButtons();
     render();
   } catch (e) {
+    if (myToken !== loadToken) return;
     document.getElementById('grid').innerHTML = `<div class="error">Error loading district: ${e.message}</div>`;
   }
 }
@@ -1258,7 +1229,15 @@ function changeDay(day) {
   render();
 }
 
+// With nothing selected there is nothing to narrow, so the mode falls back to
+// the default. This has to run BEFORE the chip counts are computed, otherwise
+// removing your last route leaves the chips showing SELECTED ONLY counts.
+function normalizeRouteMode() {
+  if (STATE.activeRoutes.size === 0) STATE.routeMode = 'any';
+}
+
 function buildRouteChips() {
+  normalizeRouteMode();
   const routes = getRoutes(STATE.currentDay);
   const wrap = document.getElementById('route-filters');
 
@@ -1269,7 +1248,7 @@ function buildRouteChips() {
         + (STATE.activeRoutes.has(r) ? ' active' : '')
         + (n === 0 ? ' dead' : '');
       const title = n === 0
-        ? `Route ${r}: no runs in ${ROUTE_MODES[STATE.routeMode].label} mode`
+        ? `Route ${r}: no run works it on its own — turn off SELECTED ONLY to see its combination runs`
         : `Route ${r}: ${n} run${n === 1 ? '' : 's'}`;
       return `<button class="${cls}" onclick="toggleRoute('${escAttr(r)}')" title="${title}">${r}<span class="cnt">${n}</span></button>`;
     })
@@ -1335,37 +1314,29 @@ function countForRoute(route, mode) {
 function setRouteMode(mode) {
   if (!ROUTE_MODES[mode]) return;
   STATE.routeMode = mode;
-  localStorage.setItem('paddleRouteMode', mode);
   buildRouteChips();
   render();
 }
 
-function clearRoutes() {
-  STATE.activeRoutes.clear();
-  buildRouteChips();
-  render();
+function toggleOnlyMode() {
+  setRouteMode(STATE.routeMode === 'only' ? 'any' : 'only');
 }
 
 function updateModeUI() {
-  document.getElementById('mode-any').classList.toggle('active', STATE.routeMode === 'any');
-  document.getElementById('mode-only').classList.toggle('active', STATE.routeMode === 'only');
-  document.getElementById('btn-clear-routes').style.display =
-    STATE.activeRoutes.size > 0 ? '' : 'none';
+  normalizeRouteMode();
+  const hasRoutes = STATE.activeRoutes.size > 0;
 
+  const onlyBtn = document.getElementById('btn-only');
+  const on = STATE.routeMode === 'only';
   const picked = [...STATE.activeRoutes];
-  const hint = document.getElementById('rm-hint');
-
-  if (picked.length === 0) {
-    hint.textContent = STATE.routeMode === 'any'
-      ? 'Tap a route \u2014 combination runs included'
-      : 'Tap a route \u2014 combination runs excluded';
-    return;
-  }
-
   const list = picked.length <= 3 ? picked.join(', ') : picked.length + ' routes';
-  hint.textContent = STATE.routeMode === 'any'
-    ? `Runs touching ${list} (may also work other routes)`
-    : `Runs working nothing but ${list}`;
+
+  onlyBtn.style.display = hasRoutes ? '' : 'none';
+  onlyBtn.classList.toggle('active', on);
+  onlyBtn.innerHTML = `<span class="tick">${on ? '\u25c9' : '\u25cb'}</span>SELECTED ONLY`;
+  onlyBtn.title = on
+    ? `ON \u2014 showing runs that work nothing but ${list}. Click to also include runs that combine ${list} with other routes.`
+    : `OFF \u2014 showing every run that touches ${list}, including combinations. Click to show runs working ${list} and nothing else.`;
 }
 
 function toggleRoute(r) {
@@ -1398,23 +1369,21 @@ function filterRuns(mode) {
   });
 }
 
+// A run matching 'only' always matches 'any' too, so the only way the route
+// filter can strand you on an empty screen is with SELECTED ONLY switched on.
+// In that case say why and offer a one-tap way back.
 function buildEmptyState() {
-  const mode = STATE.routeMode;
-  const otherMode = ROUTE_MODES[mode].other;
-
-  if (STATE.activeRoutes.size > 0) {
-    const otherCount = filterRuns(otherMode).length;
-    if (otherCount > 0) {
+  if (STATE.routeMode === 'only' && STATE.activeRoutes.size > 0) {
+    const wouldShow = filterRuns('any').length;
+    if (wouldShow > 0) {
       const picked = [...STATE.activeRoutes].join(', ');
-      const why = mode === 'only'
-        ? `Every run on <b>${picked}</b> is paired with another route, so nothing qualifies as &ldquo;selected only&rdquo;.`
-        : `No run works <b>${picked}</b> at all today.`;
       return `<div class="empty">
         <p>No runs match your filters</p>
-        <div class="empty-hint">${why}<br>Switching to <b>${ROUTE_MODES[otherMode].label}</b> would show
-          <b>${otherCount}</b> run${otherCount === 1 ? '' : 's'}.</div>
-        <button class="btn-switch-mode" onclick="setRouteMode('${otherMode}')">
-          SWITCH TO ${ROUTE_MODES[otherMode].label}
+        <div class="empty-hint">Every run on <b>${picked}</b> is paired with another route,
+          so nothing works <b>${picked}</b> alone.<br>
+          Turning off <b>SELECTED ONLY</b> would show <b>${wouldShow}</b> run${wouldShow === 1 ? '' : 's'}.</div>
+        <button class="btn-switch-mode" onclick="setRouteMode('any')">
+          TURN OFF SELECTED ONLY
         </button>
       </div>`;
     }
