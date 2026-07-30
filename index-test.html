@@ -1609,4 +1609,21 @@ function render() {
             <div class="run-actions">${pickedBadge}${paddleBtn}</div>
           </div>
           <div class="card-head-bottom">
-   
+            <div class="run-routes">${routesDisplay || '&mdash;'}</div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '&mdash;'}</div></div>
+        </div>
+        ${swingHtml}
+        ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+initSeasons();
+</script>
+</body>
+</html>
