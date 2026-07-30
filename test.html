@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paddle App</title>
+<title>Paddle App (TEST)</title>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -335,6 +335,22 @@ header {
 
 .btn-only.active .tick { opacity:1; }
 
+/* Manual "picked runs" overlay row - Callowhill Bus / Fall 2026 only. */
+.gone-runs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.gone-runs-updated {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
 /* ===== SMART EMPTY STATE ===== */
 .empty-hint {
   font-family:var(--mono);
@@ -479,6 +495,24 @@ header {
 
 .run-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-picked-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--red);
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-paddle {
@@ -949,6 +983,11 @@ header {
 <div class="toolbar">
   <div class="day-selector" id="day-selector"></div>
 
+  <div class="gone-runs-row" id="gone-runs-toolbar" style="display:none">
+    <button class="btn-only" id="btn-open-only" onclick="toggleOpenOnly()">Open Runs Only</button>
+    <span class="gone-runs-updated" id="gone-runs-updated">Updated: —</span>
+  </div>
+
   <div class="search-row">
     <div class="search-wrap">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -1022,6 +1061,13 @@ const SEASONS = [
 // ==========================================================================
 const ROUTE_MODES = { any: 1, only: 1 };
 
+// Manual "picked runs" overlay, read from a Google Sheet the depot owner
+// updates by hand. Scoped to Callowhill Bus / Fall 2026 only.
+const GONE_RUNS_SHEET_ID = '1XY9tVEzQGxCO010RNkCFARXEt_5nqxUm_etTlh7cjZA';
+const GONE_RUNS_DISTRICT = 'callowhillb-fall-2026';
+const GONE_RUNS_CONFIG_GID = '999225285';
+const GONE_RUNS_DAY_GIDS = { Weekday: '275440213', Saturday: '553516250', Sunday: '1260882798' };
+
 let STATE = {
   currentSeason: null,
   manifest: null,
@@ -1031,7 +1077,11 @@ let STATE = {
   routeMode: 'any',
   runs: [],
   availableDays: [],
-  pdfLinks: {}
+  pdfLinks: {},
+  goneRunsEnabled: false,
+  goneRunsUpdated: '',
+  goneRuns: new Map(),
+  showOpenOnly: false
 };
 
 function parseCSV(csvText) {
@@ -1046,6 +1096,80 @@ function parseCSV(csvText) {
       headers.forEach((header, i) => { obj[header] = values[i] || ''; });
       return obj;
     });
+}
+
+function goneRunsSheetUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${GONE_RUNS_SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+async function loadGoneRunsConfig() {
+  try {
+    const res = await fetch(goneRunsSheetUrl(GONE_RUNS_CONFIG_GID));
+    if (!res.ok) throw new Error('config fetch failed');
+    const text = await res.text();
+    const map = {};
+    text.trim().split('\n').forEach(line => {
+      const [key, value] = line.split(',').map(v => (v || '').trim());
+      if (key) map[key.toLowerCase()] = value || '';
+    });
+    STATE.goneRunsEnabled = (map['filtering test'] || '').toLowerCase() === 'yes';
+    STATE.goneRunsUpdated = map['date'] || '';
+  } catch (e) {
+    STATE.goneRunsEnabled = false;
+    STATE.goneRunsUpdated = '';
+  }
+}
+
+async function loadGoneRunsForDay(day) {
+  STATE.goneRuns = new Map();
+  const gid = GONE_RUNS_DAY_GIDS[day];
+  if (!gid) return;
+  try {
+    const res = await fetch(goneRunsSheetUrl(gid));
+    if (!res.ok) throw new Error('day fetch failed');
+    const text = await res.text();
+    parseCSV(text).forEach(row => {
+      const runno = (row['run#'] || '').trim();
+      if (runno) STATE.goneRuns.set(runno, { opid: (row['opid'] || '').trim(), off: (row['off'] || '').trim() });
+    });
+  } catch (e) {
+    console.log(`gone-runs fetch failed for ${day}`);
+  }
+}
+
+async function refreshGoneRuns() {
+  const isCallowhillFall = STATE.currentDistrict === GONE_RUNS_DISTRICT;
+  if (!isCallowhillFall) {
+    STATE.goneRunsEnabled = false;
+    STATE.goneRuns = new Map();
+    updateGoneRunsUI();
+    return;
+  }
+  await loadGoneRunsConfig();
+  if (STATE.goneRunsEnabled) {
+    await loadGoneRunsForDay(STATE.currentDay);
+  } else {
+    STATE.goneRuns = new Map();
+  }
+  updateGoneRunsUI();
+}
+
+function updateGoneRunsUI() {
+  const wrap = document.getElementById('gone-runs-toolbar');
+  const show = STATE.currentDistrict === GONE_RUNS_DISTRICT && STATE.goneRunsEnabled;
+  wrap.style.display = show ? '' : 'none';
+  if (!show) { STATE.showOpenOnly = false; return; }
+  document.getElementById('gone-runs-updated').textContent =
+    STATE.goneRunsUpdated ? `Updated: ${STATE.goneRunsUpdated}` : 'Updated: —';
+  const btn = document.getElementById('btn-open-only');
+  btn.classList.toggle('active', STATE.showOpenOnly);
+  btn.textContent = STATE.showOpenOnly ? 'Open Runs Only ✓' : 'Open Runs Only';
+}
+
+function toggleOpenOnly() {
+  STATE.showOpenOnly = !STATE.showOpenOnly;
+  updateGoneRunsUI();
+  render();
 }
 
 function parseFullDateTime(dateTimeStr) {
@@ -1197,6 +1321,10 @@ async function changeDistrict() {
 
     initializeDayButtons();
     render();
+
+    await refreshGoneRuns();
+    if (myToken !== loadToken) return;      // superseded
+    render();
   } catch (e) {
     if (myToken !== loadToken) return;
     document.getElementById('grid').innerHTML = `<div class="error">Error loading district: ${e.message}</div>`;
@@ -1220,12 +1348,19 @@ function initializeDayButtons() {
   buildRouteChips();
 }
 
-function changeDay(day) {
+async function changeDay(day) {
   STATE.currentDay = day;
   STATE.activeRoutes.clear();
   document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
   event.target.classList.add('active');
   buildRouteChips();
+  STATE.showOpenOnly = false;
+  if (STATE.currentDistrict === GONE_RUNS_DISTRICT && STATE.goneRunsEnabled) {
+    await loadGoneRunsForDay(day);
+  } else {
+    STATE.goneRuns = new Map();
+  }
+  updateGoneRunsUI();
   render();
 }
 
@@ -1357,6 +1492,7 @@ function filterRuns(mode) {
     if (searchRun && String(r.runno || '').trim() !== searchRun) return false;
     if (searchBlock && ![1,2,3,4,5,6,7,8,9,10].some(i => String(r['b'+i]||'').trim() === searchBlock)) return false;
     if (!matchesRoutes(r, mode, STATE.activeRoutes)) return false;
+    if (STATE.showOpenOnly && STATE.goneRuns.has(String(r.runno || '').trim())) return false;
     return true;
   });
 
@@ -1459,30 +1595,18 @@ function render() {
       swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '&mdash;'}</div></div>`;
     }
 
+    const goneInfo = STATE.goneRuns.get(String(run.runno || '').trim());
+    const pickedBadge = goneInfo
+      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}, ${goneInfo.off || '&mdash;'}</div>`
+      : '';
+
     return `
       <div class="card day-${run.day}">
         <div class="card-head">
           <div class="card-head-top">
             ${pdfLink.pclink ? `<a class="run-num" href="${pdfLink.pclink}" target="_blank" style="text-decoration:none;">${run.runno}</a>` : `<div class="run-num">${run.runno}</div>`}
             <div class="run-day">${run.day}</div>
-            <div class="run-actions">${paddleBtn}</div>
+            <div class="run-actions">${pickedBadge}${paddleBtn}</div>
           </div>
           <div class="card-head-bottom">
-            <div class="run-routes">${routesDisplay || '&mdash;'}</div>
-          </div>
-        </div>
-        <div class="stats-row">
-          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '&mdash;'}</div></div>
-          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '&mdash;'}</div></div>
-          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '&mdash;'}</div></div>
-        </div>
-        ${swingHtml}
-        ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
-      </div>`;
-  }).join('');
-}
-
-initSeasons();
-</script>
-</body>
-</html>
+   
