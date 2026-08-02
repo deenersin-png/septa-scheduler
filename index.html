@@ -495,6 +495,24 @@ header {
 
 .run-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-picked-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--red);
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-paddle {
@@ -1062,7 +1080,7 @@ let STATE = {
   pdfLinks: {},
   goneRunsEnabled: false,
   goneRunsUpdated: '',
-  goneRuns: new Set(),
+  goneRuns: new Map(),
   showOpenOnly: false
 };
 
@@ -1094,7 +1112,7 @@ async function loadGoneRunsConfig() {
       const [key, value] = line.split(',').map(v => (v || '').trim());
       if (key) map[key.toLowerCase()] = value || '';
     });
-    STATE.goneRunsEnabled = (map['filtering'] || '').toLowerCase() === 'yes';
+    STATE.goneRunsEnabled = (map['filtering test'] || '').toLowerCase() === 'yes';
     STATE.goneRunsUpdated = map['date'] || '';
   } catch (e) {
     STATE.goneRunsEnabled = false;
@@ -1103,7 +1121,7 @@ async function loadGoneRunsConfig() {
 }
 
 async function loadGoneRunsForDay(day) {
-  STATE.goneRuns = new Set();
+  STATE.goneRuns = new Map();
   const gid = GONE_RUNS_DAY_GIDS[day];
   if (!gid) return;
   try {
@@ -1112,7 +1130,7 @@ async function loadGoneRunsForDay(day) {
     const text = await res.text();
     parseCSV(text).forEach(row => {
       const runno = (row['run#'] || '').trim();
-      if (runno) STATE.goneRuns.add(runno);
+      if (runno) STATE.goneRuns.set(runno, { opid: (row['opid'] || '').trim(), off: (row['off'] || '').trim() });
     });
   } catch (e) {
     console.log(`gone-runs fetch failed for ${day}`);
@@ -1123,7 +1141,7 @@ async function refreshGoneRuns() {
   const isCallowhillFall = STATE.currentDistrict === GONE_RUNS_DISTRICT;
   if (!isCallowhillFall) {
     STATE.goneRunsEnabled = false;
-    STATE.goneRuns = new Set();
+    STATE.goneRuns = new Map();
     updateGoneRunsUI();
     return;
   }
@@ -1131,7 +1149,7 @@ async function refreshGoneRuns() {
   if (STATE.goneRunsEnabled) {
     await loadGoneRunsForDay(STATE.currentDay);
   } else {
-    STATE.goneRuns = new Set();
+    STATE.goneRuns = new Map();
   }
   updateGoneRunsUI();
 }
@@ -1340,7 +1358,7 @@ async function changeDay(day) {
   if (STATE.currentDistrict === GONE_RUNS_DISTRICT && STATE.goneRunsEnabled) {
     await loadGoneRunsForDay(day);
   } else {
-    STATE.goneRuns = new Set();
+    STATE.goneRuns = new Map();
   }
   updateGoneRunsUI();
   render();
@@ -1577,13 +1595,18 @@ function render() {
       swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '&mdash;'}</div></div>`;
     }
 
+    const goneInfo = STATE.goneRuns.get(String(run.runno || '').trim());
+    const pickedBadge = goneInfo
+      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}</div>`
+      : '';
+
     return `
       <div class="card day-${run.day}">
         <div class="card-head">
           <div class="card-head-top">
             ${pdfLink.pclink ? `<a class="run-num" href="${pdfLink.pclink}" target="_blank" style="text-decoration:none;">${run.runno}</a>` : `<div class="run-num">${run.runno}</div>`}
             <div class="run-day">${run.day}</div>
-            <div class="run-actions">${paddleBtn}</div>
+            <div class="run-actions">${pickedBadge}${paddleBtn}</div>
           </div>
           <div class="card-head-bottom">
             <div class="run-routes">${routesDisplay || '&mdash;'}</div>
