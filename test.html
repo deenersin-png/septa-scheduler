@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paddle App (TIME FILTER TEST)</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QXEKGF4DXT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QXEKGF4DXT');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/pa-account.css">
+<script>
+// pa-settings-hook: re-broadcasts this page's own localStorage writes as a
+// 'pa:setting' event so the account modules can mirror them to the signed-in
+// user's Firestore doc. Deliberately a classic script, not a module: it has to
+// run BEFORE the inline script below, and module scripts are always deferred.
+// Nothing here changes what the page stores or how it reads it.
+(function(){
+  var WATCH = /^(paddleSeason|paddleDepot|bt_route|bt_block|vacSickViewMode)/;
+  var set = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(k, v){
+    set.call(this, k, v);
+    if (this === localStorage && WATCH.test(k))
+      window.dispatchEvent(new CustomEvent('pa:setting', {detail:{key:k, value:v}}));
+  };
+})();
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ink: #0a0b0d;
+  --ink2: #13151a;
+  --ink3: #1d2028;
+  --line: rgba(255,255,255,0.07);
+  --line2: rgba(255,255,255,0.13);
+  --line3: rgba(255,255,255,0.22);
+  --dim: #4a4f5e;
+  --mid: #8a909f;
+  --text: #c8cdd8;
+  --bright: #e8ecf4;
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --green: #3dd68c;
+  --green-dim: rgba(61,214,140,0.1);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.1);
+  --red: #ff6b6b;
+  --red-dim: rgba(255,107,107,0.1);
+  --violet: #a78bfa;
+  --violet-dim: rgba(167,139,250,0.1);
+  --sans: 'IBM Plex Sans Condensed', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --card-w: 340px;
+}
+
+html { font-size: 16px; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events:none;z-index:1000;
+}
+
+header {
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line2);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: auto;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  justify-content: space-between;
+}
+
+.hd-depot {
+  display:flex;align-items:center;gap:12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hd-dot {
+  width:8px;height:8px;border-radius:50%;
+  background:var(--amber);
+  opacity: 0.7;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
+
+.hd-selects {
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:12px;
+  min-width:0;
+}
+
+.hd-season-select {
+  font-family:var(--mono);
+  font-size:12px;
+  background:none;border:none;
+  color:var(--amber);
+  padding:0;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.04em;
+  width:clamp(130px, 22vw, 220px);
+  min-width:0;
+}
+
+.hd-season-select:hover {
+  color:var(--bright);
+}
+
+.hd-depot-select {
+  font-family:var(--mono);
+  font-size:15px;
+  background:none;border:none;
+  color:var(--bright);
+  padding:0;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.04em;
+  width:clamp(160px, 28vw, 280px);
+  min-width:0;
+}
+
+.hd-depot-select:hover {
+  color:var(--amber);
+}
+
+.hd-pick {
+  font-size:12px;
+  color:var(--dim);
+  margin-top:2px;
+}
+
+.btn-live {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--red);
+  color: var(--bright);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+  letter-spacing: .04em;
+  flex: 0 0 auto;
+}
+
+.btn-live:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
+}
+
+.toolbar {
+  background:var(--ink2);
+  border-bottom:1px solid var(--line);
+  padding:14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.day-selector {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 250px;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  background:var(--ink3);
+  color:var(--mid);
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight: 600;
+  padding:10px 16px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+  border: none;
+}
+
+.day-btn:hover {
+  color:var(--text);
+  background: var(--ink2);
+}
+
+.day-btn.sunday { color: var(--green); }
+.day-btn.weekday { color: var(--amber); }
+.day-btn.saturday { color: var(--blue); }
+
+.day-btn.active.sunday { background: var(--green-dim); color: var(--green); }
+.day-btn.active.weekday { background: var(--amber-dim); color: var(--amber); }
+.day-btn.active.saturday { background: var(--blue-dim); color: var(--blue); }
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 280px;
+}
+
+.search-wrap {
+  position:relative;
+  flex: 1 1 auto;
+  min-width: 100px;
+}
+
+.search-wrap svg {
+  position:absolute;
+  left:9px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--dim);
+  pointer-events:none;
+}
+
+.search-wrap input {
+  width:100%;
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--bright);
+  font-family:var(--mono);
+  font-size:14px;
+  padding:10px 10px 10px 30px;
+  border-radius:4px;
+  outline:none;
+  transition:border-color .15s;
+}
+
+.search-wrap input:focus{border-color:var(--amber);}
+.search-wrap input::placeholder{color:var(--dim);}
+
+.filter-row { 
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  flex: 1 1 auto;
+}
+
+.fchip {
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--mid);
+  font-family:var(--mono);
+  font-size:12px;
+  padding:7px 12px;
+  border-radius:3px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+
+.fchip:hover{border-color:var(--line3);color:var(--text);}
+.fchip.active{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);}
+
+/* count badge inside a route chip: how many runs this route alone would show
+   under the CURRENT match mode */
+.fchip .cnt {
+  font-size:10px;
+  font-weight:600;
+  opacity:.6;
+  margin-left:5px;
+}
+
+/* route returns nothing under the current mode */
+.fchip.dead {
+  color:var(--dim);
+  border-color:var(--line);
+  border-style:dashed;
+}
+.fchip.dead .cnt { color:var(--red);opacity:.9; }
+.fchip.dead.active {
+  background:var(--red-dim);
+  border-color:var(--red);
+  color:var(--red);
+}
+
+/* route chips get their own full-width row so 20+ routes stay readable */
+#route-filters { flex:1 1 100%; }
+
+/* ===== END-OF-TOOLBAR GROUP: sort + SELECTED ONLY + run count =====
+   Kept in one flex box so the three always sit on a line together and
+   wrap as a single unit rather than splitting up. */
+.tool-end {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  flex:1 1 auto;
+  min-width:0;
+}
+
+/* Route-match toggle. Hidden until at least one route chip is picked;
+   OFF (default) = multi-route OK, ON = selected route(s) only. */
+.btn-only {
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.04em;
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--mid);
+  padding:8px 12px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+
+.btn-only:hover { border-color:var(--line3);color:var(--text); }
+
+.btn-only.active {
+  background:var(--violet-dim);
+  border-color:var(--violet);
+  color:var(--violet);
+}
+
+/* little on/off marker so the pressed state reads at a glance */
+.btn-only .tick {
+  font-size:10px;
+  opacity:.55;
+}
+
+.btn-only.active .tick { opacity:1; }
+
+/* ===== TIME WINDOW FILTER =====
+   Two vertical-bar handles on one track. Left handle = earliest START allowed,
+   right handle = latest FINISH allowed, so the window reads exactly the way a
+   driver says it: "runs between 5 AM and 3 PM". No typing, drag only. */
+.time-filter {
+  width:100%;
+  flex:1 1 100%;
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  border-radius:4px;
+  padding:10px 14px 6px;
+}
+
+.tf-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.tf-label {
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--dim);
+  white-space:nowrap;
+}
+
+.tf-readout {
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:700;
+  color:var(--amber);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* window untouched = no filtering, so play it down */
+.time-filter.tf-open .tf-readout { color:var(--mid);font-weight:600; }
+
+.tf-readout .tf-next {
+  font-size:9px;
+  font-weight:700;
+  color:var(--violet);
+  vertical-align:super;
+  margin-left:1px;
+}
+
+.tf-reset {
+  margin-left:auto;
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.04em;
+  background:none;
+  border:1px solid var(--line2);
+  color:var(--mid);
+  padding:5px 10px;
+  border-radius:3px;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+
+.tf-reset:hover { border-color:var(--line3);color:var(--text); }
+.time-filter.tf-open .tf-reset { visibility:hidden; }
+
+/* The track. Tall grab area so it is finger-sized even though the drawn bar is
+   thin, and inset from the panel edge so a bar parked at either end still has
+   room for its caption. The scale below carries the SAME inset, otherwise the
+   hour labels would drift out of line with the ticks. */
+.tf-track-wrap {
+  position:relative;
+  height:34px;
+  margin:0 18px;
+  cursor:pointer;
+  touch-action:none;          /* we own the drag; stop the page scrolling */
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.tf-track {
+  position:absolute;
+  left:0;right:0;
+  top:50%;
+  transform:translateY(-50%);
+  height:6px;
+  background:var(--ink);
+  border:1px solid var(--line2);
+  border-radius:3px;
+}
+
+.tf-fill {
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  height:6px;
+  background:var(--amber);
+  opacity:.55;
+  border-radius:3px;
+  pointer-events:none;
+}
+
+.tf-ticks {
+  position:absolute;
+  left:0;right:0;
+  top:50%;
+  transform:translateY(-50%);
+  height:6px;
+  pointer-events:none;
+}
+
+.tf-tick {
+  position:absolute;
+  top:0;bottom:0;
+  width:1px;
+  background:var(--line2);
+}
+
+/* the handles: literal vertical bars */
+.tf-handle {
+  position:absolute;
+  top:50%;
+  width:22px;                 /* tap target */
+  height:30px;
+  transform:translate(-50%,-50%);
+  cursor:grab;
+  touch-action:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.tf-handle::before {
+  content:'';
+  width:5px;
+  height:100%;
+  background:var(--bright);
+  border-radius:2px;
+  box-shadow:0 0 0 1px var(--ink);
+  transition:background .15s;
+}
+
+.tf-handle:hover::before,
+.tf-handle.tf-drag::before { background:var(--amber); }
+.tf-handle:focus-visible { outline:none; }
+.tf-handle:focus-visible::before { background:var(--amber);box-shadow:0 0 0 2px var(--amber-dim); }
+.tf-handle.tf-drag { cursor:grabbing; }
+
+/* END/START caption riding above each handle */
+.tf-handle::after {
+  content:attr(data-cap);
+  position:absolute;
+  bottom:calc(100% + 3px);
+  font-family:var(--mono);
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.08em;
+  color:var(--dim);
+  pointer-events:none;
+}
+
+.tf-scale {
+  position:relative;
+  height:16px;
+  margin:2px 18px 0;          /* must match .tf-track-wrap so ticks and labels line up */
+}
+
+.tf-scale span {
+  position:absolute;
+  transform:translateX(-50%);
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--dim);
+  white-space:nowrap;
+}
+
+/* end labels sit inside the box instead of hanging off it */
+.tf-scale span.tf-lead { transform:translateX(0); }
+.tf-scale span.tf-tail { transform:translateX(-100%); }
+
+/* Manual "picked runs" overlay row - Callowhill Bus / Fall 2026 only. */
+.gone-runs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.gone-runs-updated {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* ===== SMART EMPTY STATE ===== */
+.empty-hint {
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--mid);
+  text-align:center;
+  max-width:440px;
+  line-height:1.5;
+}
+
+.empty-hint b { color:var(--amber); }
+
+.btn-switch-mode {
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.04em;
+  background:var(--violet);
+  border:1px solid var(--violet);
+  color:#12091f;
+  padding:9px 16px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+}
+
+.btn-switch-mode:hover { background:#c4aeff;border-color:#c4aeff; }
+
+.sort-sel {
+  background:var(--ink3);
+  border:1px solid var(--line2);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:13px;
+  padding:8px 10px;
+  border-radius:4px;
+  outline:none;
+  cursor:pointer;
+}
+
+/* bare match count - no label, so give the digits enough weight to read
+   as a value rather than stray text */
+.result-line {
+  font-family:var(--mono);
+  font-size:15px;
+  font-weight:700;
+  color:var(--amber);
+  white-space:nowrap;
+  flex: 0 0 auto;
+}
+
+.result-line strong { color:var(--amber);font-weight:700; }
+
+.grid-wrap {
+  padding: 16px 12px 40px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-w), 100%), 1fr));
+  gap: 12px;
+}
+
+.card {
+  background:var(--ink2);
+  border:1px solid var(--line2);
+  border-radius:6px;
+  overflow:hidden;
+  transition:border-color .2s, transform .15s;
+  position:relative;
+}
+
+.card:hover {
+  border-color:var(--line3);
+  transform:translateY(-1px);
+}
+
+.card::before {
+  content:'';
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:4px;
+}
+
+.card.day-Sunday::before { background:var(--green); }
+.card.day-Weekday::before { background:var(--amber); }
+.card.day-Saturday::before { background:var(--blue); }
+
+.card-head {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 0;
+  border-bottom:1px solid var(--line);
+  background:var(--ink3);
+}
+
+.card-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.run-day {
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--amber);
+  flex-shrink: 0;
+}
+
+.card.day-Sunday .run-day { color:var(--green); }
+.card.day-Weekday .run-day { color:var(--amber); }
+.card.day-Saturday .run-day { color:var(--blue); }
+
+.run-num-label {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  color:var(--bright);
+  flex-shrink: 0;
+  display: none;
+}
+
+.run-num {
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:700;
+  color:var(--amber);
+  line-height:1;
+  flex-shrink: 0;
+}
+
+.card.day-Sunday .run-num { color:var(--green); }
+.card.day-Weekday .run-num { color:var(--amber); }
+.card.day-Saturday .run-num { color:var(--blue); }
+
+.run-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-picked-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--red);
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-paddle {
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.06em;
+  background:var(--blue);
+  border:1px solid var(--blue);
+  color:#0a1020;
+  padding:4px 10px;
+  border-radius:4px;
+  cursor:pointer;
+  text-decoration:none;
+  display:none;
+  align-items:center;
+  gap:3px;
+  transition:all .15s;
+  white-space:nowrap;
+  flex-shrink: 0;
+}
+
+.btn-paddle.show {
+  display: inline-flex;
+}
+
+.btn-paddle:hover{
+  border-color:#6fb4ff;
+  background:#6fb4ff;
+  color:#0a1020;
+}
+
+.btn-paddle:active{
+  background:#3c8ae6;
+  border-color:#3c8ae6;
+}
+
+.card-head-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+}
+
+.run-routes {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  color:var(--bright);
+  letter-spacing:.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-row {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--line);
+}
+
+.stat {
+  padding:10px 12px;
+  border-right:1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat:last-child{border-right:none;}
+
+.stat-label {
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:3px;
+}
+
+.stat-val {
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:700;
+  color:var(--bright);
+  line-height: 1.1;
+}
+
+.stat-val.pay { color:var(--amber); }
+
+.swing-section {
+  padding:6px 12px;
+  border-top:1px solid var(--line);
+  background:var(--ink3);
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--mid);
+  display: flex;
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+.swing-label {
+  color:var(--dim);
+  font-weight: 600;
+}
+
+.swing-value {
+  color:var(--violet);
+  font-weight: 600;
+}
+
+.timeline { 
+  padding:12px 14px 12px 17px; 
+}
+
+.seg {
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  margin-bottom:6px;
+  position:relative;
+}
+
+.seg:last-child{ margin-bottom:0; }
+
+.seg-connector {
+  width:16px;
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  position:relative;
+  margin-right:8px;
+}
+
+.seg-dot {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  border:2px solid;
+  flex-shrink:0;
+  margin-top:4px;
+  z-index:1;
+  border-color:var(--green);
+  background:var(--green);
+}
+
+.seg-line {
+  width:1px;
+  background:var(--line2);
+  flex:1;
+  margin-top:2px;
+}
+
+.seg:last-child .seg-line { display:none; }
+
+.seg-body { 
+  flex:1;
+  min-width:0;
+  padding-bottom:6px; 
+}
+
+.seg-top {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  margin-bottom:3px;
+  flex-wrap: wrap;
+}
+
+.seg-route {
+  font-family:var(--mono);
+  font-size:14px;
+  font-weight:600;
+  color:var(--bright);
+  min-width:36px;
+}
+
+.seg-block {
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.08em;
+  color:var(--bright);
+  background:var(--ink3);
+  border:1px solid var(--line3);
+  border-radius:3px;
+  padding:2px 6px;
+}
+
+.seg-block-label {
+  font-family:var(--mono);
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.1em;
+  color:var(--dim);
+  margin-right:-2px;
+}
+
+.seg-sched {
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--mid);
+  margin-left:auto;
+}
+
+.seg-times {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--mid);
+  flex-wrap: wrap;
+}
+
+.seg-time-tag {
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.05em;
+  padding:1px 4px;
+  border-radius:2px;
+  background:var(--green-dim);
+  color:var(--green);
+}
+
+.seg-arrow { color:var(--dim);font-size:10px; }
+
+.empty {
+  grid-column:1/-1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:280px;
+  gap:12px;
+  color:var(--dim);
+}
+
+.empty p { font-size:16px; }
+
+#route-filters { 
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  min-width: 200px;
+}
+
+.error {
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 20px;
+  border-radius: 4px;
+  margin: 20px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+@media (max-width: 768px) {
+  html { font-size: 16px; }
+  
+  header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .btn-live {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .day-selector {
+    width: 100%;
+    min-width: unset;
+    justify-content: space-around;
+  }
+  
+  .day-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  .search-row {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .search-wrap {
+    flex: 1;
+    min-width: unset;
+  }
+  
+  .filter-row {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* roomier bars + captions on phones, where this is dragged with a thumb */
+  .time-filter { padding: 10px 16px 6px; }
+  .tf-track-wrap { height: 42px; }
+  .tf-handle { width: 30px; height: 36px; }
+  .tf-handle::before { width: 6px; }
+  .tf-readout { font-size: 14px; }
+  .tf-reset { padding: 7px 12px; }
+
+  .tool-end {
+    width: 100%;
+    gap: 8px;
+  }
+
+  /* sort takes the remaining room; the toggle keeps its own width */
+  .sort-sel {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* bigger tap target on phones */
+  .btn-only {
+    padding: 12px;
+    font-size: 12px;
+  }
+
+  .result-line {
+    width: auto;
+  }
+  
+  :root { --card-w: 100%; }
+  
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* --- CARD HEADER FIX: two clear rows, no overlap --- */
+  .card-head {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-head-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 4px 10px;
+    flex-wrap: nowrap;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  .run-day {
+    font-size: 12px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+
+  .run-num-label {
+    display: none;
+  }
+
+  .run-num {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .run-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .btn-paddle {
+    font-size: 10px;
+    padding: 4px 9px;
+    flex-shrink: 0;
+  }
+
+  .card-head-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
+  .run-routes {
+    font-size: 11px;
+    text-align: right;
+  }
+  /* --- END CARD HEADER FIX --- */
+
+  .swing-section {
+    font-size: 12px;
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  .stat-val {
+    font-size: 17px;
+  }
+  
+  .seg-route {
+    font-size: 13px;
+  }
+  
+  .fchip {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 16px; }
+  
+  .search-wrap input {
+    font-size: 16px;
+  }
+  
+  .day-btn {
+    padding: 12px 10px;
+    font-size: 13px;
+  }
+  
+  .run-num {
+    font-size: 18px;
+  }
+  
+  .stat-val {
+    font-size: 16px;
+  }
+  
+  .seg-times {
+    font-size: 11px;
+  }
+
+  .run-routes {
+    font-size: 10px;
+  }
+
+  .run-day {
+    font-size: 11px;
+  }
+  
+  .btn-live {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-depot">
+    <div class="hd-dot"></div>
+    <div class="hd-selects">
+      <select class="hd-season-select" id="season-select" onchange="changeSeason()">
+        <option value="">Loading...</option>
+      </select>
+      <select class="hd-depot-select" id="district-select" onchange="changeDistrict()">
+        <option value="">Loading districts...</option>
+      </select>
+    </div>
+  </div>
+  <a href="https://deenersin-png.github.io/septa-scheduler/block-tracker" class="btn-live">LIVE</a>
+  <div id="pa-slot"></div>
+</header>
+
+<div class="toolbar">
+  <div class="day-selector" id="day-selector"></div>
+
+  <div class="gone-runs-row" id="gone-runs-toolbar" style="display:none">
+    <button class="btn-only" id="btn-open-only" onclick="toggleOpenOnly()">Open Runs Only</button>
+    <span class="gone-runs-updated" id="gone-runs-updated">Updated: —</span>
+  </div>
+
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-run" placeholder="Run #" maxlength="3" oninput="render()" inputmode="numeric">
+    </div>
+
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-block" placeholder="Block #" maxlength="4" oninput="render()" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="filter-row" id="route-filters"></div>
+
+  <div class="time-filter tf-open" id="time-filter">
+    <div class="tf-head">
+      <span class="tf-label">Time</span>
+      <span class="tf-readout" id="tf-readout">Any time</span>
+      <button class="tf-reset" id="tf-reset" onclick="resetTimeWindow()">RESET</button>
+    </div>
+    <div class="tf-track-wrap" id="tf-track">
+      <div class="tf-track"></div>
+      <div class="tf-ticks" id="tf-ticks"></div>
+      <div class="tf-fill" id="tf-fill"></div>
+      <div class="tf-handle" id="tf-handle-a" data-h="a" data-cap="START"
+           role="slider" tabindex="0" aria-label="Earliest start"></div>
+      <div class="tf-handle" id="tf-handle-b" data-h="b" data-cap="FINISH"
+           role="slider" tabindex="0" aria-label="Latest finish"></div>
+    </div>
+    <div class="tf-scale" id="tf-scale"></div>
+  </div>
+
+  <div class="tool-end">
+    <select class="sort-sel" id="sort-sel" onchange="render()">
+      <option value="run-asc">Run</option>
+      <option value="pay-desc">Pay (Highest)</option>
+      <option value="pay-asc">Pay (Lowest)</option>
+      <option value="start-asc">Earliest Start</option>
+      <option value="start-desc">Latest Start</option>
+      <option value="finish-asc">Earliest Finish</option>
+      <option value="finish-desc">Latest Finish</option>
+      <option value="swing-desc">Swing (Longest)</option>
+    </select>
+
+    <button class="btn-only" id="btn-only" onclick="toggleOnlyMode()" style="display:none"></button>
+
+    <div class="result-line"><strong id="res-n">0</strong></div>
+  </div>
+</div>
+
+<div class="grid-wrap">
+  <div class="cards-grid" id="grid"></div>
+</div>
+
+<script>
+const isMobile = window.innerWidth <= 768;
+const DAY_ORDER = ['Sunday', 'Weekday', 'Saturday'];
+
+// ==========================================================================
+// SEASONS - step 1 of the picker. Each entry becomes one option in the
+// "Season" dropdown and points at its own manifest file.
+//
+// To RETIRE SUMMER later: just delete the summer line below. Fall then
+// becomes the default, and the Season dropdown auto-hides while only one
+// season remains (so it looks like the single-dropdown app does today).
+// The order here is the display order; the first entry is the default.
+// ==========================================================================
+const SEASONS = [
+  { id: 'summer2026', label: 'Summer 2026', manifest: 'data/manifest.json' },
+  { id: 'fall2026',   label: 'Fall 2026',   manifest: 'data/manifest-fall-2026.json' },
+  { id: 'spring2026',   label: 'Spring 2026',   manifest: 'data/manifest_fall2026.json' }
+];
+
+// ==========================================================================
+// ROUTE MATCH MODES
+//
+//   'any'  (DEFAULT, button OFF) - a run shows if it works AT LEAST ONE
+//          selected route. Combination runs (e.g. 112 + 118) still show when
+//          you pick just 112. This is what most people expect from a route
+//          filter, so it is always the starting point.
+//
+//   'only' (button ON) - a run shows only if EVERY route it works is in the
+//          selected set. Pick 112 alone and you get pure-112 runs only;
+//          combination runs drop out. (This is how the original app always
+//          behaved, which is why some routes looked empty.)
+//
+// The SELECTED ONLY button is only meaningful once a route is picked, so it
+// stays hidden until then and resets to OFF whenever the selection empties.
+// ==========================================================================
+const ROUTE_MODES = { any: 1, only: 1 };
+
+// Manual "picked runs" overlay, read from a Google Sheet the depot owner
+// updates by hand. Scoped to Callowhill Bus / Fall 2026 only.
+const GONE_RUNS_SHEET_ID = '1XY9tVEzQGxCO010RNkCFARXEt_5nqxUm_etTlh7cjZA';
+const GONE_RUNS_DISTRICT = 'callowhillb-fall-2026';
+const GONE_RUNS_CONFIG_GID = '999225285';
+const GONE_RUNS_DAY_GIDS = { Weekday: '275440213', Saturday: '553516250', Sunday: '1260882798' };
+
+let STATE = {
+  currentSeason: null,
+  manifest: null,
+  currentDistrict: null,
+  currentDay: 'Weekday',
+  activeRoutes: new Set(),
+  routeMode: 'any',
+  runs: [],
+  availableDays: [],
+  pdfLinks: {},
+  goneRunsEnabled: false,
+  goneRunsUpdated: '',
+  goneRuns: new Map(),
+  showOpenOnly: false,
+  // Time window, in epoch ms. domMin/domMax are recomputed per day from the
+  // runs themselves, so "handles at the ends" always means "no filtering".
+  timeDom: { min: 0, max: 0 },
+  timeFrom: 0,
+  timeTo: 0
+};
+
+function parseCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  return lines.slice(1)
+    .filter(line => line.trim())
+    .map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const obj = {};
+      headers.forEach((header, i) => { obj[header] = values[i] || ''; });
+      return obj;
+    });
+}
+
+function goneRunsSheetUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${GONE_RUNS_SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+async function loadGoneRunsConfig() {
+  try {
+    const res = await fetch(goneRunsSheetUrl(GONE_RUNS_CONFIG_GID));
+    if (!res.ok) throw new Error('config fetch failed');
+    const text = await res.text();
+    const map = {};
+    text.trim().split('\n').forEach(line => {
+      const [key, value] = line.split(',').map(v => (v || '').trim());
+      if (key) map[key.toLowerCase()] = value || '';
+    });
+    STATE.goneRunsEnabled = (map['filtering test'] || '').toLowerCase() === 'yes';
+    STATE.goneRunsUpdated = map['date'] || '';
+  } catch (e) {
+    STATE.goneRunsEnabled = false;
+    STATE.goneRunsUpdated = '';
+  }
+}
+
+async function loadGoneRunsForDay(day) {
+  STATE.goneRuns = new Map();
+  const gid = GONE_RUNS_DAY_GIDS[day];
+  if (!gid) return;
+  try {
+    const res = await fetch(goneRunsSheetUrl(gid));
+    if (!res.ok) throw new Error('day fetch failed');
+    const text = await res.text();
+    parseCSV(text).forEach(row => {
+      const runno = (row['run#'] || '').trim();
+      if (runno) STATE.goneRuns.set(runno, { opid: (row['opid'] || '').trim(), off: (row['off'] || '').trim() });
+    });
+  } catch (e) {
+    console.log(`gone-runs fetch failed for ${day}`);
+  }
+}
+
+async function refreshGoneRuns() {
+  const isCallowhillFall = STATE.currentDistrict === GONE_RUNS_DISTRICT;
+  if (!isCallowhillFall) {
+    STATE.goneRunsEnabled = false;
+    STATE.goneRuns = new Map();
+    updateGoneRunsUI();
+    return;
+  }
+  await loadGoneRunsConfig();
+  if (STATE.goneRunsEnabled) {
+    await loadGoneRunsForDay(STATE.currentDay);
+  } else {
+    STATE.goneRuns = new Map();
+  }
+  updateGoneRunsUI();
+}
+
+function updateGoneRunsUI() {
+  const wrap = document.getElementById('gone-runs-toolbar');
+  const show = STATE.currentDistrict === GONE_RUNS_DISTRICT && STATE.goneRunsEnabled;
+  wrap.style.display = show ? '' : 'none';
+  if (!show) { STATE.showOpenOnly = false; return; }
+  document.getElementById('gone-runs-updated').textContent =
+    STATE.goneRunsUpdated ? `Updated: ${STATE.goneRunsUpdated}` : 'Updated: —';
+  const btn = document.getElementById('btn-open-only');
+  btn.classList.toggle('active', STATE.showOpenOnly);
+  btn.textContent = STATE.showOpenOnly ? 'Open Runs Only ✓' : 'Open Runs Only';
+}
+
+function toggleOpenOnly() {
+  STATE.showOpenOnly = !STATE.showOpenOnly;
+  updateGoneRunsUI();
+  render();
+}
+
+function parseFullDateTime(dateTimeStr) {
+  if (!dateTimeStr) return new Date(0);
+  try {
+    const parts = dateTimeStr.split(' ');
+    const [year, month, day] = parts[0].split('-').map(Number);
+    const [hours, minutes] = parts[1].split(':').map(Number);
+    const ampm = parts[2];
+    let hour = hours;
+    if (ampm === 'AM' && hours === 12) hour = 0;
+    if (ampm === 'PM' && hours !== 12) hour += 12;
+    return new Date(year, month - 1, day, hour, minutes);
+  } catch (e) { return new Date(0); }
+}
+
+function getRunRoutes(run) {
+  const routes = [];
+  for (let i = 1; i <= 10; i++) {
+    const route = run['r' + i];
+    if (route && route.trim()) routes.push(route.trim());
+  }
+  return routes;
+}
+
+// ==========================================================================
+// TIME WINDOW FILTER
+//
+// One track, two vertical-bar handles, no typing. The LEFT bar is the earliest
+// START you will accept, the RIGHT bar is the latest FINISH - so a run shows
+// only if the whole thing fits inside. Drag to 5:00 AM / 3:00 PM and you get
+// exactly the runs you could work between 5 and 3, which is how drivers say it
+// out loud. Leave a bar parked at its end of the track and that side stops
+// constraining anything.
+//
+// Comparisons run on the raw epoch ms from the CSV, never on a wrapped clock
+// time. That matters here: a run finishing "12:26 AM" is dated the NEXT day in
+// the data, and treating it as 00:26 would make it look like the earliest
+// finish of the day instead of the latest.
+// ==========================================================================
+const TF_HOUR_MS = 60 * 60 * 1000;
+const TF_SNAP_MS = 15 * 60 * 1000;   // handles land on quarter hours
+const TF_MIN_SPAN = TF_SNAP_MS;      // never let the two bars stack up
+
+// Midnight of the service date, used only to tag times that spill past it.
+let tfBase = 0;
+
+// parseFullDateTime hands back epoch 0 for blank/garbage, so treat that as
+// "no timestamp" rather than 1970.
+function runMs(value) {
+  const t = parseFullDateTime(value).getTime();
+  return t > 0 ? t : null;
+}
+
+function midnightOf(ms) {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+// Local-time hour rounding - doing this with plain ms arithmetic would land on
+// the wrong minute in any zone whose offset is not a whole hour.
+function floorHour(ms) {
+  const d = new Date(ms);
+  d.setMinutes(0, 0, 0);
+  return d.getTime();
+}
+
+function ceilHour(ms) {
+  const f = floorHour(ms);
+  return f === ms ? ms : f + TF_HOUR_MS;
+}
+
+// Rebuilt whenever the visible day changes: the track spans exactly the hours
+// this day actually uses, so "bars at both ends" is always a true no-op.
+function computeTimeDomain() {
+  let lo = Infinity, hi = -Infinity;
+  const startDays = new Map();
+
+  STATE.runs.forEach(r => {
+    if (r.day !== STATE.currentDay) return;
+    const s = runMs(r.start), f = runMs(r.finish);
+    if (s !== null) {
+      lo = Math.min(lo, s);
+      hi = Math.max(hi, s);
+      const key = midnightOf(s);
+      startDays.set(key, (startDays.get(key) || 0) + 1);
+    }
+    if (f !== null) hi = Math.max(hi, f);
+  });
+
+  if (lo === Infinity) {
+    STATE.timeDom = { min: 0, max: 0 };
+    STATE.timeFrom = STATE.timeTo = 0;
+    tfBase = 0;
+    return;
+  }
+
+  STATE.timeDom = { min: floorHour(lo), max: ceilHour(hi) };
+  STATE.timeFrom = STATE.timeDom.min;
+  STATE.timeTo = STATE.timeDom.max;
+
+  // the date most runs start on is the service date; anything past it is "+1"
+  let best = 0, bestN = -1;
+  startDays.forEach((n, key) => { if (n > bestN) { bestN = n; best = key; } });
+  tfBase = best;
+}
+
+function fmtClock(ms) {
+  const d = new Date(ms);
+  let h = d.getHours();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
+}
+
+function fmtHourShort(ms) {
+  const d = new Date(ms);
+  let h = d.getHours();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h} ${ap}`;
+}
+
+// A service day runs past midnight, so the same clock time can sit at both
+// ends of the track. Tag the ones on the far side of the date line.
+function fmtClockTagged(ms) {
+  const txt = fmtClock(ms);
+  if (!tfBase) return txt;
+  const days = Math.round((midnightOf(ms) - tfBase) / 86400000);
+  return days === 0 ? txt : `${txt}<span class="tf-next">${days > 0 ? '+' : ''}${days}</span>`;
+}
+
+function timeWindowActive() {
+  const d = STATE.timeDom;
+  if (d.max - d.min <= 0) return false;
+  return STATE.timeFrom > d.min || STATE.timeTo < d.max;
+}
+
+// Containment, not overlap: the run has to sit wholly inside the window. A run
+// missing one of its timestamps is judged only on the one it has.
+function matchesTime(run) {
+  if (!timeWindowActive()) return true;
+  const s = runMs(run.start), f = runMs(run.finish);
+  if (s !== null && s < STATE.timeFrom) return false;
+  if (f !== null && f > STATE.timeTo) return false;
+  return true;
+}
+
+function tfPct(ms) {
+  const span = STATE.timeDom.max - STATE.timeDom.min;
+  return span > 0 ? ((ms - STATE.timeDom.min) / span) * 100 : 0;
+}
+
+function tfSnap(ms) {
+  const d = STATE.timeDom;
+  const v = d.min + Math.round((ms - d.min) / TF_SNAP_MS) * TF_SNAP_MS;
+  return Math.min(d.max, Math.max(d.min, v));
+}
+
+function tfSet(which, ms) {
+  const d = STATE.timeDom;
+  const v = tfSnap(ms);
+  if (which === 'a') STATE.timeFrom = Math.max(d.min, Math.min(v, STATE.timeTo - TF_MIN_SPAN));
+  else STATE.timeTo = Math.min(d.max, Math.max(v, STATE.timeFrom + TF_MIN_SPAN));
+  renderTimeSlider();
+  render();
+}
+
+function resetTimeWindow() {
+  STATE.timeFrom = STATE.timeDom.min;
+  STATE.timeTo = STATE.timeDom.max;
+  renderTimeSlider();
+  render();
+}
+
+function renderTimeSlider() {
+  const wrap = document.getElementById('time-filter');
+  const d = STATE.timeDom;
+  const span = d.max - d.min;
+
+  // no parseable times on this day - nothing to narrow
+  if (span <= 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  const a = tfPct(STATE.timeFrom), b = tfPct(STATE.timeTo);
+  const ha = document.getElementById('tf-handle-a');
+  const hb = document.getElementById('tf-handle-b');
+  ha.style.left = a + '%';
+  hb.style.left = b + '%';
+  ha.setAttribute('aria-valuetext', 'Earliest start ' + fmtClock(STATE.timeFrom));
+  hb.setAttribute('aria-valuetext', 'Latest finish ' + fmtClock(STATE.timeTo));
+
+  const fill = document.getElementById('tf-fill');
+  fill.style.left = a + '%';
+  fill.style.width = (b - a) + '%';
+
+  const open = !timeWindowActive();
+  wrap.classList.toggle('tf-open', open);
+  document.getElementById('tf-readout').innerHTML = open
+    ? 'Any time'
+    : `${fmtClockTagged(STATE.timeFrom)} &rarr; ${fmtClockTagged(STATE.timeTo)}`;
+
+  // Hour ticks all the way across, but only as many labels as fit side by side -
+  // a 29-hour service day would otherwise stack them into mush on a phone.
+  const TF_LABEL_GAP = 46;
+  const trackW = document.getElementById('tf-track').clientWidth || 320;
+  const hours = Math.round(span / TF_HOUR_MS);
+  const perHour = trackW / hours;
+  let step = 12;
+  for (const s of [1, 2, 3, 4, 6, 8, 12]) { if (perHour * s >= TF_LABEL_GAP) { step = s; break; } }
+
+  // label every `step` hours, and always name the far end of the track, since
+  // that is where the day stops - drop its neighbour if the two would collide
+  const marks = [];
+  for (let h = 0; h <= hours; h += step) marks.push(h);
+  if (marks[marks.length - 1] !== hours) {
+    if (marks.length > 1 && (hours - marks[marks.length - 1]) * perHour < TF_LABEL_GAP) marks.pop();
+    marks.push(hours);
+  }
+
+  let ticks = '';
+  if (perHour >= 5) {
+    for (let h = 0; h <= hours; h++) {
+      ticks += `<div class="tf-tick" style="left:${tfPct(d.min + h * TF_HOUR_MS)}%"></div>`;
+    }
+  }
+
+  // the first and last labels sit inside the box instead of being centred,
+  // so they cannot hang off the edge of the panel
+  const scale = marks.map(h => {
+    const t = d.min + h * TF_HOUR_MS;
+    const edge = h === 0 ? ' class="tf-lead"' : (h === hours ? ' class="tf-tail"' : '');
+    return `<span${edge} style="left:${tfPct(t)}%">${fmtHourShort(t)}</span>`;
+  }).join('');
+
+  document.getElementById('tf-ticks').innerHTML = ticks;
+  document.getElementById('tf-scale').innerHTML = scale;
+}
+
+function initTimeSlider() {
+  const wrap = document.getElementById('tf-track');
+  let active = null;
+
+  const centerOf = which => {
+    const r = document.getElementById('tf-handle-' + which).getBoundingClientRect();
+    return r.left + r.width / 2;
+  };
+
+  const msAt = clientX => {
+    const rect = document.getElementById('tf-track').getBoundingClientRect();
+    if (rect.width <= 0) return STATE.timeDom.min;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return tfSnap(STATE.timeDom.min + ratio * (STATE.timeDom.max - STATE.timeDom.min));
+  };
+
+  wrap.addEventListener('pointerdown', e => {
+    if (STATE.timeDom.max - STATE.timeDom.min <= 0) return;
+    const grabbed = e.target.closest('.tf-handle');
+    if (grabbed) {
+      // grabbed a bar: hold it where it is until the finger actually moves,
+      // so a tap on the bar never nudges the window
+      active = grabbed.dataset.h;
+    } else {
+      active = Math.abs(e.clientX - centerOf('a')) <= Math.abs(e.clientX - centerOf('b')) ? 'a' : 'b';
+      tfSet(active, msAt(e.clientX));
+    }
+    document.getElementById('tf-handle-' + active).classList.add('tf-drag');
+    wrap.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  wrap.addEventListener('pointermove', e => {
+    if (active) tfSet(active, msAt(e.clientX));
+  });
+
+  const stop = e => {
+    if (!active) return;
+    document.getElementById('tf-handle-' + active).classList.remove('tf-drag');
+    active = null;
+    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  wrap.addEventListener('pointerup', stop);
+  wrap.addEventListener('pointercancel', stop);
+
+  ['a', 'b'].forEach(which => {
+    document.getElementById('tf-handle-' + which).addEventListener('keydown', e => {
+      const cur = which === 'a' ? STATE.timeFrom : STATE.timeTo;
+      const jump = (e.shiftKey ? TF_HOUR_MS : TF_SNAP_MS);
+      let next = null;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = cur - jump;
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = cur + jump;
+      else if (e.key === 'Home') next = STATE.timeDom.min;
+      else if (e.key === 'End') next = STATE.timeDom.max;
+      if (next === null) return;
+      e.preventDefault();
+      tfSet(which, next);
+    });
+  });
+
+  // label density depends on track width, so recompute when the box changes
+  let pending = false;
+  window.addEventListener('resize', () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; renderTimeSlider(); });
+  });
+}
+
+function initSeasons() {
+  updateModeUI();
+  initTimeSlider();
+
+  const select = document.getElementById('season-select');
+  if (!SEASONS || SEASONS.length === 0) {
+    document.getElementById('grid').innerHTML = `<div class="error">No seasons configured</div>`;
+    return;
+  }
+
+  select.innerHTML = SEASONS
+    .map(s => `<option value="${s.id}">${s.label}</option>`)
+    .join('');
+
+  // Only one season left (e.g. summer retired) -> hide the season dropdown
+  // so it looks like the original single-dropdown app.
+  select.style.display = SEASONS.length > 1 ? '' : 'none';
+
+  const saved = localStorage.getItem('paddleSeason');
+  const validSaved = SEASONS.find(s => s.id === saved);
+  select.value = validSaved ? saved : SEASONS[0].id;
+  changeSeason();
+}
+
+async function changeSeason() {
+  const select = document.getElementById('season-select');
+  const season = SEASONS.find(s => s.id === select.value) || SEASONS[0];
+  STATE.currentSeason = season.id;
+  localStorage.setItem('paddleSeason', season.id);
+
+  try {
+    const response = await fetch(season.manifest);
+    if (!response.ok) throw new Error('Manifest not found');
+    STATE.manifest = await response.json();
+    initializeDistricts();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = `<div class="error">Error loading districts: ${e.message}</div>`;
+  }
+}
+
+function initializeDistricts() {
+  const select = document.getElementById('district-select');
+  if (!STATE.manifest || !STATE.manifest.districts || STATE.manifest.districts.length === 0) {
+    select.innerHTML = '<option>No districts available</option>';
+    return;
+  }
+  select.innerHTML = STATE.manifest.districts
+    .map(d => `<option value="${d.name}">${d.label || d.name}</option>`)
+    .join('');
+  if (STATE.manifest.districts.length > 0) {
+    const saved = localStorage.getItem('paddleDepot_' + STATE.currentSeason);
+    const validSaved = STATE.manifest.districts.find(d => d.name === saved);
+    select.value = validSaved ? saved : STATE.manifest.districts[0].name;
+    changeDistrict();
+  }
+}
+
+// Bumped on every district load. Each load captures its own token and drops
+// its results if a newer load has started meanwhile - otherwise two overlapping
+// loads (switch depot twice on a slow connection) both push into STATE.runs and
+// every run is counted twice.
+let loadToken = 0;
+
+async function changeDistrict() {
+  const select = document.getElementById('district-select');
+  STATE.currentDistrict = select.value;
+  if (!STATE.currentDistrict) return;
+  localStorage.setItem('paddleDepot_' + STATE.currentSeason, STATE.currentDistrict);
+
+  const myToken = ++loadToken;
+
+  try {
+    STATE.runs = [];
+    STATE.availableDays = [];
+    STATE.pdfLinks = {};
+    STATE.currentDay = 'Weekday';
+
+    // Load into locals, then publish to STATE only if this is still the
+    // newest request. Capture the district name too, so a mid-flight switch
+    // cannot make us fetch one depot's files under another's name.
+    const district = STATE.currentDistrict;
+    const districtConfig = STATE.manifest.districts.find(d => d.name === district);
+    if (!districtConfig || !districtConfig.days) throw new Error('District configuration not found');
+
+    const runs = [];
+    const availableDays = [];
+    const pdfLinks = {};
+
+    for (const day of districtConfig.days) {
+      const dayLower = day.toLowerCase();
+      try {
+        const response = await fetch(`data/${district}/${dayLower}.csv`);
+        if (myToken !== loadToken) return;          // superseded
+        if (!response.ok) continue;
+        const csvText = await response.text();
+        const dayRuns = parseCSV(csvText);
+        if (dayRuns.length > 0) {
+          availableDays.push(day);
+          dayRuns.forEach(run => { run.day = day; });
+          runs.push(...dayRuns);
+        }
+      } catch (e) { console.log(`${day}.csv not found for ${district}`); }
+    }
+
+    availableDays.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+
+    try {
+      const response = await fetch(`data/${district}/pdfs.csv`);
+      if (myToken !== loadToken) return;             // superseded
+      if (response.ok) {
+        const csvText = await response.text();
+        const pdfData = parseCSV(csvText);
+        pdfData.forEach(row => {
+          const runno = row.runno || '';
+          const day = row.day || '';
+          if (runno && day) pdfLinks[day + '-' + runno] = { moblink: row.moblink || '', pclink: row.pclink || '' };
+        });
+      }
+    } catch (e) { console.log('pdfs.csv not found'); }
+
+    if (myToken !== loadToken) return;               // superseded
+    STATE.runs = runs;
+    STATE.availableDays = availableDays;
+    STATE.pdfLinks = pdfLinks;
+
+    initializeDayButtons();
+    render();
+
+    await refreshGoneRuns();
+    if (myToken !== loadToken) return;      // superseded
+    render();
+  } catch (e) {
+    if (myToken !== loadToken) return;
+    document.getElementById('grid').innerHTML = `<div class="error">Error loading district: ${e.message}</div>`;
+  }
+}
+
+function initializeDayButtons() {
+  const selectorContainer = document.getElementById('day-selector');
+  const dayCounts = {};
+  STATE.runs.forEach(r => { dayCounts[r.day] = (dayCounts[r.day] || 0) + 1; });
+  
+  let buttonsHtml = '';
+  STATE.availableDays.forEach(day => {
+    const count = dayCounts[day] || 0;
+    const dayLower = day.toLowerCase();
+    const isActive = STATE.currentDay === day ? 'active' : '';
+    buttonsHtml += `<button class="day-btn ${dayLower} ${isActive}" onclick="changeDay('${day}')" title="${day}: ${count} runs">${day} (${count})</button>`;
+  });
+  
+  selectorContainer.innerHTML = buttonsHtml;
+  buildRouteChips();
+  computeTimeDomain();
+  renderTimeSlider();
+}
+
+async function changeDay(day) {
+  STATE.currentDay = day;
+  STATE.activeRoutes.clear();
+  document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  buildRouteChips();
+  // each day has its own span of hours, so the old window would mean something
+  // different here - rebuild it wide open, same as the route chips reset
+  computeTimeDomain();
+  renderTimeSlider();
+  STATE.showOpenOnly = false;
+  if (STATE.currentDistrict === GONE_RUNS_DISTRICT && STATE.goneRunsEnabled) {
+    await loadGoneRunsForDay(day);
+  } else {
+    STATE.goneRuns = new Map();
+  }
+  updateGoneRunsUI();
+  render();
+}
+
+// With nothing selected there is nothing to narrow, so the mode falls back to
+// the default. This has to run BEFORE the chip counts are computed, otherwise
+// removing your last route leaves the chips showing SELECTED ONLY counts.
+function normalizeRouteMode() {
+  if (STATE.activeRoutes.size === 0) STATE.routeMode = 'any';
+}
+
+function buildRouteChips() {
+  normalizeRouteMode();
+  const routes = getRoutes(STATE.currentDay);
+  const wrap = document.getElementById('route-filters');
+
+  wrap.innerHTML = routes
+    .map(r => {
+      const n = countForRoute(r, STATE.routeMode);
+      const cls = 'fchip'
+        + (STATE.activeRoutes.has(r) ? ' active' : '')
+        + (n === 0 ? ' dead' : '');
+      const title = n === 0
+        ? `Route ${r}: no run works it on its own — turn off SELECTED ONLY to see its combination runs`
+        : `Route ${r}: ${n} run${n === 1 ? '' : 's'}`;
+      return `<button class="${cls}" onclick="toggleRoute('${escAttr(r)}')" title="${title}">${r}<span class="cnt">${n}</span></button>`;
+    })
+    .join('');
+
+  updateModeUI();
+}
+
+// Every route the day actually operates - scanning ALL segments (r1..r10),
+// not just r1. Routes that only ever appear as a later leg of a combination
+// run used to have no chip at all and were impossible to filter on.
+function getRoutes(day) {
+  const set = new Set();
+  STATE.runs.forEach(r => {
+    if (r.day !== day) return;
+    getRunRoutes(r).forEach(route => set.add(route));
+  });
+  return [...set].sort((a, b) => {
+    const na = parseInt(a, 10), nb = parseInt(b, 10);
+    const aNum = !isNaN(na) && /^\d/.test(a), bNum = !isNaN(nb) && /^\d/.test(b);
+    if (aNum && bNum && na !== nb) return na - nb;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+    return a.localeCompare(b);
+  });
+}
+
+function escAttr(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// Does this run satisfy the route filter under the given mode?
+function matchesRoutes(run, mode, activeRoutes) {
+  if (activeRoutes.size === 0) return true;
+  const runRoutes = getRunRoutes(run);
+  if (runRoutes.length === 0) return false;
+  return mode === 'only'
+    ? runRoutes.every(route => activeRoutes.has(route))
+    : runRoutes.some(route => activeRoutes.has(route));
+}
+
+// How many cards you would get for the current day under `mode` with
+// `activeRoutes` selected. Mirrors render()'s filter + de-dupe order so the
+// number on a chip always matches what you actually see.
+function countRuns(mode, activeRoutes) {
+  const seen = new Set();
+  let n = 0;
+  STATE.runs.forEach(r => {
+    if (r.day !== STATE.currentDay) return;
+    if (!matchesRoutes(r, mode, activeRoutes)) return;
+    const runno = r.runno || '';
+    if (seen.has(runno)) return;
+    seen.add(runno);
+    n++;
+  });
+  return n;
+}
+
+// Runs you would get if this route were the only one selected.
+function countForRoute(route, mode) {
+  return countRuns(mode, new Set([route]));
+}
+
+function setRouteMode(mode) {
+  if (!ROUTE_MODES[mode]) return;
+  STATE.routeMode = mode;
+  buildRouteChips();
+  render();
+}
+
+function toggleOnlyMode() {
+  setRouteMode(STATE.routeMode === 'only' ? 'any' : 'only');
+}
+
+function updateModeUI() {
+  normalizeRouteMode();
+  const hasRoutes = STATE.activeRoutes.size > 0;
+
+  const onlyBtn = document.getElementById('btn-only');
+  const on = STATE.routeMode === 'only';
+  const picked = [...STATE.activeRoutes];
+  const list = picked.length <= 3 ? picked.join(', ') : picked.length + ' routes';
+
+  onlyBtn.style.display = hasRoutes ? '' : 'none';
+  onlyBtn.classList.toggle('active', on);
+  onlyBtn.innerHTML = `<span class="tick">${on ? '\u25c9' : '\u25cb'}</span>SELECTED ONLY`;
+  onlyBtn.title = on
+    ? `ON \u2014 showing runs that work nothing but ${list}. Click to also include runs that combine ${list} with other routes.`
+    : `OFF \u2014 showing every run that touches ${list}, including combinations. Click to show runs working ${list} and nothing else.`;
+}
+
+function toggleRoute(r) {
+  STATE.activeRoutes.has(r) ? STATE.activeRoutes.delete(r) : STATE.activeRoutes.add(r);
+  buildRouteChips();
+  render();
+}
+
+// Applies day + run + block + route + time filters, then de-dupes by run
+// number. `mode` and `ignoreTime` are passed in so the empty state can ask
+// "what would dropping THAT one filter have shown?" using the same rules.
+function filterRuns(mode, ignoreTime) {
+  const searchRun = document.getElementById('search-run').value.trim();
+  const searchBlock = document.getElementById('search-block').value.trim();
+
+  const matched = STATE.runs.filter(r => {
+    if (r.day !== STATE.currentDay) return false;
+    if (searchRun && String(r.runno || '').trim() !== searchRun) return false;
+    if (searchBlock && ![1,2,3,4,5,6,7,8,9,10].some(i => String(r['b'+i]||'').trim() === searchBlock)) return false;
+    if (!matchesRoutes(r, mode, STATE.activeRoutes)) return false;
+    if (!ignoreTime && !matchesTime(r)) return false;
+    if (STATE.showOpenOnly && STATE.goneRuns.has(String(r.runno || '').trim())) return false;
+    return true;
+  });
+
+  const seenRuns = new Set();
+  return matched.filter(r => {
+    const runno = r.runno || '';
+    if (seenRuns.has(runno)) return false;
+    seenRuns.add(runno);
+    return true;
+  });
+}
+
+// A run matching 'only' always matches 'any' too, so the only way the route
+// filter can strand you on an empty screen is with SELECTED ONLY switched on.
+// In that case say why and offer a one-tap way back.
+function buildEmptyState() {
+  // A narrowed window is the easiest way to empty the screen without noticing,
+  // so it gets first say - name the window and offer one tap back out.
+  if (timeWindowActive()) {
+    const wouldShow = filterRuns(STATE.routeMode, true).length;
+    if (wouldShow > 0) {
+      return `<div class="empty">
+        <p>No runs match your filters</p>
+        <div class="empty-hint">No run starts at or after <b>${fmtClockTagged(STATE.timeFrom)}</b>
+          and is finished by <b>${fmtClockTagged(STATE.timeTo)}</b>.<br>
+          Opening the time window back up would show <b>${wouldShow}</b> run${wouldShow === 1 ? '' : 's'}.</div>
+        <button class="btn-switch-mode" onclick="resetTimeWindow()">CLEAR TIME WINDOW</button>
+      </div>`;
+    }
+  }
+
+  if (STATE.routeMode === 'only' && STATE.activeRoutes.size > 0) {
+    const wouldShow = filterRuns('any').length;
+    if (wouldShow > 0) {
+      const picked = [...STATE.activeRoutes].join(', ');
+      return `<div class="empty">
+        <p>No runs match your filters</p>
+        <div class="empty-hint">Every run on <b>${picked}</b> is paired with another route,
+          so nothing works <b>${picked}</b> alone.<br>
+          Turning off <b>SELECTED ONLY</b> would show <b>${wouldShow}</b> run${wouldShow === 1 ? '' : 's'}.</div>
+        <button class="btn-switch-mode" onclick="setRouteMode('any')">
+          TURN OFF SELECTED ONLY
+        </button>
+      </div>`;
+    }
+  }
+
+  return '<div class="empty"><p>No runs match your filters</p></div>';
+}
+
+function render() {
+  const sort = document.getElementById('sort-sel').value;
+  let filtered = filterRuns(STATE.routeMode);
+
+  const [sk, sd] = sort.split('-');
+  filtered.sort((a, b) => {
+    let av, bv;
+    if (sk === 'run') { av = parseInt(a.runno) || 0; bv = parseInt(b.runno) || 0; return av - bv; }
+    else if (sk === 'pay') { av = parseFloat(a.pay) || 0; bv = parseFloat(b.pay) || 0; }
+    else if (sk === 'start') { av = parseFullDateTime(a.start).getTime(); bv = parseFullDateTime(b.start).getTime(); }
+    else if (sk === 'finish') { av = parseFullDateTime(a.finish).getTime(); bv = parseFullDateTime(b.finish).getTime(); }
+    else if (sk === 'swing') { av = parseInt(a.swingdursec) || 0; bv = parseInt(b.swingdursec) || 0; }
+    return sd === 'asc' ? av - bv : bv - av;
+  });
+
+  document.getElementById('res-n').textContent = filtered.length;
+  const grid = document.getElementById('grid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = buildEmptyState();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(run => {
+    const pdfLink = STATE.pdfLinks[run.day + '-' + run.runno] || {};
+    const paddleLink = isMobile ? pdfLink.moblink : pdfLink.pclink;
+    const paddleBtn = paddleLink
+      ? `<a class="btn-paddle show" href="${paddleLink}" target="_blank">PADDLE</a>`
+      : '';
+
+    const runRoutes = getRunRoutes(run);
+    const uniqueRoutes = [...new Set(runRoutes)];
+    const routesDisplay = uniqueRoutes.join(' | ');
+
+    let segsHtml = '';
+    for (let i = 1; i <= 10; i++) {
+      const r = run['r' + i];
+      const b = run['b' + i];
+      if (!r || !b) break;
+      segsHtml += `
+        <div class="seg">
+          <div class="seg-connector"><div class="seg-dot"></div><div class="seg-line"></div></div>
+          <div class="seg-body">
+            <div class="seg-top">
+              <span class="seg-route">${r}</span>
+              <span class="seg-block-label">BLK</span><span class="seg-block">${b}</span>
+              <span class="seg-sched">${run['stime' + i] || ''}</span>
+            </div>
+            <div class="seg-times">
+              <span class="seg-time-tag">${run['potype' + i] || ''}</span>
+              <span>${run['pot' + i] || ''}</span>
+              <span class="seg-arrow">-&gt;</span>
+              <span class="seg-time-tag">${run['pitype' + i] || ''}</span>
+              <span>${run['pit' + i] || ''}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const startTime = (run.start || '').split(' ').slice(1, 3).join(' ');
+    const finishTime = (run.finish || '').split(' ').slice(1, 3).join(' ');
+
+    let swingHtml = '';
+    if (run.pullout2) {
+      swingHtml = `<div class="swing-section"><div class="swing-label">Swing:</div><div class="swing-value">${run.swingdur || '&mdash;'}</div></div>`;
+    }
+
+    const goneInfo = STATE.goneRuns.get(String(run.runno || '').trim());
+    const pickedBadge = goneInfo
+      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}</div>`
+      : '';
+
+    return `
+      <div class="card day-${run.day}">
+        <div class="card-head">
+          <div class="card-head-top">
+            ${pdfLink.pclink ? `<a class="run-num" href="${pdfLink.pclink}" target="_blank" style="text-decoration:none;">${run.runno}</a>` : `<div class="run-num">${run.runno}</div>`}
+            <div class="run-day">${run.day}</div>
+            <div class="run-actions">${pickedBadge}${paddleBtn}</div>
+          </div>
+          <div class="card-head-bottom">
+            <div class="run-routes">${routesDisplay || '&mdash;'}</div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Start</div><div class="stat-val">${startTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Finish</div><div class="stat-val">${finishTime || '&mdash;'}</div></div>
+          <div class="stat"><div class="stat-label">Pay hrs</div><div class="stat-val pay">${run.pay || '&mdash;'}</div></div>
+        </div>
+        ${swingHtml}
+        ${segsHtml ? `<div class="timeline">${segsHtml}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+initSeasons();
+</script>
+<script type="module" src="assets/pa-account-ui.js"></script>
+</body>
+</html>
