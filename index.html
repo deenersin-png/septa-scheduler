@@ -1597,7 +1597,7 @@ function render() {
 
     const goneInfo = STATE.goneRuns.get(String(run.runno || '').trim());
     const pickedBadge = goneInfo
-      ? `<div class="run-picked-badge">Picked by: ${goneInfo.opid || '&mdash;'}</div>`
+      ? `<div class="run-picked-badge">Picked : ${goneInfo.opid || '&mdash;'}</div>`
       : '';
 
     return `
