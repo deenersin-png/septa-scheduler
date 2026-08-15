@@ -174,7 +174,9 @@ const ROUTE_COLORS = {
   "44":"#f4a261","30":"#264653","38":"#6a4c93","31":"#1d3557",
   "40":"#a8dadc","46":"#06d6a0","L1 OWL":"#9b5de5","WCS":"#f15bb5",
 };
-const DAY_ORDER   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+// Sunday-first, matching holdowner.csv's own column order (relief_run,sunday,
+// monday,...) and how the week is read everywhere else.
+const DAY_ORDER   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DAY_TO_TYPE = {Mon:"Weekday",Tue:"Weekday",Wed:"Weekday",Thu:"Weekday",Fri:"Weekday",Sat:"Saturday",Sun:"Sunday"};
 
 let runsByDay  = {Weekday:{},Saturday:{},Sunday:{}};
