@@ -183,10 +183,17 @@ let allRoutes  = [];
 let excludedRoutes = new Set();
 let openRelief = null;
 
+// localStorage throws outright in some contexts (blocked site data, private
+// embeddings). Remembering the chosen view is a convenience -- it must never
+// be the reason the whole picker fails to render.
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
 // Vac/Sick state
 let vacSick       = [];        // parsed packages from the sheet
 let vacSickOnline = false;     // A2 master switch
-let viewMode      = localStorage.getItem("vacSickViewMode") || "reliefs"; // "reliefs" | "add" | "vsonly"
+let vacSickPick   = "";        // K2 -- which pick page these runs belong to
+let viewMode      = lsGet("vacSickViewMode") || "reliefs"; // "reliefs" | "add" | "vsonly"
 
 // pdfLinks[dayType][runno] = moblink URL
 // e.g. pdfLinks["Weekday"]["51"] = "https://...#page=1"
@@ -286,7 +293,13 @@ function parseHoldownerCSV(text){
 }
 
 // ── Vac/Sick sheet parser (position-based) ────────────────────
-// Cols: 0 online | 1 Vac/Sick# | 2 Weekday(fills Mon-Fri) | 3-9 Mon..Sun
+// Cols: 0 online | 1 type | 2 Weekday(fills Mon-Fri) | 3-9 Mon..Sun | 10 pick
+// Layout is POSITIONAL on purpose: the sheet's Thu column was once headed
+// "The " (typo) and later "Thu", so header text is not a stable contract.
+// Col 1 is a TYPE label (V-1, V-2, Sick, IOD, W/O) and repeats across rows --
+// it is not a unique id, so cards are numbered sequentially and the label is
+// shown as the badge instead.
+const VS_COL_PICK = 10;   // K -- filename of the pick these runs belong to
 
 // A2 master switch. Keep identical to tools/ingest.py's VS_ON/VS_OFF — the app
 // and this picker read the same cell, and must never disagree about it.
@@ -306,25 +319,40 @@ function readVacSickSwitch(raw){
 
 function parseVacSickCSV(text){
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split('\n').filter(l=>l.trim());
-  if(lines.length<2) return {online:false, pkgs:[]};
-  let online=false; const pkgs=[];
+  if(lines.length<2) return {online:false, pick:"", pkgs:[]};
+  let online=false, pick=""; const pkgs=[];
   const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   for(let i=1;i<lines.length;i++){
     const v=parseCSVRow(lines[i]).map(s=>cleanStr(s));
-    if(i===1) online=readVacSickSwitch(v[0]); // A2 master switch
-    const num=v[1]; if(!num) continue;
-    const days={Mon:"OFF",Tue:"OFF",Wed:"OFF",Thu:"OFF",Fri:"OFF",Sat:"OFF",Sun:"OFF"};
+    if(i===1){                                  // row 2 carries both switches
+      online = readVacSickSwitch(v[0]);         // A2 master switch
+      pick   = v[VS_COL_PICK]||"";              // K2 target pick page
+    }
     const wk=v[2]||"";
-    if(wk){ days.Mon=days.Tue=days.Wed=days.Thu=days.Fri=wk; }   // weekday-only shortcut
     const perDay=[v[3],v[4],v[5],v[6],v[7],v[8],v[9]];           // Mon..Sun overrides
+    // A row counts only if it actually carries a run. Keying off the type
+    // label would drop rows whose label cell is blank.
+    if(!wk && !perDay.some(x=>x)) continue;
+    const days={Mon:"OFF",Tue:"OFF",Wed:"OFF",Thu:"OFF",Fri:"OFF",Sat:"OFF",Sun:"OFF"};
+    if(wk){ days.Mon=days.Tue=days.Wed=days.Thu=days.Fri=wk; }   // weekday-only shortcut
     DAYS.forEach((d,idx)=>{ if(perDay[idx]) days[d]=perDay[idx]; });
-    pkgs.push({reliefRun:"Vac/Sick "+num, days, isVacSick:true});
+    pkgs.push({reliefRun:"Vac/Sick "+(pkgs.length+1), vsType:v[1]||"", days, isVacSick:true});
   }
-  return {online, pkgs};
+  return {online, pick, pkgs};
 }
 
 // Safe DOM id from a relief label (handles the space/slash in "Vac/Sick 1")
 function safeId(s){ return String(s).replace(/[^a-zA-Z0-9]+/g,"-"); }
+
+// Compare a K2 value against this page's filename. Tolerates a full URL, a
+// missing/served-without .html extension, case, and query/hash.
+function normPage(s){
+  return String(s||"").trim().toLowerCase()
+    .split(/[?#]/)[0]
+    .replace(/\/+$/,"")
+    .split('/').pop()
+    .replace(/\.html?$/,"");
+}
 
 // ── Fetch ─────────────────────────────────────────────────────
 async function fetchCSV(url){
@@ -348,7 +376,7 @@ async function loadData(){
   if(sunText){ parseScheduleCSV(sunText).forEach(r=>{runsByDay.Sunday[r.runno]=r;}); }
   if(hoText)  holdowner=parseHoldownerCSV(hoText);
   if(pdfText) parsePdfsCSV(pdfText);
-  if(vsText){ const vs=parseVacSickCSV(vsText); vacSickOnline=vs.online; vacSick=vs.pkgs; }
+  if(vsText){ const vs=parseVacSickCSV(vsText); vacSickOnline=vs.online; vacSickPick=vs.pick; vacSick=vs.pkgs; }
 
   const rs=new Set();
   Object.values(runsByDay).forEach(day=>Object.values(day).forEach(r=>r.routes.forEach(rt=>rs.add(rt.r))));
@@ -357,18 +385,29 @@ async function loadData(){
   buildRouteFilters();
   applyVacSickUI();
   render();
-  document.getElementById("loadingMsg").style.display="none";
+  // render() rewrites #listPanel, which removes the spinner along with it, so
+  // this element is legitimately gone by now -- don't throw trying to hide it.
+  document.getElementById("loadingMsg")?.style.setProperty("display","none");
 }
 
-// Show/hide the two buttons based on the A2 master switch; force reliefs-only when off.
+// Show/hide the two buttons based on the A2 master switch AND the K2 pick
+// target; force reliefs-only when unavailable. The vac/sick runs belong to one
+// pick's run data, so showing them on another pick's page would resolve run
+// numbers against the wrong schedule. A blank K2 targets nothing (fails closed).
 function applyVacSickUI(){
   const box=document.getElementById("vsButtons");
-  const available = vacSickOnline && vacSick.length>0;
+  const thisPage = normPage(location.pathname);
+  const pageMatch = !!vacSickPick && normPage(vacSickPick)===thisPage;
+  if(vacSickOnline && vacSick.length>0 && !pageMatch){
+    console.info("Vac/Sick runs are on, but K2 targets "+JSON.stringify(vacSickPick)+
+                 " and this page is "+JSON.stringify(thisPage)+" — hidden here.");
+  }
+  const available = vacSickOnline && pageMatch && vacSick.length>0;
   if(available){
     box.style.display="flex";
   }else{
     box.style.display="none";
-    if(viewMode!=="reliefs"){ viewMode="reliefs"; localStorage.setItem("vacSickViewMode","reliefs"); }
+    if(viewMode!=="reliefs"){ viewMode="reliefs"; lsSet("vacSickViewMode","reliefs"); }
   }
   document.getElementById("vsAddBtn").classList.toggle("active", viewMode==="add");
   document.getElementById("vsOnlyBtn").classList.toggle("active", viewMode==="vsonly");
@@ -484,7 +523,7 @@ function render(){
     const offDayText=p.offDays.length>0?'Off: '+p.offDays.join(', '):'No days off';
     const isOpen=openRelief===p.reliefRun;
     const sid=safeId(p.reliefRun);
-    const vsTag=p.isVacSick?'<span class="vs-badge">VAC/SICK</span>':'';
+    const vsTag=p.isVacSick?'<span class="vs-badge">'+(p.vsType||'VAC/SICK')+'</span>':'';
     return '<div class="pkg-wrap" id="wrap-'+sid+'">'+
       '<div class="pkg-card'+(isOpen?' open':'')+'" data-relief="'+p.reliefRun+'">'+
         '<div class="pkg-header">'+
@@ -538,7 +577,7 @@ document.getElementById("minHrs").addEventListener("input",function(){
 // Vac/Sick toggle buttons (mutually exclusive; click active one to return to reliefs).
 function setViewMode(mode){
   viewMode = (viewMode===mode) ? "reliefs" : mode;
-  localStorage.setItem("vacSickViewMode",viewMode);
+  lsSet("vacSickViewMode",viewMode);
   openRelief=null;
   applyVacSickUI();
   render();
