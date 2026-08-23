@@ -1,53 +1,53 @@
 {
   "districts": [
     {
-      "name": "callowhillb-summer2026",
-      "label": "Callowhill",
+      "name": "callowhillb-fall-2026",
+      "label": "Callowhill Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "allegheny-summer2026",
-      "label": "Allegheny",
+      "name": "victory-fall-2026",
+      "label": "Victory Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "victory-summer2026",
-      "label": "Victory",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "frontier-summer2026",
-      "label": "Frontier",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "southern-summer2026",
-      "label": "Southern",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "elmwood-summer2026",
-      "label": "Elmwood",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "comly-summer2026",
-      "label": "Comly",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "frankfordb-summer2026",
-      "label": "Frankford Bus",
-      "days": ["Weekday", "Saturday", "Sunday"]
-    },
-    {
-      "name": "frankford-rail-summer2026",
+      "name": "frankford-rail-fall-2026",
       "label": "Frankford Rail",
       "days": ["Weekday", "Saturday", "Sunday"]
     },
     {
-      "name": "midvale-summer2026",
+      "name": "midvale-fall-2026",
       "label": "Midvale",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "elmwood-fall-2026",
+      "label": "Elmwood",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "allegheny-fall-2026",
+      "label": "Allegheny",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frontier-fall-2026",
+      "label": "Frontier",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "southern-fall-2026",
+      "label": "Southern",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "comly-fall-2026",
+      "label": "Comly",
+      "days": ["Weekday", "Saturday", "Sunday"]
+    },
+    {
+      "name": "frankfordb-fall-2026",
+      "label": "Frankford Bus",
       "days": ["Weekday", "Saturday", "Sunday"]
     }
   ]
