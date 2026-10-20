@@ -385,10 +385,14 @@ const GTFS_OBSERVED_BASE = 'https://deenersin-png.github.io/septa-gtfs/data-obse
 // the septa-scheduler repo itself.
 const PADDLE_BASE = 'https://deenersin-png.github.io/septa-scheduler/data';
 
-// SEPTA's BusDetours API doesn't send CORS headers, so (like the standalone
-// detours app) fetch it through a proxy. `corsproxy.io/?url=<encoded>`.
-const DETOUR_PROXY = 'https://corsproxy.io/?url=';
-const DETOUR_API   = 'https://www3.septa.org/api/BusDetours/';
+// SEPTA's BusDetours API doesn't send CORS headers, and corsproxy.io now
+// refuses requests without an API key (401), so it is read with JSONP like
+// TransitView - same endpoints and order as assets/pa-live.js.
+const DETOUR_ENDPOINTS = [
+  r => `https://www3.septa.org/api/BusDetours/index.php?route=${encodeURIComponent(r)}&callback=`,
+  r => `https://www3.septa.org/api/BusDetours/?route=${encodeURIComponent(r)}&callback=`,
+  r => `https://www3.septa.org/hackathon/BusDetours/?route=${encodeURIComponent(r)}&callback=`,
+];
 
 // ── STATE ────────────────────────────────────────────────────
 const state = { route: '', status: 'idle', lastUpdate: null };
@@ -712,10 +716,10 @@ function getObservedStart(block, tripId) {
 // operator pulls in) — so the pull-OUT time is the segment marked potype 'O'
 // and the pull-IN time is the segment marked pitype 'I', each appearing on a
 // different run; both run numbers are collected. Loaded once, all districts.
-// Fetch active detours for `route` (via the CORS proxy) and flatten the API's
+// Fetch active detours for `route` (via JSONP) and flatten the API's
 // route_info groups into simple detour-card objects. Guarded by a request id
 // so a stale in-flight load can't clobber a newer route's detours. Best-effort
-// — proxy/network failure just leaves the Detours page empty.
+// — network failure just leaves the Detours page empty.
 async function loadDetours(route) {
   const reqId = ++detourReqId;
   routeDetours = [];
@@ -724,14 +728,8 @@ async function loadDetours(route) {
   const seen = new Set();
   for (const name of getAliases(route)) {
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-      let data;
-      try {
-        const res = await fetch(DETOUR_PROXY + encodeURIComponent(DETOUR_API + name), { signal: ctrl.signal });
-        if (!res.ok) continue;
-        data = await res.json();
-      } finally { clearTimeout(timer); }
+      const data = await new Promise((resolve, reject) =>
+        tryJSONP(name, DETOUR_ENDPOINTS, 0, resolve, reject, raw => raw));
       if (!Array.isArray(data)) continue;
       for (const group of data) {
         const rid = String(group.route_id || name);
@@ -1360,7 +1358,7 @@ async function fetchTV(route) {
   return [];
 }
 
-function tryJSONP(route, endpoints, idx, resolve, reject) {
+function tryJSONP(route, endpoints, idx, resolve, reject, parse = parseTVData) {
   if (idx >= endpoints.length) { reject(new Error('All endpoints failed')); return; }
 
   const cb   = 'septa_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -1374,20 +1372,20 @@ function tryJSONP(route, endpoints, idx, resolve, reject) {
   }
 
   const timer = setTimeout(() => {
-    if (!done) { cleanup(); tryJSONP(route, endpoints, idx + 1, resolve, reject); }
+    if (!done) { cleanup(); tryJSONP(route, endpoints, idx + 1, resolve, reject, parse); }
   }, FETCH_TIMEOUT_MS);
 
   window[cb] = function(data) {
     clearTimeout(timer);
     if (done) return;
     cleanup();
-    resolve(parseTVData(data));
+    resolve(parse(data));
   };
 
   el.src = endpoints[idx](route) + cb;
   el.onerror = function() {
     clearTimeout(timer);
-    if (!done) { cleanup(); tryJSONP(route, endpoints, idx + 1, resolve, reject); }
+    if (!done) { cleanup(); tryJSONP(route, endpoints, idx + 1, resolve, reject, parse); }
   };
   document.head.appendChild(el);
 }

@@ -488,9 +488,36 @@ header {
 </div>
 
 <script>
-const SEPTA_API = 'https://www3.septa.org/api/BusDetours/';
-// corsproxy.io forwards the request and adds CORS headers
-const CORS_PROXY = 'https://corsproxy.io/?url=';
+// SEPTA sends no CORS headers, and corsproxy.io now refuses requests without
+// an API key (401), so the feed is read with JSONP - the same endpoints and
+// fallback order assets/pa-live.js uses for the home detours panel.
+const DETOUR_ENDPOINTS = [
+  'https://www3.septa.org/api/BusDetours/index.php?callback=',
+  'https://www3.septa.org/api/BusDetours/?callback=',
+  'https://www3.septa.org/hackathon/BusDetours/?callback='
+];
+const JSONP_TIMEOUT_MS = 8000;
+
+/** Try each endpoint in turn until one calls back. Rejects if all fail. */
+function jsonp(endpoints, idx = 0) {
+  return new Promise((resolve, reject) => {
+    if (idx >= endpoints.length) { reject(new Error('Could not reach SEPTA')); return; }
+    const cb = 'detours_jsonp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const el = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      if (done) return; done = true;
+      try { delete window[cb]; } catch (_) {}
+      if (el.parentNode) el.parentNode.removeChild(el);
+    };
+    const next = () => { cleanup(); jsonp(endpoints, idx + 1).then(resolve, reject); };
+    const timer = setTimeout(next, JSONP_TIMEOUT_MS);
+    window[cb] = data => { clearTimeout(timer); if (done) return; cleanup(); resolve(data); };
+    el.onerror = () => { clearTimeout(timer); if (!done) next(); };
+    el.src = endpoints[idx] + cb;
+    document.head.appendChild(el);
+  });
+}
 
 let STATE = {
   allDetours: [],
@@ -510,12 +537,9 @@ async function loadAllDetours() {
   container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading detours...</div>';
 
   try {
-    const response = await fetch(CORS_PROXY + encodeURIComponent(SEPTA_API));
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const data = await jsonp(DETOUR_ENDPOINTS);
     
-    const data = await response.json();
-    
-    STATE.allDetours = data || [];
+    STATE.allDetours = Array.isArray(data) ? data : [];
     
     // Extract unique routes from the detours
     const routeSet = new Set();
