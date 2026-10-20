@@ -243,7 +243,7 @@ const ctx = {
   trips: new Map(),              // date -> Map(block -> trips[])
   tickTimer: null, leaderTimer: null, wakeLock: null,
   runCache: new Map(), weekCursor: null, districts: [], seasonLabel: '',
-  authToken: 0, drawnVersion: -1, redrawTimer: null
+  authToken: 0, drawnVersion: -1, redrawTimer: null, runsGate: false
 };
 
 // ---- helpers --------------------------------------------------------------
@@ -291,6 +291,7 @@ window.addEventListener('pa:auth', e => {
   stopTimers();
   if (!ctx.user) {
     ctx.authToken++;
+    ctx.runsGate = false;
     A.detach(); N.detach(); ctx.profile = null;
     showOnly('gate-out'); $('hd-ctx').textContent = ''; renderSyncLine();
     return;
@@ -350,7 +351,7 @@ async function boot() {
   }).catch(() => {});
   if (!ctx.subscribed) {
     ctx.subscribed = true;
-    A.onChange(() => { renderSyncLine(); scheduleRedraw(false); });
+    A.onChange(() => { renderSyncLine(); scheduleRedraw(false); requireRuns(); });
   }
   E.configure({ profile: ctx.profile });
   setView('today');
@@ -360,6 +361,32 @@ async function boot() {
   N.registerSW();
   ctx.drawnVersion = A.getState().version;
   await refreshToday();
+  requireRuns();
+}
+
+// ---- runs gate (set up, but no run on record) -----------------------------
+// An account is not usable until it holds a run. Only the server's word
+// counts: this device's copy, or a first connection still under way, never
+// puts the gate up.
+
+function requireRuns() {
+  const st = A.getState();
+  if (ctx.runsGate || !ctx.user || SU.needsSetup(ctx.profile) || st.sync.status !== 'live' || SU.hasRuns(st)) return;
+  ctx.runsGate = true;
+  const token = ctx.authToken;
+  showOnly('gate-setup');
+  SU.openSetup($('gate-setup'), {
+    user: ctx.user,
+    profile: ctx.profile,
+    overrides: ctx.overrides,
+    runsOnly: true,
+    onDone: () => {
+      ctx.runsGate = false;
+      if (token !== ctx.authToken) return;
+      setView('today');
+      scheduleRedraw(true);
+    }
+  });
 }
 
 // ---- setup (new account: no depot / driver type yet) ----------------------

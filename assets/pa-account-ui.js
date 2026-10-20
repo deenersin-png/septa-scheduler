@@ -87,6 +87,8 @@ async function onAuthChange(e) {
       // type is exactly what says setup is finished. A default written here
       // would claim an account was set up when it was not.
       profile = await store.loadProfile();
+      // The server answered, so its word can send them to setup.
+      requireSetup(profile);
     } catch (err) {
       // Offline or refused: keep the copy saved on this device.
       console.warn('[pa] profile load failed', err.code || err.message);
@@ -261,7 +263,6 @@ function buildSignedOut(body) {
         await auth.signIn({ email: email.value.trim(), password: pass.value });
       }
       closeModal();
-      goToSetupIfNew();
     } catch (err) {
       showMsg(auth.errText(err), 'err');
     } finally {
@@ -294,7 +295,6 @@ function buildSignedOut(body) {
     try {
       await auth.signInWithGoogle();
       closeModal();
-      goToSetupIfNew();
     } catch (err) {
       showMsg(auth.errText(err), 'err');
     } finally {
@@ -325,21 +325,19 @@ function buildSignedOut(body) {
 const incomplete = p => !p || !p.depotKey || !p.driverType;
 
 /**
- * Someone who has just signed in or created an account and has no schedule
- * yet belongs in setup, so send them there — but only on the way in, never on
- * a page they merely happen to be reading. The tools stay open to everyone,
- * signed in or not.
+ * A signed-in account must be set up and hold at least one run before any
+ * page is used with it: until then, every page sends it to setup. Signed out,
+ * nothing here runs and every tool stays open to everyone.
+ *
+ * `p` is the profile as the SERVER just gave it. Only the server's word sends
+ * someone away from the page they are on: offline, they stay where they are.
  */
-async function goToSetupIfNew() {
+async function requireSetup(p) {
   if (onSetupPage()) return;                 // home.html shows setup by itself
+  if (incomplete(p)) { location.href = SETUP_PAGE; return; }
   try {
-    const u = auth.getUser();
-    if (!u) return;
-    store.ensureUser(u.uid);
-    const res = await store.loadProfileSafe(6000);
-    // Only the SERVER's word sends someone away from the page they are on.
-    if (res.source === 'server' && incomplete(res.profile)) location.href = SETUP_PAGE;
-  } catch (_) { /* offline: leave them where they are */ }
+    if (!(await store.hasRunsOnServer()) && user) location.href = SETUP_PAGE;
+  } catch (_) { /* unreachable: leave them where they are */ }
 }
 
 // ---- signed-in -------------------------------------------------------------

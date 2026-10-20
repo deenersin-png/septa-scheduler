@@ -13,7 +13,8 @@
 // ==========================================================================
 
 import {
-  doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs
+  doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs,
+  getDocsFromServer, query, where, limit
 } from 'https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js';
 
 import { initFirebase } from './pa-firebase.js';
@@ -165,6 +166,19 @@ export async function loadProfileSafe(timeoutMs = 8000) {
   } catch (e) {
     return { profile: copy, source: copy ? 'device' : null, error: e.code || e.message || 'error' };
   }
+}
+
+/**
+ * Whether the signed-in user has any run on record: a pattern, or a single
+ * day with a run number. Asked of the SERVER only — an empty answer from this
+ * device's cache must never send anyone to setup. Throws when unreachable.
+ */
+export async function hasRunsOnServer() {
+  const [pat, day] = await Promise.all([
+    getDocsFromServer(query(collection(db, 'users', uid, 'patterns'), limit(1))),
+    getDocsFromServer(query(collection(db, 'users', uid, 'assignments'), where('runNo', '!=', null), limit(1)))
+  ]);
+  return !pat.empty || !day.empty;
 }
 
 function profilePayload(fields) {

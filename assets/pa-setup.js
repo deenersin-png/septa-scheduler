@@ -39,6 +39,11 @@ export function needsSetup(profile) {
   return !profile || !profile.depotKey || !profile.driverType;
 }
 
+/** A set-up account must also hold a run: a pattern, or a day with a run number. */
+export function hasRuns(state) {
+  return state.patterns.length > 0 || [...state.assignments.values()].some(a => a && a.runNo);
+}
+
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const DRAFT_PREFIX = 'pa_setup_v1_';
 
@@ -139,17 +144,19 @@ function clearDraft(uid) { try { localStorage.removeItem(DRAFT_PREFIX + uid); } 
  * @param user      the signed-in Firebase user
  * @param profile   whatever profile exists (may be null)
  * @param onDone    called with the saved profile once setup finishes
+ * @param runsOnly  the account is set up but holds no run: ask the runs step
+ *                  alone, with the depot and driver type from the profile
  */
-export async function openSetup(node, { user, profile, overrides, onDone }) {
+export async function openSetup(node, { user, profile, overrides, onDone, runsOnly = false }) {
   css();
   const today = S.todayIso();
   const ov = overrides || {};
   const draft = loadDraft(user.uid) || {};
   const w = {
-    step: 0,
-    depotKey:   draft.depotKey   || (profile && profile.depotKey)   || '',
-    depotLabel: draft.depotLabel || (profile && profile.depotLabel) || '',
-    driverType: draft.driverType || '',
+    step: runsOnly ? 2 : 0,
+    depotKey:   runsOnly ? profile.depotKey : draft.depotKey || (profile && profile.depotKey) || '',
+    depotLabel: runsOnly ? profile.depotLabel : draft.depotLabel || (profile && profile.depotLabel) || '',
+    driverType: runsOnly ? profile.driverType : draft.driverType || '',
     vacDays:    draft.vacDays != null ? draft.vacDays : null,
     vacWeeks:   (Array.isArray(draft.vacWeeks) ? draft.vacWeeks : []).filter(v => /^\d{4}-\d{2}-\d{2}$/.test(v)),
     offDays:    draft.offDays instanceof Set ? draft.offDays : new Set([0, 6]),
@@ -165,7 +172,7 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
   // the save must not then wait on a first connection.
   if (!A.isAttached()) A.attach(user.uid).catch(() => {});
 
-  S.loadSeasons()
+  const seasonsIn = S.loadSeasons()
     .then(async seasons => {
       w.season = S.seasonFor(seasons, today);
       w.depots = w.season ? await S.loadManifest(w.season) : [];
@@ -177,12 +184,12 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
   node.textContent = '';
   node.appendChild(root);
 
-  const STEPS = ['You', 'Vacation', 'Your runs'];
+  const STEPS = runsOnly ? ['Your runs'] : ['You', 'Vacation', 'Your runs'];
 
   function draw() {
     root.textContent = '';
     const bar = el('div', 'pa-su-steps');
-    STEPS.forEach((_, i) => bar.appendChild(el('div', 'pa-su-step' + (i <= w.step ? ' on' : ''))));
+    STEPS.forEach((_, i) => bar.appendChild(el('div', 'pa-su-step' + (i <= w.step - (runsOnly ? 2 : 0) ? ' on' : ''))));
     root.appendChild(bar);
     [stepWho, stepVacation, stepRuns, stepSaving][w.step](root);
     saveDraft(user.uid, w);
@@ -331,6 +338,7 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
     const isSlate = w.driverType === 'slate';
     const isRegular = w.driverType === 'regular';
     parent.appendChild(el('div', 'pa-su-h', 'Your runs'));
+    if (runsOnly) parent.appendChild(el('div', 'pa-su-sub', 'Your account has no runs yet. Add them to start using the app.'));
     parent.appendChild(el('div', 'pa-su-sub', isRegular
       ? 'Your pick fills in every week by itself once the app knows it.'
       : isSlate
@@ -342,7 +350,7 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
     parent.appendChild(msg);
 
     nav(parent, {
-      back: () => { w.step = 1; draw(); },
+      back: runsOnly ? null : () => { w.step = 1; draw(); },
       nextLabel: 'Finish',
       next: () => {
         const problem = validate(w, msg);
@@ -575,7 +583,7 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
     const line = el('div', 'pa-su-sub', 'Saving…');
     parent.appendChild(line);
     const summary = el('div', 'pa-su-sum');
-    summary.innerHTML = summaryHtml(w, today);
+    summary.innerHTML = summaryHtml(w, today, runsOnly);
     parent.appendChild(summary);
     const msg = el('div', 'msgline');
     parent.appendChild(msg);
@@ -585,7 +593,7 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
       msg.textContent = ''; msg.className = 'msgline';
       if (retry) { retry.remove(); retry = null; }
       try {
-        const saved = await commit(w, user, profile, today, ov, s => { line.textContent = s; });
+        const saved = await commit(w, user, profile, today, ov, s => { line.textContent = s; }, runsOnly);
         clearDraft(user.uid);
         line.textContent = 'Done.';
         // Hand back the profile just written, so the page never has to read it
@@ -610,6 +618,12 @@ export async function openSetup(node, { user, profile, overrides, onDone }) {
     run();
   }
 
+  // The runs step needs the pick it is filling, and it is never redrawn under
+  // someone mid-answer, so it waits for the pick before it is drawn at all.
+  if (runsOnly) {
+    root.appendChild(el('div', 'pa-su-sub', 'Loading…'));
+    await seasonsIn;
+  }
   draw();
 }
 
@@ -710,7 +724,10 @@ export function validate(w, _msg) {
     if (w.slate.today === 'run' && !w.slate.todayRun) return 'Enter today’s run number.';
     if (!w.slate.tomorrow) return 'Say what you are doing tomorrow.';
     if (w.slate.tomorrow === 'run' && !w.slate.tomorrowRun) return 'Enter tomorrow’s run number.';
-    if (w.slate.week === 'none') return '';
+    if (w.slate.week === 'none') {
+      return w.slate.today === 'run' || w.slate.tomorrow === 'run'
+        ? '' : 'Enter at least one run — today, tomorrow, or a week you are covering.';
+    }
   }
   const working = [0, 1, 2, 3, 4, 5, 6].filter(i => !w.offDays.has(i));
   if (!working.length) return 'Tap at least one working day.';
@@ -766,12 +783,12 @@ function pickNote(w) {
 
 const weekLabel = ws => S.fmtDate(ws) + ' – ' + S.fmtDate(S.addDays(ws, 6));
 
-function summaryHtml(w, today) {
+function summaryHtml(w, today, runsOnly) {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const dt = DRIVER_TYPES.find(d => d.id === w.driverType);
   const rows = [['Depot', w.depotLabel || w.depotKey], ['Type', dt ? dt.label : w.driverType]];
   const weeks = pickedWeeks(w);
-  rows.push(['Vacation', weeks.length
+  if (!runsOnly) rows.push(['Vacation', weeks.length
     ? weeks.length + (weeks.length === 1 ? ' week' : ' weeks') + ' · ' + A.fmtHours(weeks.length * A.VACATION_WEEK_PAY_MIN) + ' h'
     : 'none yet']);
   if (w.driverType === 'slate') {
@@ -811,13 +828,17 @@ function depotOptions(districts) {
  * because the profile is what says setup is finished. Every write waits for
  * the server to confirm it (E.confirmWrite), so "Done" is the truth.
  */
-async function commit(w, user, profile, today, ov, say) {
+async function commit(w, user, profile, today, ov, say, runsOnly) {
   const slow = what => () => say('Waiting for signal… keep this page open — ' + what);
 
   if (!A.isAttached()) { say('Connecting…'); await A.attach(user.uid); }
 
-  say('Saving your vacation weeks…');
-  await E.confirmWrite(A.saveVacation(pickedWeeks(w), w.vacDays), slow('saving vacation'));
+  // Runs only: the vacation and the profile on record were never asked again,
+  // so they are left exactly as they are.
+  if (!runsOnly) {
+    say('Saving your vacation weeks…');
+    await E.confirmWrite(A.saveVacation(pickedWeeks(w), w.vacDays), slow('saving vacation'));
+  }
 
   const hasWeek = w.driverType !== 'slate' || w.slate.week !== 'none';
   if (hasWeek) {
@@ -850,6 +871,8 @@ async function commit(w, user, profile, today, ov, say) {
       await E.confirmWrite(A.saveDays(ops), slow('saving your days'));
     }
   }
+
+  if (runsOnly) return profile;
 
   say('Finishing your account…');
   const saved = await E.confirmWrite(saveProfile({
