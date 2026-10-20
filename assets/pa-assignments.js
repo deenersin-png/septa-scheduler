@@ -26,7 +26,7 @@
 //                      vacation day, and the 44 hours land once, in
 //                      weekTotals. The document `allowance` in the same
 //                      collection is not a week; it holds how many vacation
-//                      days the operator has this year, which is theirs to
+//                      WEEKS the operator has this year, which is theirs to
 //                      plan with and never enters an hours total.
 //
 // Hours are never stored. A day's scheduled hours come from the paddle's pay
@@ -42,7 +42,7 @@ import {
 
 import { initFirebase } from './pa-firebase.js';
 import { addDays, dowOf, todayIso } from './pa-schedule.js';
-import { resolvePure, vacationWeekOf, windowOps } from './pa-resolve.js';
+import { resolvePure, vacationWeekOf, windowOps, VACATION_ALLOWANCE_ID } from './pa-resolve.js';
 
 // The rules themselves live in pa-resolve.js so the email sender can run the
 // very same code. Everything they export stays importable from here, which is
@@ -60,7 +60,7 @@ let db = null, uid = null;
 // `version` changes only when the schedule itself changes, so pages can
 // skip redrawing on connection-only updates.
 const state = {
-  patterns: [], assignments: new Map(), vacations: new Map(), vacationDays: null,
+  patterns: [], assignments: new Map(), vacations: new Map(), vacationAllowance: null,
   ready: false, version: 0,
   sync: { status: 'idle', savedAt: null, lastServerAt: null, error: null }
 };
@@ -108,7 +108,7 @@ function saveCopy() {
       patterns: state.patterns.map(plain),
       assignments: [...state.assignments.values()].map(plain),
       vacations: [...state.vacations.values()].map(plain),
-      vacationDays: state.vacationDays
+      vacationAllowance: state.vacationAllowance
     }));
     state.sync.savedAt = savedAt;
   } catch (_) { /* storage full or blocked: live data still works */ }
@@ -121,7 +121,7 @@ function loadCopy(userId) {
     state.patterns = sortPatterns(j.patterns);
     state.assignments = new Map((j.assignments || []).map(a => [a.id || a.date, a]));
     state.vacations = new Map((j.vacations || []).map(v => [v.id || v.weekStart, v]));
-    state.vacationDays = j.vacationDays != null ? j.vacationDays : null;
+    state.vacationAllowance = j.vacationAllowance != null ? j.vacationAllowance : null;
     state.sync.savedAt = j.savedAt || null;
     state.ready = true;
     return true;
@@ -132,7 +132,7 @@ function markVersion() {
   let sig = '';
   try {
     sig = JSON.stringify([state.patterns.map(plain), [...state.assignments.values()].map(plain),
-                          [...state.vacations.keys()].sort(), state.vacationDays]);
+                          [...state.vacations.keys()].sort(), state.vacationAllowance]);
   } catch (_) {}
   if (sig !== lastSig) { lastSig = sig; state.version++; }
 }
@@ -207,11 +207,11 @@ function startListeners() {
     replace: docs => {
       state.vacations = new Map(docs.filter(isWeekDoc).map(d => [d.id, d]));
       const a = docs.find(d => d.id === VACATION_ALLOWANCE_ID);
-      state.vacationDays = a && Number.isFinite(+a.days) ? +a.days : null;
+      state.vacationAllowance = a ? allowanceWeeks(a) : null;
     },
     merge: (type, d) => {
       if (d.id === VACATION_ALLOWANCE_ID) {
-        state.vacationDays = type === 'removed' || !Number.isFinite(+d.days) ? null : +d.days;
+        state.vacationAllowance = type === 'removed' ? null : allowanceWeeks(d);
         return;
       }
       if (!isWeekDoc(d)) return;
@@ -224,6 +224,11 @@ function startListeners() {
 
 /** A vacations/{id} document that is a week (id = the Sunday), not the allowance. */
 const isWeekDoc = d => /^\d{4}-\d{2}-\d{2}$/.test(d.id || '');
+/** Weeks held by the allowance document; an early one held days, five to a week. */
+function allowanceWeeks(d) {
+  if (d.weeks != null && Number.isFinite(+d.weeks)) return +d.weeks;
+  return d.days != null && Number.isFinite(+d.days) ? Math.round(+d.days / 5) : null;
+}
 
 function scheduleRetry() {
   if (retryTimer || !uid) return;
@@ -284,7 +289,7 @@ export function detach(opts = {}) {
   db = null; uid = null; listenRange = null; lastSig = '';
   live.patterns = null; live.assignments = null; live.vacations = null;
   state.patterns = []; state.assignments = new Map();
-  state.vacations = new Map(); state.vacationDays = null;
+  state.vacations = new Map(); state.vacationAllowance = null;
   state.ready = false; state.version++;
   state.sync = { status: 'idle', savedAt: null, lastServerAt: null, error: null };
   emit();
@@ -344,7 +349,7 @@ function rollbackUnconfirmed(key) {
   if (key === 'patterns') state.patterns = sortPatterns((copy && copy.patterns) || []);
   else if (key === 'vacations') {
     state.vacations = new Map(((copy && copy.vacations) || []).map(v => [v.id || v.weekStart, v]));
-    state.vacationDays = copy && copy.vacationDays != null ? copy.vacationDays : null;
+    state.vacationAllowance = copy && copy.vacationAllowance != null ? copy.vacationAllowance : null;
   } else state.assignments = new Map(((copy && copy.assignments) || []).map(a => [a.id || a.date, a]));
   markVersion();
   emit();
@@ -404,11 +409,11 @@ export const isVacationWeek = date => !!vacationWeekOf(state, date);
 export const vacationWeeks = () => [...state.vacations.keys()].sort();
 
 /**
- * Replace the set of vacation weeks, and record how many vacation days the
+ * Replace the set of vacation weeks, and record how many vacation weeks the
  * operator has. `weeks` are week-start Sundays; anything on record and not in
- * the list is removed. `days` null leaves the allowance alone.
+ * the list is removed. `allowance` null leaves the allowance alone.
  */
-export async function saveVacation(weeks, days) {
+export async function saveVacation(weeks, allowance) {
   if (!db) throw new Error('not signed in');
   const want = new Set((weeks || []).map(w => addDays(w, -dowOf(w))));
   const batch = writeBatch(db);
@@ -421,8 +426,8 @@ export async function saveVacation(weeks, days) {
   for (const w of state.vacations.keys()) {
     if (!want.has(w)) { batch.delete(vacRef(w)); n++; }
   }
-  if (days != null) {
-    batch.set(vacRef(VACATION_ALLOWANCE_ID), { days: Math.max(0, Math.round(+days) || 0), updatedAt: serverTimestamp() }, { merge: true });
+  if (allowance != null) {
+    batch.set(vacRef(VACATION_ALLOWANCE_ID), { weeks: Math.max(0, Math.round(+allowance) || 0), updatedAt: serverTimestamp() });
     n++;
   }
   if (n) await confirmed(batch.commit(), 'vacations');

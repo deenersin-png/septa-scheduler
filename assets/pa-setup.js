@@ -127,9 +127,9 @@ function loadDraft(uid) {
 function saveDraft(uid, w) {
   try {
     // The answers only — the season and the depot list are reloaded, not kept.
-    const { depotKey, depotLabel, driverType, vacDays, vacWeeks, runs, perDay, scope, slate } = w;
+    const { depotKey, depotLabel, driverType, vacAllowance, vacWeeks, runs, perDay, scope, slate } = w;
     localStorage.setItem(DRAFT_PREFIX + uid, JSON.stringify({
-      depotKey, depotLabel, driverType, vacDays, vacWeeks, runs, perDay, scope, slate,
+      depotKey, depotLabel, driverType, vacAllowance, vacWeeks, runs, perDay, scope, slate,
       offDays: [...w.offDays]
     }));
   } catch (_) {}
@@ -157,7 +157,7 @@ export async function openSetup(node, { user, profile, overrides, onDone, runsOn
     depotKey:   runsOnly ? profile.depotKey : draft.depotKey || (profile && profile.depotKey) || '',
     depotLabel: runsOnly ? profile.depotLabel : draft.depotLabel || (profile && profile.depotLabel) || '',
     driverType: runsOnly ? profile.driverType : draft.driverType || '',
-    vacDays:    draft.vacDays != null ? draft.vacDays : null,
+    vacAllowance: draft.vacAllowance != null ? draft.vacAllowance : null,
     vacWeeks:   (Array.isArray(draft.vacWeeks) ? draft.vacWeeks : []).filter(v => /^\d{4}-\d{2}-\d{2}$/.test(v)),
     offDays:    draft.offDays instanceof Set ? draft.offDays : new Set([0, 6]),
     runs:       draft.runs || { weekday: '', saturday: '', sunday: '' },
@@ -261,18 +261,18 @@ export async function openSetup(node, { user, profile, overrides, onDone, runsOn
     parent.appendChild(el('div', 'pa-su-sub', 'Every vacation week is paid 44 hours, and the weeks you name here stay off your schedule. You can change them later.'));
 
     const fd = el('div', 'pa-field');
-    fd.appendChild(el('label', 'pa-label', 'How many vacation days do you have?'));
-    const days = el('input', 'pa-input');
-    days.type = 'number'; days.min = '0'; days.max = '60'; days.step = '1'; days.inputMode = 'numeric';
-    days.placeholder = 'e.g. 10';
-    if (w.vacDays != null) days.value = String(w.vacDays);
-    days.addEventListener('input', () => {
-      const n = parseInt(days.value, 10);
-      w.vacDays = Number.isFinite(n) && n >= 0 ? n : null;
+    fd.appendChild(el('label', 'pa-label', 'How many vacation weeks do you have?'));
+    const allow = el('input', 'pa-input');
+    allow.type = 'number'; allow.min = '0'; allow.max = '12'; allow.step = '1'; allow.inputMode = 'numeric';
+    allow.placeholder = 'e.g. 3';
+    if (w.vacAllowance != null) allow.value = String(w.vacAllowance);
+    allow.addEventListener('input', () => {
+      const n = parseInt(allow.value, 10);
+      w.vacAllowance = Number.isFinite(n) && n >= 0 ? n : null;
       drawTotal(); saveDraft(user.uid, w);
     });
-    fd.appendChild(days);
-    fd.appendChild(el('div', 'hint', 'Five vacation days make one week. Leave it blank if you would rather not say.'));
+    fd.appendChild(allow);
+    fd.appendChild(el('div', 'hint', 'Leave it blank if you would rather not say.'));
     parent.appendChild(fd);
 
     parent.appendChild(el('label', 'pa-label', 'Which weeks?'));
@@ -318,10 +318,10 @@ export async function openSetup(node, { user, profile, overrides, onDone, runsOn
       const weeks = w.vacWeeks;
       const bits = [];
       bits.push(weeks.length ? weeks.length + (weeks.length === 1 ? ' week' : ' weeks') + ' · ' + A.fmtHours(weeks.length * A.VACATION_WEEK_PAY_MIN) + ' h' : 'No weeks picked yet.');
-      if (w.vacDays) {
-        const full = Math.floor(w.vacDays / 5), left = w.vacDays % 5;
-        bits.push(w.vacDays + ' days is ' + full + (full === 1 ? ' full week' : ' full weeks')
-          + (left ? ' and ' + left + (left === 1 ? ' day' : ' days') + ' over — mark single days later on the day itself.' : '.'));
+      if (w.vacAllowance) {
+        const left = w.vacAllowance - weeks.length;
+        bits.push(left > 0 ? left + (left === 1 ? ' week' : ' weeks') + ' still to place'
+          : left < 0 ? (-left) + (left === -1 ? ' week' : ' weeks') + ' more than you said you had' : 'all placed');
       }
       total.textContent = bits.join(' · ');
     }
@@ -837,7 +837,7 @@ async function commit(w, user, profile, today, ov, say, runsOnly) {
   // so they are left exactly as they are.
   if (!runsOnly) {
     say('Saving your vacation weeks…');
-    await E.confirmWrite(A.saveVacation(pickedWeeks(w), w.vacDays), slow('saving vacation'));
+    await E.confirmWrite(A.saveVacation(pickedWeeks(w), w.vacAllowance), slow('saving vacation'));
   }
 
   const hasWeek = w.driverType !== 'slate' || w.slate.week !== 'none';
@@ -964,10 +964,9 @@ export function renderVacationCard(node, { onChange } = {}) {
     node.appendChild(list);
   }
 
-  if (st.vacationDays != null) {
-    const left = st.vacationDays - weeks.length * 5;
-    node.appendChild(el('div', 'hint', st.vacationDays + ' vacation days'
-      + (weeks.length ? ' · ' + weeks.length * 5 + ' in the weeks above' : '')
+  if (st.vacationAllowance != null) {
+    const left = st.vacationAllowance - weeks.length;
+    node.appendChild(el('div', 'hint', st.vacationAllowance + (st.vacationAllowance === 1 ? ' vacation week' : ' vacation weeks')
       + (left > 0 ? ' · ' + left + ' still to place' : left < 0 ? ' · ' + (-left) + ' more than you said you had' : ' · all placed')));
   }
   node.appendChild(msg);
