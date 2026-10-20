@@ -1,0 +1,689 @@
+{
+ "note": "Pure resolver cases for pa-assignments.resolvePure(), plus the pay formulas. Run hours are intentionally excluded (they come from the paddle). Regenerated 2026-09-14 with today=2026-09-14; vacation added 2026-09-22. fixture.vacations are vacation WEEKS (week-start Sundays): a week in that list turns every untouched day in it into a vacation day, and pays 44 h once for the week (formulas.weekTotals.vacation), never per day. An explicit day still outranks it. A Dart port must reproduce every `expect` exactly. extrasMin = sum of extraPayMin(): late allowance pays stored minutes x1.5 (unrounded), holiday amount comes from the day's kind (worked 720, not worked 480). formulas.isDue belongs to the email sender in functions/, not to the app, and is kept here so every timing rule sits in one file.",
+ "fixture": {
+  "overrides": {
+   "2026-09-07": "sunday"
+  },
+  "patterns": [
+   {
+    "id": "p1",
+    "periodDays": 7,
+    "days": {
+     "1": {
+      "runNo": "209"
+     },
+     "2": {
+      "runNo": "209"
+     },
+     "3": {
+      "runNo": "209"
+     },
+     "4": {
+      "runNo": "209"
+     },
+     "5": {
+      "runNo": "209"
+     }
+    },
+    "runByDayType": {
+     "weekday": "209"
+    },
+    "depotKey": "callowhillb",
+    "effectiveFrom": "2026-08-23",
+    "effectiveTo": "2026-10-31",
+    "preset": "5-day"
+   },
+   {
+    "id": "p2",
+    "periodDays": 7,
+    "days": {
+     "0": {
+      "runNo": "51"
+     },
+     "1": {
+      "runNo": "110"
+     },
+     "2": {
+      "runNo": "110"
+     },
+     "3": {
+      "runNo": "110"
+     },
+     "6": {
+      "runNo": "52"
+     }
+    },
+    "runByDayType": {
+     "weekday": "110",
+     "saturday": "52",
+     "sunday": "51"
+    },
+    "depotKey": "callowhillb",
+    "effectiveFrom": "2026-11-01",
+    "effectiveTo": null,
+    "preset": "3+2"
+   },
+   {
+    "id": "w1",
+    "periodDays": 7,
+    "days": {
+     "1": {
+      "runNo": "454"
+     },
+     "3": {
+      "runNo": "52"
+     }
+    },
+    "runByDayType": {},
+    "depotKey": "callowhillb",
+    "effectiveFrom": "2026-07-01",
+    "effectiveTo": "2026-08-22",
+    "preset": "relief-week"
+   }
+  ],
+  "assignments": {
+   "2026-09-08": {
+    "runNo": "211",
+    "status": "scheduled",
+    "source": "edit",
+    "extras": [
+     {
+      "kind": "ot",
+      "min": 45
+     }
+    ]
+   },
+   "2026-09-09": {
+    "runNo": null,
+    "status": "sick",
+    "source": "edit"
+   },
+   "2026-09-12": {
+    "runNo": "52",
+    "status": "scheduled",
+    "source": "edit",
+    "extras": []
+   },
+   "2026-09-10": {
+    "runNo": "209",
+    "status": "scheduled",
+    "source": "edit",
+    "flags": {
+     "overtime": true
+    },
+    "holiday": {
+     "isHoliday": true,
+     "worked": true,
+     "payHours": 8,
+     "workedBonusHours": 4
+    }
+   },
+   "2026-09-14": {
+    "kind": "late",
+    "runNo": "209",
+    "status": "scheduled",
+    "source": "edit",
+    "extras": [
+     {
+      "kind": "late",
+      "min": 30
+     }
+    ]
+   },
+   "2026-09-15": {
+    "kind": "holiday-worked",
+    "runNo": "209",
+    "status": "scheduled",
+    "source": "edit",
+    "extras": [
+     {
+      "kind": "holiday",
+      "min": 480
+     }
+    ],
+    "note": "saved under the old 8 h rule"
+   },
+   "2026-10-07": {
+    "runNo": "209",
+    "status": "scheduled",
+    "source": "edit",
+    "kind": "normal",
+    "payMin": 540
+   }
+  },
+  "vacations": [
+   "2026-10-04"
+  ]
+ },
+ "cases": [
+  {
+   "date": "2026-08-22",
+   "why": "day after the holdowner week ended, day before the pick: pattern w1 has no Saturday slot",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "saturday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-08-23",
+   "why": "pick start (Sunday), 5-day pattern is off Sundays",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "sunday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-08-24",
+   "why": "first working day of the pick",
+   "expect": {
+    "source": "pattern",
+    "runNo": "209",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-07-06",
+   "why": "holdowner week, Monday explicit run",
+   "expect": {
+    "source": "pattern",
+    "runNo": "454",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-07-08",
+   "why": "holdowner week, Wednesday explicit run",
+   "expect": {
+    "source": "pattern",
+    "runNo": "52",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-07-07",
+   "why": "holdowner week, Tuesday not in the week = off",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "weekday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-06",
+   "why": "plain Sunday off",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "sunday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-07",
+   "why": "Labor Day: Sunday schedule; 5-day driver holds no Sunday run -> off with 8 h holiday pay",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "sunday",
+    "status": "holiday",
+    "off": true,
+    "extrasMin": 480,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-08",
+   "why": "run swapped 209 -> 211 with 45 min OT; pattern would have said 209",
+   "expect": {
+    "source": "assignment",
+    "runNo": "211",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 45,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-09",
+   "why": "sick day overriding a pattern work day",
+   "expect": {
+    "source": "assignment",
+    "runNo": null,
+    "dayType": "weekday",
+    "status": "sick",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-10",
+   "why": "schema-1 document: boolean overtime + holiday{} synthesised into extras 480 + 240 + 0",
+   "expect": {
+    "source": "assignment",
+    "runNo": "209",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 720,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-12",
+   "why": "picked-up Saturday on a pattern off day = extra shift",
+   "expect": {
+    "source": "assignment",
+    "runNo": "52",
+    "dayType": "saturday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": true,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-10-31",
+   "why": "last day of pattern p1 (Saturday, off)",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "saturday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-11-01",
+   "why": "new pick p2 (3+2) starts: Sunday run 51",
+   "expect": {
+    "source": "pattern",
+    "runNo": "51",
+    "dayType": "sunday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-11-02",
+   "why": "p2 Monday run 110",
+   "expect": {
+    "source": "pattern",
+    "runNo": "110",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-11-05",
+   "why": "p2 Thursday is an off day",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "weekday",
+    "status": "off",
+    "off": true,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-11-07",
+   "why": "p2 Saturday run 52",
+   "expect": {
+    "source": "pattern",
+    "runNo": "52",
+    "dayType": "saturday",
+    "status": "scheduled",
+    "off": false,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-09-14",
+   "why": "late allowance 30 min is paid at 1.5x and added: +45",
+   "expect": {
+    "source": "assignment",
+    "runNo": "209",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false,
+    "extrasMin": 45
+   }
+  },
+  {
+   "date": "2026-09-15",
+   "why": "holiday worked reads as 12 h from its kind, even though it was saved with 8 h",
+   "expect": {
+    "source": "assignment",
+    "runNo": "209",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false,
+    "extrasMin": 720
+   }
+  },
+  {
+   "date": "2026-10-05",
+   "why": "Monday inside a vacation week: the pick says run 209, the vacation outranks it",
+   "expect": {
+    "source": "vacation",
+    "runNo": null,
+    "dayType": "weekday",
+    "status": "vacation",
+    "off": true,
+    "kind": "vacation",
+    "vacationWeek": "2026-10-04",
+    "extrasMin": 0,
+    "patternRunNo": "209",
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-10-04",
+   "why": "the Sunday that names the vacation week; the 5-day pick is off Sundays anyway",
+   "expect": {
+    "source": "vacation",
+    "runNo": null,
+    "dayType": "sunday",
+    "status": "vacation",
+    "off": true,
+    "kind": "vacation",
+    "vacationWeek": "2026-10-04",
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-10-07",
+   "why": "a day WORKED during vacation: the explicit day wins, and the week is still vacation",
+   "expect": {
+    "source": "assignment",
+    "runNo": "209",
+    "dayType": "weekday",
+    "status": "scheduled",
+    "off": false,
+    "kind": "normal",
+    "vacationWeek": "2026-10-04",
+    "extrasMin": 0,
+    "patternRunNo": "209",
+    "extraShift": false,
+    "unregistered": false
+   }
+  },
+  {
+   "date": "2026-10-11",
+   "why": "the Sunday after the vacation week: back to the pick, which is off Sundays",
+   "expect": {
+    "source": "pattern",
+    "runNo": null,
+    "dayType": "sunday",
+    "status": "off",
+    "off": true,
+    "vacationWeek": null,
+    "extrasMin": 0,
+    "patternRunNo": null,
+    "extraShift": false,
+    "unregistered": false
+   }
+  }
+ ],
+ "formulas": {
+  "earlyReportMin": {
+   "why": "Slate report time vs the run's paddle start (the `start` column). Minutes earlier are added; wraps midnight; later adds 0.",
+   "cases": [
+    {
+     "reportMin": 600,
+     "startMin": 660,
+     "expect": 60,
+     "why": "10:00 AM report, 11:00 AM start"
+    },
+    {
+     "reportMin": 809,
+     "startMin": 869,
+     "expect": 60,
+     "why": "1:29 PM report, run 209 starts 2:29 PM"
+    },
+    {
+     "reportMin": 1425,
+     "startMin": 29,
+     "expect": 44,
+     "why": "11:45 PM report, 12:29 AM start (midnight)"
+    },
+    {
+     "reportMin": 900,
+     "startMin": 869,
+     "expect": 0,
+     "why": "reported after the start"
+    },
+    {
+     "reportMin": 660,
+     "startMin": 660,
+     "expect": 0,
+     "why": "reported exactly at the start"
+    }
+   ]
+  },
+  "extraPayMin": {
+   "why": "late allowance: stored minutes x1.5, unrounded; legacy negative minutes read as their absolute value",
+   "cases": [
+    {
+     "extra": {
+      "kind": "late",
+      "min": 30
+     },
+     "expect": 45
+    },
+    {
+     "extra": {
+      "kind": "late",
+      "min": 45
+     },
+     "expect": 67.5
+    },
+    {
+     "extra": {
+      "kind": "late",
+      "min": -30
+     },
+     "expect": 45
+    },
+    {
+     "extra": {
+      "kind": "holiday",
+      "min": 720
+     },
+     "expect": 720
+    }
+   ]
+  },
+  "weekTotals.vacation": {
+   "why": "A vacation week pays VACATION_WEEK_PAY_MIN (2640 = 44 h) ONCE for the week, never per day, on top of anything actually worked that week. It is scheduled always, and actual from the Sunday it starts. daysWorked counts days actually worked, so vacation days are not among them.",
+   "weekStart": "2026-10-04",
+   "cases": [
+    {
+     "today": "2026-10-12",
+     "expectScheduledMin": 3180,
+     "expectActualMin": 3180,
+     "expectDaysWorked": 1,
+     "why": "week gone: 44 h plus the 9 h day worked inside it"
+    },
+    {
+     "today": "2026-10-06",
+     "expectScheduledMin": 3180,
+     "expectActualMin": 2640,
+     "expectDaysWorked": 0,
+     "why": "Tuesday of it: paid from its Sunday; the Wednesday worked has not happened yet"
+    },
+    {
+     "today": "2026-09-22",
+     "expectScheduledMin": 3180,
+     "expectActualMin": 0,
+     "expectDaysWorked": 0,
+     "why": "before it starts: planned, nothing accrued"
+    }
+   ]
+  },
+  "isDue": {
+   "why": "When the pre-run email goes out. Implemented in functions/lib/plan.js (isDue), not in the app. The moment is reportMin - lead, from the SCHEDULE only; a late leader never moves it. A minute that was missed still sends for up to catchUp minutes, and dayOffsetMin 1440 is how a run reporting after midnight is sent for the night before.",
+   "catchUp": 3,
+   "cases": [
+    {
+     "reportMin": 869,
+     "nowMin": 866,
+     "lead": 2,
+     "expectDue": false,
+     "why": "a minute early"
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 867,
+     "lead": 2,
+     "expectDue": true,
+     "expectMinutesAway": 2,
+     "why": "the minute itself: 2:27 PM for a 2:29 PM report"
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 868,
+     "lead": 2,
+     "expectDue": true,
+     "expectMinutesAway": 1,
+     "why": "a missed minute still sends"
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 869,
+     "lead": 2,
+     "expectDue": true,
+     "expectMinutesAway": 0,
+     "why": "at the report time: sends, saying \"now\""
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 870,
+     "lead": 2,
+     "expectDue": true,
+     "why": "three minutes late is the last chance"
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 871,
+     "lead": 2,
+     "expectDue": false,
+     "why": "beyond catch-up: better nothing than a wrong warning"
+    },
+    {
+     "reportMin": 869,
+     "nowMin": 839,
+     "lead": 30,
+     "expectDue": true,
+     "why": "a 30-minute lead"
+    },
+    {
+     "reportMin": 5,
+     "nowMin": 1435,
+     "lead": 10,
+     "dayOffsetMin": 1440,
+     "expectDue": true,
+     "expectMinutesAway": 10,
+     "why": "12:05 AM report, sent at 11:55 PM the night before"
+    },
+    {
+     "reportMin": 5,
+     "nowMin": 1430,
+     "lead": 10,
+     "dayOffsetMin": 1440,
+     "expectDue": false,
+     "why": "not yet at 11:50 PM"
+    },
+    {
+     "reportMin": 5,
+     "nowMin": 3,
+     "lead": 2,
+     "expectDue": true,
+     "why": "with the default 2-minute lead the same run sends at 12:03 AM, in its own day"
+    }
+   ]
+  }
+ }
+}
