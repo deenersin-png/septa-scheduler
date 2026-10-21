@@ -26,6 +26,7 @@ export const DEFAULTS = {
   enabled: false,
   departureLeadMin: 5,
   shiftLeadMin: 30,
+  oneMinEnabled: true,               // a second alert when the countdown reaches 1 min
   quietEnabled: false,
   quietStart: '22:00',
   quietEnd: '05:00',
@@ -221,18 +222,27 @@ export function plan(input) {
     if (eventAt <= now) return;
     items.push({ at: eventAt - l * 60000, eventAt, key: date + '|' + kind + '|' + min, title, body });
   };
+  // The same moment again when the countdown on the home screen reads 1 min.
+  const one = (min, kind, what, body) => {
+    if (settings.oneMinEnabled) add(min, 1, kind + '|1m', 'Run ' + rn + ' · ' + what + ' in 1 min', body);
+  };
   add(run.reportMin, slead, 'report', 'Run ' + rn + ' · report in ' + slead + ' min', 'Report ' + S.fmtClock(run.reportMin));
+  one(run.reportMin, 'report', 'report', 'Report ' + S.fmtClock(run.reportMin));
   run.pieces.forEach((p, i) => {
+    const pb = p.routeLabel + ' · block ' + p.block + ' · ' + S.fmtClock(p.startMin);
     add(p.startMin, lead, 'piece' + p.index,
-        'Run ' + rn + (i === 0 ? ' · pull-out in ' : ' · next piece in ') + lead + ' min',
-        p.routeLabel + ' · block ' + p.block + ' · ' + S.fmtClock(p.startMin));
+        'Run ' + rn + (i === 0 ? ' · pull-out in ' : ' · next piece in ') + lead + ' min', pb);
+    one(p.startMin, 'piece' + p.index, i === 0 ? 'pull-out' : 'next piece', pb);
+    one(p.endMin, 'end' + p.index, p.endType === 'I' ? 'pull-in' : 'piece ends', 'Block ' + p.block + ' · ' + S.fmtClock(p.endMin));
     const trips = (tripsByBlock && tripsByBlock.get(p.block)) || [];
     trips.forEach(t => {
       if (t.s > p.startMin && t.s < p.endMin) {
         add(t.s, lead, 'dep' + t.tripId, 'Run ' + rn + ' · departure in ' + lead + ' min', S.fmtClock(t.s) + ' from ' + t.first);
+        one(t.s, 'dep' + t.tripId, 'departure', S.fmtClock(t.s) + ' from ' + t.first);
       }
     });
   });
+  if (run.finishMin != null) one(run.finishMin, 'finish', 'finish', 'Finish ' + S.fmtClock(run.finishMin));
   items.sort((a, b) => a.at - b.at);
   const fired = firedSet();
   return items.filter(i => !fired.has(i.key));

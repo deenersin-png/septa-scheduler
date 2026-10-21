@@ -875,6 +875,12 @@ function renderAlerts() {
   row.appendChild(selectField('Before report time', [15, 30, 45, 60, 90], s.shiftLeadMin, v => N.save({ shiftLeadMin: v }).then(renderAlerts), ' min'));
   body.appendChild(row);
 
+  const om = el('label', 'check');
+  const omc = el('input'); omc.type = 'checkbox'; omc.checked = s.oneMinEnabled;
+  omc.addEventListener('change', async () => { await N.save({ oneMinEnabled: omc.checked }); renderAlerts(); });
+  om.append(omc, document.createTextNode('Also alert me when the countdown reaches 1 min'));
+  body.appendChild(om);
+
   const q = el('label', 'check');
   const qc = el('input'); qc.type = 'checkbox'; qc.checked = s.quietEnabled;
   qc.addEventListener('change', async () => { await N.save({ quietEnabled: qc.checked }); renderAlerts(); });
