@@ -220,6 +220,8 @@ export function plan(input) {
     if (min == null) return;
     const eventAt = S.minToMs(date, min);
     if (eventAt <= now) return;
+    const key = date + '|' + kind + '|' + min;
+    if (items.some(i => i.key === key)) return;   // GTFS lists some trips twice (service variants)
     items.push({ at: eventAt - l * 60000, eventAt, key: date + '|' + kind + '|' + min, title, body });
   };
   // The same moment again when the countdown on the home screen reads 1 min.
@@ -233,12 +235,13 @@ export function plan(input) {
     add(p.startMin, lead, 'piece' + p.index,
         'Run ' + rn + (i === 0 ? ' · pull-out in ' : ' · next piece in ') + lead + ' min', pb);
     one(p.startMin, 'piece' + p.index, i === 0 ? 'pull-out' : 'next piece', pb);
-    one(p.endMin, 'end' + p.index, p.endType === 'I' ? 'pull-in' : 'piece ends', 'Block ' + p.block + ' · ' + S.fmtClock(p.endMin));
+    const nx = run.pieces[i + 1];
+    if (!nx || nx.startMin !== p.endMin) one(p.endMin, 'end' + p.index, p.endType === 'I' ? 'pull-in' : 'piece ends', 'Block ' + p.block + ' · ' + S.fmtClock(p.endMin));
     const trips = (tripsByBlock && tripsByBlock.get(p.block)) || [];
     trips.forEach(t => {
       if (t.s > p.startMin && t.s < p.endMin) {
-        add(t.s, lead, 'dep' + t.tripId, 'Run ' + rn + ' · departure in ' + lead + ' min', S.fmtClock(t.s) + ' from ' + t.first);
-        one(t.s, 'dep' + t.tripId, 'departure', S.fmtClock(t.s) + ' from ' + t.first);
+        add(t.s, lead, 'dep', 'Run ' + rn + ' · departure in ' + lead + ' min', S.fmtClock(t.s) + ' from ' + t.first);
+        one(t.s, 'dep', 'departure', S.fmtClock(t.s) + ' from ' + t.first);
       }
     });
   });

@@ -435,6 +435,49 @@ export async function blockTrips(block, routes, dayType) {
   return all.filter(t => t.block === String(block));
 }
 
+/**
+ * The GTFS route files a paddle label's trips are in. routesOfLabel turns
+ * "L1 OWL" into "L1" (what TransitView and detours want), but GTFS files the
+ * owl trips under their own route, "L1 OWL", so both are searched.
+ */
+export function gtfsRoutesOfLabel(label) {
+  const routes = routesOfLabel(label);
+  return /\bOWL\b/i.test(label || '') ? [...routes.map(r => r + ' OWL'), ...routes] : routes;
+}
+
+/**
+ * One piece's trips on the run's own clock. GTFS keeps each trip on its
+ * service day's clock (a 12:15 AM owl trip is minute 15), while a run that
+ * reports at 11:54 PM counts that moment as 1455. Each trip is moved by
+ * whole days onto the piece and kept only if it starts inside it, so two
+ * pieces on one block (run 51 Callowhill: L1 OWL, then 21-42 on 9901) never
+ * see each other's trips.
+ */
+export async function pieceTrips(piece, dayType) {
+  const trips = await blockTrips(piece.block, gtfsRoutesOfLabel(piece.routeLabel), dayType);
+  if (piece.startMin == null || piece.endMin == null) return trips;
+  const SLACK = 5;
+  const out = [];
+  for (const t of trips) {
+    const d = [0, 1440, 2880].find(d => t.s + d >= piece.startMin - SLACK && t.s + d <= piece.endMin + SLACK);
+    if (d != null) out.push(d ? { ...t, s: t.s + d, e: t.e + d, dayShift: d } : t);
+  }
+  return out;
+}
+
+/**
+ * What leaderBlock() needs for one piece: every trip on its GTFS routes and
+ * `nowMin` moved onto THEIR clock. Pull-in times (pullInMap) are on the GTFS
+ * service-day clock too, so it is `now` that moves, not the trips — 12:17 AM
+ * on run 51 is minute 1457 to the run and minute 17 to the L1 OWL file.
+ */
+export async function leaderTrips(piece, dayType, nowMin) {
+  const routes = gtfsRoutesOfLabel(piece.routeLabel);
+  const [all, mine] = await Promise.all([routeTrips(routes, dayType), pieceTrips(piece, dayType)]);
+  const my = relevantTrip(mine, nowMin);
+  return { all, routes, nowMin: nowMin - ((my && my.dayShift) || 0) };
+}
+
 // ---- pure scheduling (scheduled times only) -------------------------------
 // Extracted from block-tracker.html's scheduledBlockStatus / getNextDeparture
 // / getCurrentSchedLeader, MINUS the observed-average substitution the

@@ -467,8 +467,10 @@ async function ensureTrips(c) {
   const m = new Map();
   ctx.trips.set(c.date, m);                    // reserve so we don't double-load
   await Promise.all(c.run.pieces.map(async p => {
-    try { m.set(p.block, await S.blockTrips(p.block, p.routes, c.run.dayType)); }
-    catch (_) { m.set(p.block, []); }
+    let trips = [];
+    try { trips = await S.pieceTrips(p, c.run.dayType); } catch (_) {}
+    // Two pieces can share a block; keep both pieces' trips, not the last one loaded.
+    m.set(p.block, (m.get(p.block) || []).concat(trips).sort((a, b) => a.s - b.s));
   }));
   recompute();
 }
@@ -694,20 +696,20 @@ async function refreshLeader() {
   try {
     // Every district's pull-in times ride along, so a block that has already
     // pulled in (its later GTFS trips are phantom) is never chosen as leader.
-    const [all, table] = await Promise.all([
-      S.routeTrips(p.routes, c.run.dayType),
+    const [{ all, routes, nowMin }, table] = await Promise.all([
+      S.leaderTrips(p, c.run.dayType, c.nowMin),
       allBlockPaddles(c).catch(() => null)
     ]);
     const pullIns = S.pullInMap(table);
-    const lb = S.leaderBlock(all, p.block, c.nowMin, pullIns);
+    const lb = S.leaderBlock(all, p.block, nowMin, pullIns);
     if (!lb) { show(lineHtml('No bus is scheduled ahead of you in this direction.')); }
     else {
       const [buses, names, rec] = await Promise.all([
         L.fetchRoutes(p.routes),
-        Promise.all(p.routes.map(rt => S.routeDirectionNames(rt).then(n => [rt, n]))),
+        Promise.all(routes.map(rt => S.routeDirectionNames(rt).then(n => [rt, n]))),
         blockPaddle(lb.block, c).catch(() => null)
       ]);
-      const model = C.buildBusModel({ block: lb.block, allTrips: all, buses, nowMin: c.nowMin, dirNamesByRoute: Object.fromEntries(names), pullIns });
+      const model = C.buildBusModel({ block: lb.block, allTrips: all, buses, nowMin, dirNamesByRoute: Object.fromEntries(names), pullIns });
       let html = C.busCardHtml(model, { rec, leadersOpen: !!ctx.leadersOpen });
       if (model._scheduledOnly && !model._doneForDay) html += lineHtml('No live data for block ' + lb.block + ' — it may not be in service.');
       show(html);

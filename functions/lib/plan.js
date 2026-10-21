@@ -134,12 +134,12 @@ export async function liveContext(profile, date, run, nowMin) {
   const piece = pieceAt(run, nowMin);
   if (piece && piece.block) {
     try {
-      const [all, table] = await Promise.all([
-        S.routeTrips(piece.routes, run.dayType),
+      const [lt, table] = await Promise.all([
+        S.leaderTrips(piece, run.dayType, nowMin),
         blockTable(profile.depotKey, date, run.dayType)
       ]);
       // Blocks that have already pulled in are skipped, same as the app.
-      const lb = S.leaderBlock(all, piece.block, nowMin, S.pullInMap(table));
+      const lb = S.leaderBlock(lt.all, piece.block, lt.nowMin, S.pullInMap(table));
       if (lb) {
         out.leaderTrip = lb.trip;
         out.myTrip = lb.myTrip;
