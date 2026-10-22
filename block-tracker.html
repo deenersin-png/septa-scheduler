@@ -115,6 +115,10 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .page-dot{font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;background:var(--card);color:var(--text-faint);cursor:pointer;touch-action:manipulation;border:1px solid var(--border-light)}
 .page-dot.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
 .page-dot.detour-dot.active{background:var(--yellow-dim);color:var(--yellow);border-color:var(--yellow)}
+.refresh-btn{font-size:15px;font-weight:700;line-height:1;padding:5px 12px;border-radius:20px;background:var(--card);color:var(--accent);cursor:pointer;touch-action:manipulation;border:1px solid var(--border-light);font-family:inherit}
+.refresh-btn:active{opacity:.7}
+.refresh-btn.spinning{animation:spin .8s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
 .page-dot .dot-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:3px;border-radius:8px;background:var(--yellow);color:#1a1300;font-size:10px;font-weight:800;vertical-align:middle}
 
 /* DETOURS PAGE */
@@ -2043,6 +2047,7 @@ function buildAllBuses(merged, anim) {
   const detourCount = routeDetours.length;
   h += '<span class="page-dot detour-dot' + (dirKeys.length === 0 ? ' active' : '') + '" data-page="' + dirKeys.length + '">⚠ Detours' +
        (detourCount ? ' <span class="dot-count">' + detourCount + '</span>' : '') + '</span>';
+  h += '<button type="button" class="refresh-btn" data-refresh aria-label="Refresh now">&#8635;</button>';
   h += '</div>';
   return h;
 }
@@ -2382,6 +2387,20 @@ let countdownTimer = null;
 let layoverInterval = null;
 let refreshSec = 30;
 
+// Refresh button (bottom bar, right of Detours): update buses, detours and
+// the block↔bus pairing now, and restart the 30 s countdown from here.
+async function refreshNow() {
+  if (!state.route || ticking) return;
+  const btn = document.querySelector('[data-refresh]');
+  if (btn) btn.classList.add('spinning');
+  pairsFetchedAt = 0; // also re-read the all-routes feed
+  loadDetours(state.route);
+  startTimers();
+  await tick();
+  const b = document.querySelector('[data-refresh]'); // may be re-rendered
+  if (b) b.classList.remove('spinning');
+}
+
 function startTimers() {
   clearInterval(refreshTimer);
   clearInterval(countdownTimer);
@@ -2457,6 +2476,8 @@ function goToPage(i) {
 
   // Tap-to-switch fallback for non-touch input (and easier automated testing).
   content.addEventListener('click', e => {
+    const refresh = e.target.closest('[data-refresh]');
+    if (refresh) { refreshNow(); return; }
     const dot = e.target.closest('.page-dot');
     if (dot) { goToPage(parseInt(dot.dataset.page, 10)); return; }
 
