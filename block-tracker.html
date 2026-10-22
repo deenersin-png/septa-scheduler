@@ -57,6 +57,8 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .brand-text{font-size:18px;font-weight:800;letter-spacing:-.02em}
 .brand-sub{font-size:11px;color:var(--text-faint);letter-spacing:.05em;font-weight:500;margin-top:1px}
+.app-link{display:inline-block;margin-bottom:4px;font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;touch-action:manipulation}
+.app-link:active{opacity:.7}
 .status-area{display:flex;align-items:center;gap:6px}
 .live-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .live-dot.idle{background:var(--text-faint)}
@@ -73,6 +75,9 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .route-select option{background:var(--card);color:var(--text);font-size:16px}
 .route-select:focus{border-color:var(--purple)}
 .select-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:14px;pointer-events:none}
+.bus-search{flex:0 0 112px;min-width:0;background:var(--card);border:1.5px solid var(--border-light);border-radius:10px;padding:12px;font-family:inherit;font-size:17px;font-weight:700;color:var(--accent);outline:none}
+.bus-search::placeholder{color:var(--text-faint);font-weight:600}
+.bus-search:focus{border-color:var(--accent)}
 
 /* ALERT BANNER */
 .alert-banner{padding:11px 16px;font-size:14px;font-weight:600;display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid var(--border);line-height:1.4}
@@ -283,6 +288,7 @@ a.run-chip:active{opacity:.7}
 <div class="header">
   <div class="header-row">
     <div>
+      <a class="app-link" href="https://deenersin-png.github.io/septa-scheduler/">&larr; Paddle App</a>
       <div class="brand-text">Block Tracker</div>
       <div class="brand-sub">FOR SEPTA OPERATORS</div>
     </div>
@@ -299,6 +305,8 @@ a.run-chip:active{opacity:.7}
       </select>
       <span class="select-arrow">▾</span>
     </div>
+    <input id="busSearch" class="bus-search" type="search" inputmode="numeric" enterkeyhint="search"
+           autocomplete="off" placeholder="Bus #" aria-label="Find a bus by number">
   </div>
 </div>
 
@@ -328,7 +336,7 @@ a.run-chip:active{opacity:.7}
   <div class="msg">
     <div class="icon">🚌</div>
     <div class="main">Select a Route</div>
-    <div class="sub">See all active buses · swipe left/right<br>to switch direction</div>
+    <div class="sub">See all active buses · swipe left/right<br>to switch direction · or enter a bus #</div>
   </div>
 </div>
 
@@ -395,7 +403,9 @@ const DETOUR_ENDPOINTS = [
 ];
 
 // ── STATE ────────────────────────────────────────────────────
-const state = { route: '', status: 'idle', lastUpdate: null };
+// bus/busBlock: set while a bus-number search is active — the page loads that
+// bus's route as usual but shows only its card. Picking a route clears them.
+const state = { route: '', status: 'idle', lastUpdate: null, bus: '', busBlock: '' };
 
 // Active detours for the current route (flattened from the API's route_info
 // groups), shown on the swipeable "Detours" page. Loaded per route change.
@@ -403,7 +413,7 @@ let routeDetours = [];
 let detourReqId  = 0;
 
 // ── SCHEDULE DATA (SEPTA GTFS, via septa-gtfs pipeline) ───────
-const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), vehicleByBlock: new Map(), dirNames: {} };
+const sched = { blockTrips: new Map(), loaded: false, schedOrderByRoute: new Map(), observed: new Map(), recoveryBlocks: new Map(), dirNames: {} };
 let schedRequestId = 0;
 
 // Run-number / pull-out-in / paddle-link data, keyed by block number. Loaded
@@ -562,31 +572,18 @@ async function loadScheduleData(route) {
     // this browser session never personally saw go quiet. Closes the gap
     // where a bus was already in recovery before the page was opened.
     let recoveryBlocks = new Map();
-    let vehicleByBlock = new Map(); // block → { vehicleId, ts } last-known bus, ANY route
     try {
       const stateRes = await fetch(GTFS_OBSERVED_BASE + '/state.json');
       if (stateRes.ok) {
         const stateJson = await stateRes.json();
         for (const b of Object.values(stateJson.blocks || {})) {
-          // Last-known bus number for this block. Block NUMBERS repeat across
-          // routes and days (route 42's 9110 has nothing to do with route 21's
-          // 9110), so cross-route data is only trustworthy when it's a true
-          // interline: the SAME bus currently LIVE on another route, about to
-          // continue this block here (e.g. 9128 live on route 21 → route 65).
-          //  - same route            → keep it (a block that ran earlier today
-          //                            keeps its bus while it sits scheduled);
-          //  - different route, LIVE  → keep it (interlining bus);
-          //  - different route, ended → IGNORE (a finished run that merely
-          //                            shares the block number — was showing a
-          //                            wrong bus e.g. route 42's 3655 on 9110).
-          // Staleness is still gated per-lookup by isVehicleFresh().
-          const vid = String(b.vehicleId || '').trim();
+          // Last-known bus for this block on its route. Kept per route, so a
+          // block number that is two buses at once on two routes (weekday
+          // 9110 on 42 and 21) can't cross over — see knownVehicleFor().
+          // Staleness is gated per-lookup by isVehicleFresh(); a newer
+          // sighting from the live feeds wins over this.
           const sameRoute = b.routeId === matchedName;
-          if (vid && vid !== '0' && vid.toLowerCase() !== 'none' && (sameRoute || b.isLive === true)) {
-            const ts = b.lastSeenAtMs || b.endedAtMs || 0;
-            const ex = vehicleByBlock.get(String(b.blockId));
-            if (!ex || ts >= ex.ts) vehicleByBlock.set(String(b.blockId), { vehicleId: vid, ts });
-          }
+          notePair(b.blockId, b.vehicleId, b.lastSeenAtMs || b.endedAtMs || 0, b.routeId);
           // Recovery ("at terminal") stays route-specific — it's about which
           // blocks are quietly sitting at THIS route's terminal right now.
           if (sameRoute && b.isLive === false) {
@@ -605,7 +602,7 @@ async function loadScheduleData(route) {
     sched.schedOrderByRoute = new Map([[route, order]]); // trips arrive pre-sorted by start time
     sched.observed = observed;
     sched.recoveryBlocks = recoveryBlocks;
-    sched.vehicleByBlock = vehicleByBlock;
+    savePairs();
     sched.dirNames = data.directions || {}; // GTFS direction_id → "Eastbound" etc.
     sched.loaded = true;
   } catch(e) { console.warn('Schedule load failed:', e); }
@@ -864,6 +861,7 @@ function updateCache(liveBuses, routeId) {
   const liveKeys = new Set();
 
   for (const bus of liveBuses) {
+    notePair(bus.BlockID, bus.VehicleID || bus.label, now, routeId);
     const key = cacheKey(bus);
     if (!key) continue;
     liveKeys.add(key);
@@ -898,6 +896,7 @@ function updateCache(liveBuses, routeId) {
       busCache.set(key, { ...c, isLayover: true, layoverSince: now, departedAt: null });
     }
   }
+  savePairs();
 }
 
 // SEPTA reports direction inconsistently across endpoints — per-route
@@ -943,7 +942,7 @@ function mergeServerRecovery(merged) {
     if (known.has(blockId)) continue;
     if (!r.endedAtMs || (now - r.endedAtMs) > LAYOVER_TIMEOUT_MS) continue; // stale — same cutoff as local busCache ghosts
     merged.push({
-      BlockID: blockId, VehicleID: r.vehicleId, Direction: canonDir(r.direction),
+      BlockID: blockId, VehicleID: knownVehicleFor(blockId) || r.vehicleId, Direction: canonDir(r.direction),
       next_stop_sequence: r.sequence, destination: r.destination,
       Offset: '0', late: '0',
       next_stop_name: null, estimated_seat_availability: '',
@@ -983,15 +982,157 @@ function isVehicleFresh(ts) {
   return new Date(ts).toDateString() === new Date().toDateString();
 }
 
-// Best-effort bus number for a block: this session's live cache first, then
-// the poller's last-known bus for it (live or not). Returns '' (→ "pending")
-// only when the newest number we have is stale (a previous day's assignment).
+// ── BLOCK ↔ BUS PAIRING ──────────────────────────────────────
+// Once a bus is seen on a block it keeps that block for the rest of the day,
+// in every direction and even when the block changes route (e.g. 9128 runs
+// route 21 then route 65 on the same bus). Only a swap changes it: another
+// bus seen on the block LATER takes over, under the same rule. (Verified
+// 2026-10-22: of 299 blocks paired at 8 AM and still live at noon, 285 kept
+// their bus — 150 after changing direction — and 14 had swapped. Across
+// state.json, block-days on 2+ routes had the same bus 176 times, different
+// buses 17 — those hours apart, i.e. swaps.)
+// One real exception: a block NUMBER can be two buses at once on two routes —
+// weekday 9110 runs route 42 6:00 AM–4:13 PM AND route 21 8:15–11:51 AM. So
+// sightings are kept per block AND route, and another route's sighting only
+// counts here when this route's timetable has the block free at that moment
+// (a bus can't be on route 21 while this block is mid-trip on route 42).
+// Fed by every source, newest wins: this route's live feed, SEPTA's
+// all-routes feed and the poller's state.json. Saved per day in localStorage
+// so pairs survive a reload or route change even when state.json has stopped.
+const blockPairs = new Map(); // block → Map(route → { vehicleId, ts })
+const PAIRS_KEY = 'bt_pairs';
+const PAIRS_REFRESH_MS = 2 * 60000; // all-routes feed is ~200 KB, pairs change rarely
+let pairsFetchedAt = 0;
+
+function isSameRoute(a, b) {
+  a = String(a || ''); b = String(b || '');
+  return a === b || getAliases(a).includes(b) || getAliases(b).includes(a);
+}
+
+function notePair(blk, vid, ts, routeId) {
+  blk = String(blk || '').trim(); vid = String(vid || '').trim(); routeId = String(routeId || '');
+  if (!blk || blk === '0' || !vid || vid === '0' || vid.toLowerCase() === 'none' || !ts) return;
+  if (!blockPairs.has(blk)) blockPairs.set(blk, new Map());
+  const byRoute = blockPairs.get(blk);
+  const ex = byRoute.get(routeId);
+  if (!ex || ts >= ex.ts) byRoute.set(routeId, { vehicleId: vid, ts });
+}
+
+function savePairs() {
+  try {
+    const rows = [];
+    for (const [blk, byRoute] of blockPairs)
+      for (const [routeId, p] of byRoute) if (isVehicleFresh(p.ts)) rows.push([blk, routeId, p.vehicleId, p.ts]);
+    localStorage.setItem(PAIRS_KEY, JSON.stringify(rows));
+  } catch(e) {}
+}
+
+function loadPairs() {
+  try {
+    for (const [blk, routeId, vid, ts] of JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]'))
+      if (isVehicleFresh(ts)) notePair(blk, vid, ts, routeId);
+  } catch(e) {}
+}
+
+// Is this route's block mid-trip at epoch `ts`? Then a bus seen on the same
+// block number elsewhere at that moment is a different bus.
+function blockBusyHereAt(blk, ts) {
+  const m = (ts - serviceMidnightMs()) / 60000;
+  if (m < 0) return false; // before today's service day — nothing to compare
+  return (sched.blockTrips.get(String(blk)) || []).some(t => {
+    const s = timeStrToMin(t.start), e = timeStrToMin(t.end);
+    return s != null && e != null && m >= s + 2 && m <= e - 2;
+  });
+}
+
+// Today's bus for a block on the current route, or '' (→ "pending").
 function knownVehicleFor(blk) {
-  const c = busCache.get('blk_' + blk);
-  if (c && c.vehicleId && isVehicleFresh(c.lastSeenAt)) return c.vehicleId;
-  const v = sched.vehicleByBlock.get(String(blk));
-  if (v && v.vehicleId && isVehicleFresh(v.ts)) return v.vehicleId;
-  return '';
+  let best = null;
+  for (const [routeId, p] of blockPairs.get(String(blk)) || []) {
+    if (!isVehicleFresh(p.ts)) continue;
+    if (!isSameRoute(routeId, state.route) && blockBusyHereAt(blk, p.ts)) continue;
+    if (!best || p.ts > best.ts) best = p;
+  }
+  return best ? best.vehicleId : '';
+}
+
+// Today's block for a bus: its newest sighting, unless another bus has been
+// seen on that block since (swapped off). null if not seen today.
+function knownBlockFor(vid) {
+  let best = null;
+  for (const [blk, byRoute] of blockPairs) {
+    for (const [routeId, p] of byRoute) {
+      if (p.vehicleId !== vid || !isVehicleFresh(p.ts)) continue;
+      if ([...byRoute.values()].some(o => o.vehicleId !== vid && o.ts > p.ts)) continue;
+      if (!best || p.ts > best.ts) best = { block: blk, route: routeId, ts: p.ts };
+    }
+  }
+  return best;
+}
+
+// Which of `routes` this block is on right now (trip in progress) or next
+// (soonest upcoming trip) per the timetable, preferring `own` — the route the
+// bus was last seen on — whenever the block still has trips there. Returns
+// `own` when no route has anything left today.
+async function routeForBlockNow(blk, own, routes, nowMin = serviceNowMin()) {
+  const day = getDayType();
+  const score = async route => {
+    for (const name of getAliases(route)) {
+      try {
+        const res = await fetch(GTFS_BASE + '/' + encodeURIComponent(name) + '.json');
+        if (!res.ok) continue;
+        let best = Infinity;
+        for (const t of (await res.json())[day] || []) {
+          if (String(t.block_id) !== blk) continue;
+          const s = timeStrToMin(t.start), e = timeStrToMin(t.end);
+          if (s == null || e == null || isPhantomTrip(blk, s)) continue;
+          if (nowMin >= s && nowMin <= e) best = 0;
+          else if (s > nowMin) best = Math.min(best, s - nowMin);
+        }
+        return best;
+      } catch(e) {}
+    }
+    return Infinity;
+  };
+  if (await score(own) < Infinity) return own;
+  let pick = own, pickScore = Infinity;
+  for (const r of routes) {
+    if (isSameRoute(r, own)) continue;
+    const sc = await score(r);
+    if (sc < pickScore) { pick = r; pickScore = sc; }
+  }
+  return pick;
+}
+
+// SEPTA's all-routes vehicle feed (JSONP, same as TransitView). Notes every
+// live block↔bus pair and resolves to the list of live vehicles.
+const TV_ALL_ENDPOINTS = [
+  () => 'https://www3.septa.org/api/TransitViewAll/index.php?callback=',
+  () => 'https://www3.septa.org/hackathon/TransitViewAll/?callback=',
+];
+function fetchAllLive() {
+  const parse = raw => {
+    const now = Date.now(), out = [];
+    for (const group of (raw && raw.routes) || []) {
+      for (const [route, vehicles] of Object.entries(group)) {
+        for (const v of vehicles || []) {
+          const r = { route: String(v.route_id || route), block: String(v.BlockID || ''), vehicleId: String(v.VehicleID || v.label || '').trim() };
+          notePair(r.block, r.vehicleId, now, r.route);
+          out.push(r);
+        }
+      }
+    }
+    pairsFetchedAt = now;
+    savePairs();
+    return out;
+  };
+  return new Promise((resolve, reject) => tryJSONP('', TV_ALL_ENDPOINTS, 0, resolve, reject, parse));
+}
+
+// Background refresh of the pairing from the all-routes feed, throttled.
+function refreshPairs() {
+  if (Date.now() - pairsFetchedAt < PAIRS_REFRESH_MS) return Promise.resolve();
+  return fetchAllLive().then(() => {}, () => {});
 }
 
 // Where a block sits in its GTFS day at `nowMin`:
@@ -1728,6 +1869,8 @@ function renderMain(merged, route) {
   document.getElementById('routeBar').classList.remove('hidden');
   document.getElementById('routeNum').textContent = route;
 
+  if (state.bus) { renderBusMain(merged, route); return; }
+
   const live      = merged.filter(b => !b._isLayover && !b._scheduledOnly).length;
   const atTerm    = merged.filter(b => b._isLayover).length;
   const schedOnly = merged.filter(b => b._scheduledOnly).length;
@@ -1752,6 +1895,43 @@ function renderMain(merged, route) {
   annotateLeaderTimeline(merged);
   annotatePositions(merged);
   setContent(buildAllBuses(merged, anim));
+  manageLayoverTimers();
+  updatePagesTransform();
+}
+
+// Bus-number search: the whole route is merged and annotated exactly as usual
+// (so positions and leaders stay right), then only the searched bus's card is
+// drawn. A live card for that bus number wins; otherwise its block's card —
+// layover, at-terminal or scheduled — from the normal pipeline.
+function busCardsFor(merged) {
+  const byBus = merged.filter(b => String(b.VehicleID || '').trim() === state.bus);
+  const live  = byBus.filter(b => !b._isLayover && !b._scheduledOnly);
+  if (live.length) return live;
+  const byBlock = state.busBlock ? merged.filter(b => String(b.BlockID || '') === state.busBlock) : [];
+  return byBlock.length ? byBlock : byBus;
+}
+
+function renderBusMain(merged, route) {
+  document.getElementById('alertArea').innerHTML = '';
+  annotateSchedLeader(merged);
+  annotateLeaderTimeline(merged);
+  annotatePositions(merged);
+  const mine = busCardsFor(merged);
+  const blk = state.busBlock ? ' · Block ' + state.busBlock : '';
+
+  if (!mine.length) {
+    document.getElementById('busCount').textContent = 'Bus ' + state.bus + blk;
+    setContent('<div class="msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(state.bus) + ' is done for now</div>' +
+      '<div class="sub">Last seen on Route ' + esc(route) + (state.busBlock ? ', block ' + esc(state.busBlock) : '') +
+      '<br>No live data and no more scheduled trips</div></div>');
+    return;
+  }
+
+  const isLive = mine.some(b => !b._isLayover && !b._scheduledOnly);
+  document.getElementById('busCount').textContent = 'Bus ' + state.bus + blk + (isLive ? '' : ' · not live');
+  const anim = isFirstRender;
+  isFirstRender = false;
+  setContent(buildAllBuses(mine, anim));
   manageLayoverTimers();
   updatePagesTransform();
 }
@@ -2296,7 +2476,16 @@ async function tick() {
   ticking = true;
   setStatus('syncing');
   try {
-    const live = await fetchTV(state.route);
+    const [live] = await Promise.all([fetchTV(state.route), refreshPairs()]);
+    if (state.bus) {
+      // Following a searched bus: if the all-routes feed just saw it on
+      // another route (its block moved on, e.g. 21 → 65), go there.
+      const kb = knownBlockFor(state.bus);
+      if (kb && Date.now() - kb.ts < 3 * 60000) {
+        state.busBlock = kb.block;
+        if (!isSameRoute(kb.route, state.route)) { ticking = false; loadRoute(kb.route); return; }
+      }
+    }
     updateCache(live, state.route);
     renderMain(annotateOvertake(annotateLayovers(mergeScheduledBlocks(mergeServerRecovery(mergeLiveAndCache(live, state.route)), live))), state.route);
     state.lastUpdate = new Date();
@@ -2308,14 +2497,74 @@ async function tick() {
       showBanner('warn', '⚠', 'Network error — last update ' + state.lastUpdate.toLocaleTimeString());
     } else {
       setStatus('error');
-      setContent('<div class="msg"><div class="icon">⚠️</div><div class="main">Could not reach SEPTA API</div><div class="sub">Check your connection and try again</div><button class="retry-btn" onclick="onRouteChange()">Retry</button></div>');
+      setContent('<div class="msg"><div class="icon">⚠️</div><div class="main">Could not reach SEPTA API</div><div class="sub">Check your connection and try again</div><button class="retry-btn" onclick="loadRoute(state.route)">Retry</button></div>');
     }
   }
   ticking = false;
 }
 
+// Route picked from the dropdown: leaves bus-search mode (clears the field).
 async function onRouteChange() {
-  state.route = document.getElementById('routeSelect').value;
+  const route = document.getElementById('routeSelect').value;
+  if (!route) return;
+  state.bus = ''; state.busBlock = '';
+  document.getElementById('busSearch').value = '';
+  try { localStorage.setItem('bt_route', route); } catch(e) {}
+  return loadRoute(route);
+}
+
+// Bus number entered: find which route/block that bus is on (any route, any
+// district) — SEPTA's live all-routes feed first; for a bus that isn't live,
+// its block today from the day's pairing (plus the poller's state.json),
+// skipping any block it has since been swapped off. Resets the dropdown to
+// "Select Route" and loads that route showing only this bus's card.
+async function onBusSearch() {
+  const bus = document.getElementById('busSearch').value.trim();
+  if (!bus) return;
+  document.getElementById('routeSelect').value = '';
+  state.bus = bus; state.busBlock = '';
+  setStatus('loading');
+  setContent('<div class="msg"><div class="icon" style="animation:pulse 1s infinite">🔍</div><div class="main">Finding Bus ' + esc(bus) + '…</div></div>');
+
+  let hit = null;
+  try {
+    const live = (await fetchAllLive()).find(v => v.vehicleId === bus);
+    if (live) hit = { route: live.route, block: live.block };
+  } catch(e) {}
+  if (state.bus !== bus) return; // superseded
+  if (!hit) try {
+    // Not live: its block today from the pairing (newest sighting, not
+    // swapped off since), then the route that block is on now or runs next
+    // — a block can change route (9119: route 21 → 65) while it's quiet.
+    const st = await fetchWithTimeout(GTFS_OBSERVED_BASE + '/state.json?t=' + Date.now());
+    const rows = Object.values(st.blocks || {});
+    rows.forEach(b => notePair(b.blockId, b.vehicleId, b.lastSeenAtMs || b.endedAtMs || 0, b.routeId));
+    const kb = knownBlockFor(bus);
+    if (kb) {
+      const routes = [...new Set(rows.filter(b => String(b.blockId) === kb.block).map(b => String(b.routeId)))];
+      hit = { block: kb.block, route: await routeForBlockNow(kb.block, kb.route, routes) };
+    }
+  } catch(e) {
+    if (state.bus !== bus) return; // superseded
+    setStatus('error');
+    setContent('<div class="msg"><div class="icon">⚠️</div><div class="main">Could not look up Bus ' + esc(bus) + '</div><div class="sub">Check your connection and try again</div><button class="retry-btn" onclick="onBusSearch()">Retry</button></div>');
+    return;
+  }
+  if (state.bus !== bus) return; // a route was picked (or another bus searched) meanwhile
+
+  if (!hit) {
+    state.route = ''; state.bus = '';
+    setStatus('idle');
+    document.getElementById('routeBar').classList.add('hidden');
+    setContent('<div class="msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(bus) + ' not found</div><div class="sub">It isn\'t live and holds no block today<br>(never seen, or swapped off its block)</div></div>');
+    return;
+  }
+  state.busBlock = hit.block;
+  return loadRoute(hit.route);
+}
+
+async function loadRoute(route) {
+  state.route = route;
   if (!state.route) return;
 
   busCache.clear();
@@ -2326,7 +2575,6 @@ async function onRouteChange() {
   isFirstRender = true;
   lastHTML = '';
   activePage = 0; // a new route may have a different direction ordering/count
-  try { localStorage.setItem('bt_route', state.route); } catch(e) {}
 
   document.getElementById('alertsPanel').classList.add('hidden');
   document.getElementById('detoursPanel').classList.add('hidden');
@@ -2341,8 +2589,10 @@ async function onRouteChange() {
       fetchTV(state.route),
       safeGetWithAliases(API.alerts,  state.route),
       safeGetWithAliases(API.detours, state.route),
+      refreshPairs(), // so scheduled cards show today's bus from the first render
     ]);
 
+    if (state.route !== route) { ticking = false; return; } // left this route meanwhile
     if (tvRes.status === 'rejected') throw tvRes.reason;
 
     const live = tvRes.value;
@@ -2356,7 +2606,7 @@ async function onRouteChange() {
     if (detoursRes.status === 'fulfilled') renderDetours(detoursRes.value);
   } catch {
     setStatus('error');
-    setContent('<div class="msg"><div class="icon">⚠️</div><div class="main">Could not reach SEPTA API</div><div class="sub">Check your connection and try again</div><button class="retry-btn" onclick="onRouteChange()">Retry</button></div>');
+    setContent('<div class="msg"><div class="icon">⚠️</div><div class="main">Could not reach SEPTA API</div><div class="sub">Check your connection and try again</div><button class="retry-btn" onclick="loadRoute(state.route)">Retry</button></div>');
   }
   ticking = false;
 }
@@ -2425,6 +2675,8 @@ const ICONS = {
 };
 
 // ── INIT ─────────────────────────────────────────────────────
+const IDLE_HTML = document.getElementById('content').innerHTML;
+
 (function init() {
   const routeSel = document.getElementById('routeSelect');
 
@@ -2440,10 +2692,22 @@ const ICONS = {
   } catch(e) {}
 
   state.route = routeSel.value;
+  loadPairs(); // today's block↔bus pairs seen earlier in this browser
 
   routeSel.addEventListener('change', onRouteChange);
+  document.getElementById('busSearch').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); onBusSearch(); }
+  });
+  // Field emptied (✕ or backspace) while a bus is shown → back to the idle screen.
+  document.getElementById('busSearch').addEventListener('input', e => {
+    if (e.target.value.trim() || !state.bus) return;
+    state.route = ''; state.bus = ''; state.busBlock = '';
+    setStatus('idle');
+    document.getElementById('routeBar').classList.add('hidden');
+    setContent(IDLE_HTML);
+  });
 
-  window.addEventListener('online',  () => { if (state.route) onRouteChange(); });
+  window.addEventListener('online',  () => { if (state.route) loadRoute(state.route); });
   window.addEventListener('offline', () => setStatus('offline'));
 
   // Load holiday overrides first so getDayType() is correct before any
