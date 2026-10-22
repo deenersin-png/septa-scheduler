@@ -75,9 +75,12 @@ body{min-height:100%;background:var(--bg);font-family:'Inter',-apple-system,syst
 .route-select option{background:var(--card);color:var(--text);font-size:16px}
 .route-select:focus{border-color:var(--purple)}
 .select-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:14px;pointer-events:none}
-.bus-search{flex:0 0 112px;min-width:0;background:var(--card);border:1.5px solid var(--border-light);border-radius:10px;padding:12px;font-family:inherit;font-size:17px;font-weight:700;color:var(--accent);outline:none}
+.bus-form{display:flex;gap:6px;flex:0 0 150px;min-width:0;margin:0}
+.bus-search{flex:1;width:0;min-width:0;background:var(--card);border:1.5px solid var(--border-light);border-radius:10px;padding:12px;font-family:inherit;font-size:17px;font-weight:700;color:var(--accent);outline:none}
 .bus-search::placeholder{color:var(--text-faint);font-weight:600}
 .bus-search:focus{border-color:var(--accent)}
+.bus-go{flex:0 0 44px;background:var(--accent-dim);border:1.5px solid var(--accent);border-radius:10px;color:var(--accent);font-size:17px;cursor:pointer;touch-action:manipulation;padding:0}
+.bus-go:active{opacity:.7}
 
 /* ALERT BANNER */
 .alert-banner{padding:11px 16px;font-size:14px;font-weight:600;display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid var(--border);line-height:1.4}
@@ -305,8 +308,13 @@ a.run-chip:active{opacity:.7}
       </select>
       <span class="select-arrow">▾</span>
     </div>
-    <input id="busSearch" class="bus-search" type="search" inputmode="numeric" enterkeyhint="search"
-           autocomplete="off" placeholder="Bus #" aria-label="Find a bus by number">
+    <!-- A form, so a phone keyboard's Go/Search key submits it; the button is
+         for the iPhone number pad, which has no Enter key at all. -->
+    <form id="busForm" class="bus-form" role="search" action="#">
+      <input id="busSearch" class="bus-search" type="search" inputmode="numeric" enterkeyhint="search"
+             autocomplete="off" placeholder="Bus #" aria-label="Find a bus by number">
+      <button type="submit" class="bus-go" aria-label="Find bus">&#128269;</button>
+    </form>
   </div>
 </div>
 
@@ -2695,8 +2703,10 @@ const IDLE_HTML = document.getElementById('content').innerHTML;
   loadPairs(); // today's block↔bus pairs seen earlier in this browser
 
   routeSel.addEventListener('change', onRouteChange);
-  document.getElementById('busSearch').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); onBusSearch(); }
+  document.getElementById('busForm').addEventListener('submit', e => {
+    e.preventDefault();
+    document.getElementById('busSearch').blur(); // close the phone keyboard
+    onBusSearch();
   });
   // Field emptied (✕ or backspace) while a bus is shown → back to the idle screen.
   document.getElementById('busSearch').addEventListener('input', e => {
