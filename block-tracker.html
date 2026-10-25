@@ -1031,6 +1031,7 @@ function notePair(blk, vid, ts, routeId) {
 }
 
 function savePairs() {
+  loadPairs(); // merge what My Run (pa-live.js) saved meanwhile — same key
   try {
     const rows = [];
     for (const [blk, byRoute] of blockPairs)

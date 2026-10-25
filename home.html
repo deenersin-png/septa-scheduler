@@ -709,9 +709,12 @@ async function refreshLeader() {
         Promise.all(routes.map(rt => S.routeDirectionNames(rt).then(n => [rt, n]))),
         blockPaddle(lb.block, c).catch(() => null)
       ]);
-      const model = C.buildBusModel({ block: lb.block, allTrips: all, buses, nowMin, dirNamesByRoute: Object.fromEntries(names), pullIns });
+      await L.learnPairs(p.routes, buses, lb.block); // keep its bus number between trips
+      const model = C.buildBusModel({ block: lb.block, allTrips: all, buses, nowMin, dirNamesByRoute: Object.fromEntries(names), pullIns, knownBus: L.knownBus });
       let html = C.busCardHtml(model, { rec, leadersOpen: !!ctx.leadersOpen });
-      if (model._scheduledOnly && !model._doneForDay) html += lineHtml('No live data for block ' + lb.block + ' — it may not be in service.');
+      if (model._scheduledOnly && !model._doneForDay) html += lineHtml(model.VehicleID
+        ? 'Bus ' + model.VehicleID + ' isn’t sending live data right now — likely between trips at the terminal.'
+        : 'No live data for block ' + lb.block + ' — it may not be in service.');
       show(html);
     }
   } catch (_) { show(lineHtml('Live lookup failed — no leader data right now.')); }

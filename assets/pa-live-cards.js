@@ -79,14 +79,29 @@ export function leaderForTrip(allTrips, block, trip, pullIns) {
  * A tracker-shaped bus for `block`: the live vehicle when TransitView has
  * it, otherwise a scheduled-only placeholder drawn from GTFS, exactly as
  * block-tracker.html's mergeScheduledBlocks builds them.
+ * `knownBus(block, route, busyAt)` (pa-live.js) gives today's bus for a block
+ * that isn't in the live feed right now — e.g. resting at a terminal — so the
+ * card keeps its number instead of "pending".
  */
-export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute = {}, pullIns = null }) {
+export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute = {}, pullIns = null, knownBus = null }) {
   const dirName = t => (dirNamesByRoute[t.route] || {})[t.dir];
   const blk = String(block);
   // This block's real trips only: a trip after its pick pull-in never runs.
   const trips = allTrips.filter(t => t.block === blk && !isPhantomTrip(t, pullIns)).sort((a, b) => a.s - b.s);
   const byBlock = new Map(buses.map(b => [String(b.BlockID || ''), b]));
   const live = byBlock.get(blk);
+  // Today's bus for a block from the pairing, '' if none. busyAt: was that
+  // block mid-trip on `route` at epoch `ts`? (then another route's sighting
+  // of the same block number is a different bus)
+  const pairedBus = (b, route) => {
+    if (!knownBus) return '';
+    const own = allTrips.filter(t => t.block === b && t.route === route);
+    const busyAt = ts => {
+      const m = nowMin - (Date.now() - ts) / 60000;
+      return own.some(t => m >= t.s + 2 && m <= t.e - 2);
+    };
+    return knownBus(b, route, busyAt);
+  };
   let bus;
 
   if (live) {
@@ -101,7 +116,7 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
     if (!st || st.state === 'done') return { BlockID: blk, _scheduledOnly: true, _schedState: 'done', _doneForDay: true, _leaderTimeline: timeline() };
     const trip = st.state === 'in_service' ? st.trip : st.next;
     bus = {
-      BlockID: blk, VehicleID: '', late: '0',
+      BlockID: blk, VehicleID: pairedBus(blk, trip.route), late: '0',
       Direction: dirName(trip) || ('Direction ' + trip.dir),
       _scheduledOnly: true,
       _schedState: st.state === 'in_service' ? 'in_service_expected' : st.state === 'layover' ? 'layover_expected' : 'not_started',
@@ -116,9 +131,9 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
   // (block-tracker annotateLeaderTimeline).
   function timeline() {
     if (!trips.length) return null;
-    const busNoOf = b => {
+    const busNoOf = (b, route) => {
       const l = byBlock.get(b);
-      const v = l ? String(l.VehicleID || '').trim() : '';
+      const v = l ? String(l.VehicleID || '').trim() : pairedBus(b, route);
       return v && v !== '0' ? v : 'n/a';
     };
     const liveStatusOf = b => {
@@ -140,7 +155,7 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
         blk: ldr.block,
         dir: dirShort(dirName(t) || String(t.dir)),
         start: ldr.s,
-        bus: busNoOf(ldr.block),
+        bus: busNoOf(ldr.block, ldr.route),
         status: i < curIdx ? 'Past' : i > curIdx ? 'Scheduled' : liveStatusOf(ldr.block)
       };
       if (i < curIdx) past.push(row); else if (i === curIdx) current = row; else next.push(row);
