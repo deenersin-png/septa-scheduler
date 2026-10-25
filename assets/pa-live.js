@@ -163,6 +163,92 @@ export async function vehicleForBlock(routes, block) {
   return hit ? normalize(hit) : null;
 }
 
+// ---- block ↔ bus pairing (shared with block-tracker.html) --------------------
+//
+// A bus seen on a block keeps it for the rest of the day, in every direction
+// and across route changes, until another bus is seen on it later (a swap).
+// A bus resting at a terminal or "not tracking" drops out of TransitView, so
+// the leader card would otherwise lose its number between trips. Same
+// localStorage key and row format as block-tracker.html, so what either page
+// has seen today serves both: [block, route, vehicleId, epochMs].
+const PAIRS_KEY = 'bt_pairs';
+const ALL_ENDPOINTS = [
+  () => 'https://www3.septa.org/api/TransitViewAll/index.php?callback=',
+  () => 'https://www3.septa.org/hackathon/TransitViewAll/?callback='
+];
+const STATE_URL = 'https://deenersin-png.github.io/septa-gtfs/data-observed/state.json';
+let allFetchedAt = 0, stateFetchedAt = 0;
+
+/** Same day, or within ~6 h (an owl run past midnight): block-tracker isVehicleFresh. */
+function isFresh(ts) {
+  if (!ts) return false;
+  if (Date.now() - ts <= 6 * 3600000) return true;
+  return new Date(ts).toDateString() === new Date().toDateString();
+}
+
+const sameRoute = (a, b) => a === b || aliasesOf(a).includes(b) || aliasesOf(b).includes(a);
+
+function readPairs() {
+  try { return JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]').filter(r => isFresh(r[3])); }
+  catch (_) { return []; }
+}
+
+/** Merge sightings into the shared store, newest per block+route wins. */
+function notePairs(sightings) {
+  const rows = new Map(readPairs().map(r => [r[0] + '|' + r[1], r]));
+  for (const s of sightings) {
+    const blk = String(s.block || '').trim(), vid = String(s.vehicleId || '').trim(), route = String(s.route || '');
+    if (!blk || blk === '0' || !vid || vid === '0' || vid.toLowerCase() === 'none' || !isFresh(s.ts)) continue;
+    const ex = rows.get(blk + '|' + route);
+    if (!ex || s.ts >= ex[3]) rows.set(blk + '|' + route, [blk, route, vid, s.ts]);
+  }
+  try { localStorage.setItem(PAIRS_KEY, JSON.stringify([...rows.values()])); } catch (_) {}
+}
+
+/**
+ * Note the live buses already fetched for `routes`, and — only when `block`
+ * isn't among them — top up from SEPTA's all-routes feed (every 2 min at
+ * most) and the poller's state.json (every 10 min at most).
+ */
+export async function learnPairs(routes, buses, block) {
+  const now = Date.now(), route0 = String(routes[0] || '');
+  const fromFeed = list => list.map(b => ({ block: b.BlockID, vehicleId: b.VehicleID || b.label, route: String(b.route_id || route0), ts: now }));
+  notePairs(fromFeed(buses));
+  if (typeof document === 'undefined' || buses.some(b => String(b.BlockID || '') === String(block))) return;
+  if (now - allFetchedAt > 2 * 60000) {
+    allFetchedAt = now;
+    try {
+      const raw = await request(ALL_ENDPOINTS, '');
+      const all = [];
+      for (const g of (raw && raw.routes) || []) for (const [r, vs] of Object.entries(g)) for (const v of vs || []) all.push({ ...v, route_id: v.route_id || r });
+      notePairs(fromFeed(all));
+    } catch (_) {}
+  }
+  if (now - stateFetchedAt > 10 * 60000) {
+    stateFetchedAt = now;
+    try {
+      const st = await (await fetch(STATE_URL + '?t=' + now)).json();
+      notePairs(Object.values(st.blocks || {}).map(b => ({ block: b.blockId, vehicleId: b.vehicleId, route: b.routeId, ts: b.lastSeenAtMs || b.endedAtMs || 0 })));
+    } catch (_) {}
+  }
+}
+
+/**
+ * Today's bus for `block` on `route`, or ''. A sighting on another route
+ * counts (the block changed route, e.g. 9407 on 43 then 40) unless
+ * `busyAt(ts)` says this route's block was mid-trip then — a block number can
+ * be two buses at once on two routes (weekday 9110 on 42 and 21).
+ */
+export function knownBus(block, route, busyAt = () => false) {
+  let best = null;
+  for (const [blk, r, vid, ts] of readPairs()) {
+    if (blk !== String(block)) continue;
+    if (!sameRoute(r, String(route)) && busyAt(ts)) continue;
+    if (!best || ts > best.ts) best = { vid, ts };
+  }
+  return best ? best.vid : '';
+}
+
 /** Plain-language one-liner (kept for callers that want text, not a card). */
 export function describe(v) {
   if (!v) return 'No live data for your leader — it may not be in service.';
