@@ -986,12 +986,14 @@ function buildGtfsDirMap(liveBuses) {
 // PREVIOUS day is stale (→ "pending"). But an owl run a few hours ago —
 // e.g. 12:51 AM when it's now 5 AM — is still the same bus, even though a
 // fixed "service day" clock line would call it yesterday. So: fresh if it's
-// the same local calendar day, OR within the last ~6 hours (covers owl runs
+// the same service day, OR within the last ~6 hours (covers owl runs
 // crossing midnight). Only a genuinely old, previous-day number is rejected.
+// "Same day" means the same SERVICE day: until SERVICE_DAY_START_HR (4 AM)
+// it is still yesterday's, so at 12:10 AM a 5:59 PM pairing still counts.
 function isVehicleFresh(ts) {
   if (!ts) return false;
   if ((Date.now() - ts) <= 6 * 3600000) return true;
-  return new Date(ts).toDateString() === new Date().toDateString();
+  return ts >= serviceMidnightMs();
 }
 
 // ── BLOCK ↔ BUS PAIRING ──────────────────────────────────────
@@ -1924,6 +1926,28 @@ function busCardsFor(merged) {
   return byBlock.length ? byBlock : byBus;
 }
 
+// Why a searched bus has no card, from the scheduled times only: e.g. "Bus
+// 3054 pulled in at 7:42 PM and its last trip ended at 7:26 PM. Last served
+// on Route 52 Block# 9121 (run#: 121)." Parts with no data are left out.
+function doneReason(route) {
+  const blk = state.busBlock;
+  const rec = blk ? paddle.byBlock.get(blk) : null;
+  const pi  = rec && rec.piTime ? fmtClock(clockToMin(rec.piTime)) : '';
+  // The last trip that really ran: trips at or after the pull-in are phantom.
+  const ends = (sched.blockTrips.get(blk) || [])
+    .filter(t => !isPhantomTrip(blk, timeStrToMin(t.start)))
+    .map(t => timeStrToMin(t.end)).filter(e => e != null);
+  const lastEnd = ends.length ? fmtClock(Math.max(...ends)) : '';
+  const parts = [];
+  if (pi) parts.push((blockPulledIn(blk) ? 'pulled in at ' : 'is due to pull in at ') + pi);
+  if (lastEnd) parts.push('its last trip ended at ' + lastEnd);
+  let txt = parts.length ? 'Bus ' + state.bus + ' ' + parts.join(' and ') + '. ' : '';
+  txt += 'Last served on Route ' + route + (blk ? ' Block# ' + blk : '');
+  const runs = rec && rec.runs.length ? rec.runs.map(r => r.runno).join(', ') : '';
+  if (runs) txt += ' (run#: ' + runs + ')';
+  return txt + '.';
+}
+
 function renderBusMain(merged, route) {
   document.getElementById('alertArea').innerHTML = '';
   annotateSchedLeader(merged);
@@ -1935,8 +1959,7 @@ function renderBusMain(merged, route) {
   if (!mine.length) {
     document.getElementById('busCount').textContent = 'Bus ' + state.bus + blk;
     setContent('<div class="msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(state.bus) + ' is done for now</div>' +
-      '<div class="sub">Last seen on Route ' + esc(route) + (state.busBlock ? ', block ' + esc(state.busBlock) : '') +
-      '<br>No live data and no more scheduled trips</div></div>');
+      '<div class="sub">' + esc(doneReason(route)) + '</div></div>');
     return;
   }
 
