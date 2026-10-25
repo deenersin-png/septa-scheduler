@@ -179,11 +179,18 @@ const ALL_ENDPOINTS = [
 const STATE_URL = 'https://deenersin-png.github.io/septa-gtfs/data-observed/state.json';
 let allFetchedAt = 0, stateFetchedAt = 0;
 
-/** Same day, or within ~6 h (an owl run past midnight): block-tracker isVehicleFresh. */
+/**
+ * Same service day, or within ~6 h (an owl run past midnight): block-tracker
+ * isVehicleFresh. The service day runs until 4 AM, so at 12:10 AM a 5:59 PM
+ * pairing still counts.
+ */
 function isFresh(ts) {
   if (!ts) return false;
   if (Date.now() - ts <= 6 * 3600000) return true;
-  return new Date(ts).toDateString() === new Date().toDateString();
+  const d = new Date();
+  if (d.getHours() < 4) d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return ts >= d.getTime();
 }
 
 const sameRoute = (a, b) => a === b || aliasesOf(a).includes(b) || aliasesOf(b).includes(a);
