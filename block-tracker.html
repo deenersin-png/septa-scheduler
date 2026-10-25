@@ -590,7 +590,7 @@ async function loadScheduleData(route) {
           // Last-known bus for this block on its route. Kept per route, so a
           // block number that is two buses at once on two routes (weekday
           // 9110 on 42 and 21) can't cross over — see knownVehicleFor().
-          // Staleness is gated per-lookup by isVehicleFresh(); a newer
+          // Staleness is gated per-lookup by isPairFresh(); a newer
           // sighting from the live feeds wins over this.
           const sameRoute = b.routeId === matchedName;
           notePair(b.blockId, b.vehicleId, b.lastSeenAtMs || b.endedAtMs || 0, b.routeId);
@@ -979,19 +979,19 @@ function buildGtfsDirMap(liveBuses) {
   return map;
 }
 
-// Is a last-known bus number recent enough to still be this block's likely
-// assignment? Buses are reassigned to blocks daily, so a number from a
-// PREVIOUS day is stale (→ "pending"). But an owl run a few hours ago —
-// e.g. 12:51 AM when it's now 5 AM — is still the same bus, even though a
-// fixed "service day" clock line would call it yesterday. So: fresh if it's
-// the same service day, OR within the last ~6 hours (covers owl runs
-// crossing midnight). Only a genuinely old, previous-day number is rejected.
-// "Same day" means the same SERVICE day: until SERVICE_DAY_START_HR (4 AM)
-// it is still yesterday's, so at 12:10 AM a 5:59 PM pairing still counts.
-function isVehicleFresh(ts) {
-  if (!ts) return false;
-  if ((Date.now() - ts) <= 6 * 3600000) return true;
-  return ts >= serviceMidnightMs();
+// How long a block↔bus pairing lasts. A run never lasts more than ~14 h
+// (longest in the picks: 15h09 incl. its break), so a log-in counts for 14 h
+// from the bus's FIRST sighting on the block, then a new log-in is expected.
+// A block worked by two runs (relief, same bus) can be out longer — 72 blocks
+// exceed 14 h, Frontier 6261 on Saturdays 18h42 — so a pairing also stays
+// valid while that bus is still being seen on it: up to 2 h after its LAST
+// sighting (covers a terminal rest). Replaces a calendar/service-day check,
+// so midnight no longer matters.
+const PAIR_LOGIN_MS  = 14 * 3600000;
+const PAIR_RESEEN_MS = 2 * 3600000;
+function pairFresh(first, last) {
+  const now = Date.now();
+  return !!last && (now - (first || last) <= PAIR_LOGIN_MS || now - last <= PAIR_RESEEN_MS);
 }
 
 // ── BLOCK ↔ BUS PAIRING ──────────────────────────────────────
@@ -1009,9 +1009,10 @@ function isVehicleFresh(ts) {
 // counts here when this route's timetable has the block free at that moment
 // (a bus can't be on route 21 while this block is mid-trip on route 42).
 // Fed by every source, newest wins: this route's live feed, SEPTA's
-// all-routes feed and the poller's state.json. Saved per day in localStorage
-// so pairs survive a reload or route change even when state.json has stopped.
-const blockPairs = new Map(); // block → Map(route → { vehicleId, ts })
+// all-routes feed and the poller's state.json. Saved in localStorage so pairs
+// survive a reload or route change even when state.json has stopped; each
+// keeps its first and last sighting for pairFresh().
+const blockPairs = new Map(); // block → Map(route → { vehicleId, ts, first })
 const PAIRS_KEY = 'bt_pairs';
 const PAIRS_REFRESH_MS = 2 * 60000; // all-routes feed is ~200 KB, pairs change rarely
 let pairsFetchedAt = 0;
@@ -1021,13 +1022,24 @@ function isSameRoute(a, b) {
   return a === b || getAliases(a).includes(b) || getAliases(b).includes(a);
 }
 
-function notePair(blk, vid, ts, routeId) {
+// `first` is when this bus was first seen on the block (its log-in); a
+// source that only knows one time passes none, so it is `ts`.
+function notePair(blk, vid, ts, routeId, first = ts) {
   blk = String(blk || '').trim(); vid = String(vid || '').trim(); routeId = String(routeId || '');
   if (!blk || blk === '0' || !vid || vid === '0' || vid.toLowerCase() === 'none' || !ts) return;
   if (!blockPairs.has(blk)) blockPairs.set(blk, new Map());
   const byRoute = blockPairs.get(blk);
   const ex = byRoute.get(routeId);
-  if (!ex || ts >= ex.ts) byRoute.set(routeId, { vehicleId: vid, ts });
+  if (ex && ex.vehicleId === vid) byRoute.set(routeId, { vehicleId: vid, ts: Math.max(ex.ts, ts), first: Math.min(ex.first, first) });
+  else if (!ex || ts >= ex.ts) byRoute.set(routeId, { vehicleId: vid, ts, first }); // new bus: a new log-in
+}
+
+// Is this pairing still the block's bus? Its log-in time is the earliest
+// sighting of that bus on the block on ANY route (a block can change route).
+function isPairFresh(byRoute, p) {
+  let first = p.first;
+  for (const o of byRoute.values()) if (o.vehicleId === p.vehicleId && o.first < first) first = o.first;
+  return pairFresh(first, p.ts);
 }
 
 function savePairs() {
@@ -1035,15 +1047,15 @@ function savePairs() {
   try {
     const rows = [];
     for (const [blk, byRoute] of blockPairs)
-      for (const [routeId, p] of byRoute) if (isVehicleFresh(p.ts)) rows.push([blk, routeId, p.vehicleId, p.ts]);
+      for (const [routeId, p] of byRoute) if (isPairFresh(byRoute, p)) rows.push([blk, routeId, p.vehicleId, p.ts, p.first]);
     localStorage.setItem(PAIRS_KEY, JSON.stringify(rows));
   } catch(e) {}
 }
 
 function loadPairs() {
   try {
-    for (const [blk, routeId, vid, ts] of JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]'))
-      if (isVehicleFresh(ts)) notePair(blk, vid, ts, routeId);
+    for (const [blk, routeId, vid, ts, first] of JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]'))
+      if (pairFresh(first || ts, ts)) notePair(blk, vid, ts, routeId, first || ts);
   } catch(e) {}
 }
 
@@ -1061,8 +1073,9 @@ function blockBusyHereAt(blk, ts) {
 // Today's bus for a block on the current route, or '' (→ "pending").
 function knownVehicleFor(blk) {
   let best = null;
-  for (const [routeId, p] of blockPairs.get(String(blk)) || []) {
-    if (!isVehicleFresh(p.ts)) continue;
+  const byRoute = blockPairs.get(String(blk)) || new Map();
+  for (const [routeId, p] of byRoute) {
+    if (!isPairFresh(byRoute, p)) continue;
     if (!isSameRoute(routeId, state.route) && blockBusyHereAt(blk, p.ts)) continue;
     if (!best || p.ts > best.ts) best = p;
   }
@@ -1075,7 +1088,7 @@ function knownBlockFor(vid) {
   let best = null;
   for (const [blk, byRoute] of blockPairs) {
     for (const [routeId, p] of byRoute) {
-      if (p.vehicleId !== vid || !isVehicleFresh(p.ts)) continue;
+      if (p.vehicleId !== vid || !isPairFresh(byRoute, p)) continue;
       if ([...byRoute.values()].some(o => o.vehicleId !== vid && o.ts > p.ts)) continue;
       if (!best || p.ts > best.ts) best = { block: blk, route: routeId, ts: p.ts };
     }
