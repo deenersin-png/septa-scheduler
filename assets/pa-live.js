@@ -170,7 +170,7 @@ export async function vehicleForBlock(routes, block) {
 // A bus resting at a terminal or "not tracking" drops out of TransitView, so
 // the leader card would otherwise lose its number between trips. Same
 // localStorage key and row format as block-tracker.html, so what either page
-// has seen today serves both: [block, route, vehicleId, epochMs].
+// has seen today serves both: [block, route, vehicleId, lastSeenMs, firstSeenMs].
 const PAIRS_KEY = 'bt_pairs';
 const ALL_ENDPOINTS = [
   () => 'https://www3.septa.org/api/TransitViewAll/index.php?callback=',
@@ -180,23 +180,24 @@ const STATE_URL = 'https://deenersin-png.github.io/septa-gtfs/data-observed/stat
 let allFetchedAt = 0, stateFetchedAt = 0;
 
 /**
- * Same service day, or within ~6 h (an owl run past midnight): block-tracker
- * isVehicleFresh. The service day runs until 4 AM, so at 12:10 AM a 5:59 PM
- * pairing still counts.
+ * block-tracker pairFresh: a log-in counts for 14 h from the bus's first
+ * sighting on the block (no run lasts longer), and also while that bus is
+ * still being seen on it — up to 2 h after its last sighting — for the
+ * blocks two runs share that are out longer than 14 h.
  */
-function isFresh(ts) {
-  if (!ts) return false;
-  if (Date.now() - ts <= 6 * 3600000) return true;
-  const d = new Date();
-  if (d.getHours() < 4) d.setDate(d.getDate() - 1);
-  d.setHours(0, 0, 0, 0);
-  return ts >= d.getTime();
+function pairFresh(first, last) {
+  const now = Date.now();
+  return !!last && (now - (first || last) <= 14 * 3600000 || now - last <= 2 * 3600000);
 }
 
 const sameRoute = (a, b) => a === b || aliasesOf(a).includes(b) || aliasesOf(b).includes(a);
 
 function readPairs() {
-  try { return JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]').filter(r => isFresh(r[3])); }
+  try {
+    return JSON.parse(localStorage.getItem(PAIRS_KEY) || '[]')
+      .map(r => (r[4] ? r : [r[0], r[1], r[2], r[3], r[3]]))
+      .filter(r => pairFresh(r[4], r[3]));
+  }
   catch (_) { return []; }
 }
 
@@ -205,9 +206,11 @@ function notePairs(sightings) {
   const rows = new Map(readPairs().map(r => [r[0] + '|' + r[1], r]));
   for (const s of sightings) {
     const blk = String(s.block || '').trim(), vid = String(s.vehicleId || '').trim(), route = String(s.route || '');
-    if (!blk || blk === '0' || !vid || vid === '0' || vid.toLowerCase() === 'none' || !isFresh(s.ts)) continue;
+    if (!blk || blk === '0' || !vid || vid === '0' || vid.toLowerCase() === 'none' || !pairFresh(s.ts, s.ts)) continue;
     const ex = rows.get(blk + '|' + route);
-    if (!ex || s.ts >= ex[3]) rows.set(blk + '|' + route, [blk, route, vid, s.ts]);
+    // Same bus again: keep its log-in time. A new bus: a new log-in.
+    if (ex && ex[2] === vid) rows.set(blk + '|' + route, [blk, route, vid, Math.max(ex[3], s.ts), Math.min(ex[4], s.ts)]);
+    else if (!ex || s.ts >= ex[3]) rows.set(blk + '|' + route, [blk, route, vid, s.ts, s.ts]);
   }
   try { localStorage.setItem(PAIRS_KEY, JSON.stringify([...rows.values()])); } catch (_) {}
 }
@@ -247,9 +250,12 @@ export async function learnPairs(routes, buses, block) {
  * be two buses at once on two routes (weekday 9110 on 42 and 21).
  */
 export function knownBus(block, route, busyAt = () => false) {
+  const rows = readPairs().filter(r => r[0] === String(block));
   let best = null;
-  for (const [blk, r, vid, ts] of readPairs()) {
-    if (blk !== String(block)) continue;
+  for (const [, r, vid, ts, first] of rows) {
+    // Log-in = earliest sighting of this bus on the block on any route.
+    const login = Math.min(first, ...rows.filter(o => o[2] === vid).map(o => o[4]));
+    if (!pairFresh(login, ts)) continue;
     if (!sameRoute(r, String(route)) && busyAt(ts)) continue;
     if (!best || ts > best.ts) best = { vid, ts };
   }
