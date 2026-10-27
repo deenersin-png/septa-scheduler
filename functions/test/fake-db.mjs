@@ -33,7 +33,7 @@ export function makeDb() {
   const snapOf = entries => ({
     docs: entries.map(([p, data]) => ({ id: p.split('/').pop(), ref: docRef(p), exists: true, data: () => structuredClone(data) }))
   });
-  const passes = (data, filters) => filters.every(([f, op, v]) => (op === '==' ? data[f] === v : op === '>=' ? data[f] >= v : op === '<=' ? data[f] <= v : false));
+  const passes = (data, filters) => filters.every(([f, op, v]) => (op === '==' ? data[f] === v : op === '>=' ? data[f] >= v : op === '<=' ? data[f] <= v : op === '<' ? data[f] < v : false));
 
   const colRef = path => {
     const filters = [];
