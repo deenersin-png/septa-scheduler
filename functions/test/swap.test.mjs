@@ -27,11 +27,10 @@ function harness({ fail = {} } = {}) {
   return { db, deps, pushes, device, offer };
 }
 
-test('interest reaches the poster on every swap-enabled device', async () => {
+test('interest reaches the poster on every registered phone', async () => {
   const h = harness();
   h.offer('o1', {});
   h.device('deen', 'a', { fcmToken: 'tA' });
-  h.device('deen', 'b', { fcmToken: 'tB', swapAlerts: false });
   h.device('deen', 'c', { platform: 'no token' });
   const n = await onInterestCreated(h.deps, 'o1', { uid: 'pat', name: 'Pat', run: { date: '2026-11-05', runNo: '400' } });
   assert.equal(n, 1);

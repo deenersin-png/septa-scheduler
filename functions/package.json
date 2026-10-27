@@ -1,6 +1,6 @@
 {
   "name": "paddle-app-functions",
-  "description": "Pre-run email for the Paddle App",
+  "description": "Paddle App: phone alerts before runs, and the Swap board",
   "private": true,
   "type": "module",
   "main": "index.js",
@@ -8,13 +8,11 @@
     "node": "24"
   },
   "scripts": {
-    "sync": "node scripts/sync.js",
-    "logs": "firebase functions:log --only preRunEmail",
+    "logs": "firebase functions:log",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.1.0",
-    "nodemailer": "^6.9.15"
+    "firebase-functions": "^6.1.0"
   }
 }

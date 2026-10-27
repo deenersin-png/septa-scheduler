@@ -9,7 +9,6 @@
       "codebase": "default",
       "runtime": "nodejs24",
       "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run sync",
         "npm --prefix \"$RESOURCE_DIR\" test"
       ],
       "ignore": [

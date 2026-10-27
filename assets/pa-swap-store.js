@@ -14,14 +14,8 @@ import {
   query, where, serverTimestamp, deleteField
 } from 'https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js';
 
-import { initFirebase, firebaseConfig } from './pa-firebase.js';
+import { initFirebase } from './pa-firebase.js';
 
-// Web push key pair for Cloud Messaging. PUBLIC by design, like the API key.
-// Firebase console -> Project settings -> Cloud Messaging -> Web Push
-// certificates -> Generate key pair, then paste the "Key pair" value here.
-// Until then swap alerts show in the app only.
-export const FCM_VAPID_KEY = 'REPLACE_ME';
-export const pushConfigured = () => !FCM_VAPID_KEY.includes('REPLACE_ME');
 
 const db = () => { const fb = initFirebase(); if (!fb) throw new Error('Firebase is not configured'); return fb.db; };
 const offersCol = () => collection(db(), 'swapOffers');
@@ -160,29 +154,3 @@ export async function block(uid, otherUid, name) {
 }
 export async function unblock(uid, otherUid) { await deleteDoc(doc(db(), 'users', uid, 'swapBlocks', otherUid)); }
 
-// ---- push (Cloud Messaging) -------------------------------------------------
-
-/**
- * Register this phone for swap alerts. Resolves { ok, reason }. Uses the
- * site's own service worker (sw.js), whose push handler shows the alert, so
- * no second worker is installed.
- */
-export async function registerPush(uid) {
-  if (!pushConfigured()) return { ok: false, reason: 'not-configured' };
-  if (!('serviceWorker' in navigator) || !('Notification' in window)) return { ok: false, reason: 'unsupported' };
-  const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
-  if (perm !== 'granted') return { ok: false, reason: 'denied' };
-  const { getMessaging, getToken, isSupported } = await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-messaging.js');
-  if (!(await isSupported())) return { ok: false, reason: 'unsupported' };
-  const fb = initFirebase();
-  const reg = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href);
-  const token = await getToken(getMessaging(fb.app), { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
-  if (!token) return { ok: false, reason: 'no-token' };
-  // One device doc per token; the id is a short hash so it is a valid path.
-  let h = 0; for (let i = 0; i < token.length; i++) h = (h * 31 + token.charCodeAt(i)) | 0;
-  await setDoc(doc(db(), 'users', uid, 'devices', 'fcm_' + (h >>> 0).toString(36)), {
-    fcmToken: token, swapAlerts: true, platform: navigator.userAgent.slice(0, 120),
-    project: firebaseConfig.projectId, updatedAt: serverTimestamp()
-  });
-  return { ok: true };
-}

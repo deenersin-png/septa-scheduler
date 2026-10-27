@@ -30,13 +30,10 @@ export const DEFAULTS = {
   quietEnabled: false,
   quietStart: '22:00',
   quietEnd: '05:00',
-  // Tier 2, and the only alert that survives the app being closed: an email
-  // sent from the server (functions/) a couple of minutes before reporting,
-  // carrying the bus ahead and the detours. These three fields are read by
-  // that function; nothing in this module acts on them.
-  emailEnabled: false,
-  emailLeadMin: 2,
-  emailTo: ''
+  // The phone alert before a run, which arrives with the app closed: planned
+  // by pa-run-alerts.js, sent by functions/. Off until the operator turns it on.
+  pushEnabled: false,
+  pushLeadMin: 30
 };
 const LS_SETTINGS = 'pa_notify';
 const LS_FIRED    = 'pa_notify_fired';
@@ -91,16 +88,16 @@ export async function save(patch) {
 }
 
 /**
- * When the email sender last ran, from the heartbeat it writes each minute.
+ * When the phone-alert sender last ran, from the heartbeat it writes each minute.
  * Resolves { lastRunAt, ok } — ok false means it has not run in a while, and
  * null means it has never run, so the screen can say so rather than leave an
- * operator waiting for an email that nothing is sending.
+ * operator waiting for an alert that nothing is sending.
  */
 export async function senderStatus() {
   const fb = initFirebase();
   if (!fb) return null;
   try {
-    const snap = await getDoc(doc(fb.db, 'config', 'emailSender'));
+    const snap = await getDoc(doc(fb.db, 'config', 'pushSender'));
     if (!snap.exists()) return null;
     const d = snap.data();
     const ms = t => (t && t.toMillis ? t.toMillis() : 0);
@@ -108,9 +105,6 @@ export async function senderStatus() {
     return {
       lastRunAt: last,
       ok: last > 0 && Date.now() - last < 10 * 60000,
-      problem: d.problem || null,               // why the last sweep could not find anyone
-      sendProblem: d.sendProblem || null,       // why the last email could not be sent
-      sendProblemAt: ms(d.sendProblemAt)
     };
   } catch (_) { return null; }
 }
@@ -122,19 +116,9 @@ export async function senderStatus() {
  */
 export function senderMessage(st) {
   const clock = ms => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  if (!st) return { kind: 'err', text: 'No emails yet: the sender is not switched on for this app. Nothing else on this screen is affected.' };
-  if (!st.ok) return { kind: 'err', text: 'The sender has not run since ' + clock(st.lastRunAt) + ' — emails may be delayed.' };
-  if (st.problem === 'INDEX_BUILDING') {
-    return { kind: 'warn', text: 'The sender is running, but the database index it searches with is still being built. That takes a few minutes after a deploy; emails start on their own once it is ready.' };
-  }
-  if (st.problem) return { kind: 'err', text: 'The sender is running but hit a database error, so it cannot find who to email. It tries again every minute.' };
-  if (st.sendProblem === 'EAUTH') {
-    return { kind: 'err', text: 'The last email could not be sent (' + clock(st.sendProblemAt) + '): Gmail refused the sender’s login. The Gmail address or app password stored for the sender needs checking.' };
-  }
-  if (st.sendProblem) {
-    return { kind: 'err', text: 'The last email could not be sent (' + clock(st.sendProblemAt) + '). The sender tries again the next minute while the run is still due.' };
-  }
-  return { kind: 'ok', text: 'Sender is running · last checked ' + clock(st.lastRunAt) };
+  if (!st) return { kind: 'err', text: 'Phone alerts are not switched on for this app yet. Your alerts are saved and start once they are.' };
+  if (!st.ok) return { kind: 'err', text: 'The alert sender has not run since ' + clock(st.lastRunAt) + '. Alerts may be late or missed.' };
+  return { kind: 'ok', text: 'Alert sender is running · last checked ' + clock(st.lastRunAt) };
 }
 
 // ---- capability -----------------------------------------------------------

@@ -274,6 +274,23 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    // ---- phone alert before a run -----------------------------------------
+    // The phone plans its own alerts (assets/pa-run-alerts.js); functions/
+    // sends what is due and deletes it. One doc per operator per day, id
+    // {uid}_{date}, so nobody can write alerts for anyone else or pile up
+    // more than one a day.
+    match /runAlerts/{alertId} {
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && alertId == request.auth.uid + '_' + request.resource.data.date
+                    && isDate(request.resource.data.date)
+                    && request.resource.data.sendAtMs is int
+                    && isStr(request.resource.data.title, 80)
+                    && isStr(request.resource.data.body, 200)
+                    && request.resource.data.keys().hasOnly(['uid', 'date', 'sendAtMs', 'title', 'body', 'updatedAt']);
+    }
+
     // ---- deny everything else --------------------------------------------
     match /{document=**} {
       allow read, write: if false;
