@@ -21,21 +21,6 @@
   ],
   "fieldOverrides": [
     {
-      "collectionGroup": "settings",
-      "fieldPath": "emailEnabled",
-      "ttl": false,
-      "indexes": [
-        {
-          "order": "ASCENDING",
-          "queryScope": "COLLECTION"
-        },
-        {
-          "order": "ASCENDING",
-          "queryScope": "COLLECTION_GROUP"
-        }
-      ]
-    },
-    {
       "collectionGroup": "interest",
       "fieldPath": "uid",
       "ttl": false,

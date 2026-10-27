@@ -26,7 +26,10 @@ export function makeDb() {
       if (store.has(path)) throw Object.assign(new Error('6 ALREADY_EXISTS: Document already exists: ' + path), { code: 6 });
       store.set(path, structuredClone(data));
     },
-    async delete() { store.delete(path); },
+    async delete(pre) {
+      if (pre && pre.exists && !store.has(path)) throw Object.assign(new Error('5 NOT_FOUND: ' + path), { code: 5 });
+      store.delete(path);
+    },
     collection: name => colRef(path + '/' + name)
   });
 

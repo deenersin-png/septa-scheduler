@@ -12,10 +12,10 @@
 //                                        that the dispatcher must approve it
 //   the poster cancels after a pick   -> the person who was picked
 //
-// Push goes to every device in users/{uid}/devices that has an fcmToken and
-// has not turned swap alerts off. A token Google says is dead is deleted, so
-// one lost phone does not cost a failed send forever.
+// Push goes out through lib/push.js, to every phone the person registered.
 // ==========================================================================
+
+import { notify } from './push.js';
 
 /** Reports from different operators that take an offer off the board. */
 export const HIDE_AT_REPORTS = 3;
@@ -55,40 +55,6 @@ export function statusMessage(before, after) {
              body: (after.posterName || 'The poster') + ' cancelled ' + run + '.', tag: 'swap-' + after.id };
   }
   return null;
-}
-
-// ---- push ---------------------------------------------------------------------
-
-const DEAD_TOKEN = new Set([
-  'messaging/registration-token-not-registered',
-  'messaging/invalid-registration-token',
-  'messaging/invalid-argument'
-]);
-
-/**
- * Send one message to every swap-enabled device of each uid.
- * deps: { db, sendPush(token, payload) -> Promise, appUrl, log }
- * Resolves the number of devices reached.
- */
-export async function notify(deps, uids, msg) {
-  const { db, sendPush, appUrl, log } = deps;
-  let sent = 0;
-  for (const uid of [...new Set(uids)].filter(Boolean)) {
-    const snap = await db.collection('users/' + uid + '/devices').get();
-    for (const d of snap.docs) {
-      const dev = d.data();
-      if (!dev.fcmToken || dev.swapAlerts === false) continue;
-      try {
-        await sendPush(dev.fcmToken, { title: msg.title, body: msg.body, url: appUrl, tag: msg.tag || 'swap' });
-        sent++;
-      } catch (e) {
-        const code = e && (e.code || (e.errorInfo && e.errorInfo.code));
-        if (DEAD_TOKEN.has(code)) { await d.ref.delete().catch(() => {}); }
-        else if (log) log.error('swap push failed', { uid, code: code || String(e) });
-      }
-    }
-  }
-  return sent;
 }
 
 // ---- triggers -----------------------------------------------------------------

@@ -23,13 +23,13 @@ import * as E from './pa-edit-sheet.js';
 import * as W from './pa-swap.js';
 import * as U from './pa-swap-ui.js';
 import * as realStore from './pa-swap-store.js';
+import * as P from './pa-push.js';
 
 const { el, button, field } = U;
 
 export const PENDING_KEY = 'pa_swap_pending';
 const MANUAL_PREFIX = 'pa_swap_manual_v1_';
 const NAME_KEY = 'pa_swap_name';
-const PUSH_KEY = 'pa_swap_push';
 const LOAD_MS = 15000;
 
 const withTimeout = (p, ms = LOAD_MS) => Promise.race([p, new Promise((_, rej) =>
@@ -505,22 +505,22 @@ export function mount(root, deps) {
     list.appendChild(box);
   }
 
+  // Swap alerts go to the phones registered for push (pa-push.js), the same
+  // registration as the alert before a run.
   function pushLine(body) {
-    let done = false;
-    try { done = localStorage.getItem(PUSH_KEY) === '1'; } catch (_) {}
-    if (done) return;
+    if (P.registeredHere(uid())) return;
     const line = el('div', 'hint');
     line.style.margin = '0 0 12px';
-    if (!store.pushConfigured()) {
-      line.textContent = 'Phone alerts for swaps are not switched on yet. Check this tab for new interest.';
+    if (!P.pushConfigured()) {
+      line.textContent = 'Phone alerts are not switched on for this app yet. Check this tab for new interest.';
       body.appendChild(line);
       return;
     }
     const b = button('pa-ghost', 'Get swap alerts on this phone', async () => {
       b.disabled = true;
-      const r = await store.registerPush(uid()).catch(() => ({ ok: false, reason: 'error' }));
-      if (r.ok) { try { localStorage.setItem(PUSH_KEY, '1'); } catch (_) {} line.textContent = 'Swap alerts are on for this phone.'; b.remove(); }
-      else { b.disabled = false; line.textContent = r.reason === 'denied' ? 'Notifications are blocked for this site in your browser settings.' : 'This browser cannot get alerts. On iPhone, add the app to your Home Screen first.'; }
+      const r = await P.registerPush(uid());
+      if (r.ok) { line.textContent = 'Phone alerts are on for this phone.'; b.remove(); }
+      else { b.disabled = false; line.textContent = P.pushProblem(r.reason); }
     });
     body.append(b, line);
   }
