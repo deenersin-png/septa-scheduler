@@ -1,0 +1,50 @@
+/* The single-week hours view (assets/pa-hours-view.js), shared by Weekly
+   Hours and the Schedule tab on My run. Uses the host page's color tokens. */
+.hv-weeknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.hv-btn{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;background:none;border:1px solid var(--line2);border-radius:4px;color:var(--mid);padding:8px 14px;cursor:pointer;line-height:1}
+.hv-btn:hover{color:var(--amber);border-color:var(--line3)}
+.hv-label{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--bright);text-align:center}
+.hv-pick{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-top:3px;text-align:center}
+.hv-pick.none{color:var(--dim)}
+
+.hv-sheet{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--ink)}
+.hv-hrow{display:grid;grid-template-columns:96px 1fr 72px 72px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:var(--ink2)}
+.hv-hrow .n{text-align:right}
+.hv-row{display:grid;grid-template-columns:96px 1fr 72px 72px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);border-left:3px solid transparent;font-family:var(--mono);font-size:12px;cursor:pointer}
+.hv-row:last-child{border-bottom:none}
+.hv-row:hover{background:var(--ink2)}
+.hv-row.today{background:var(--amber-dim)}
+.hv-row.flag{border-left-color:var(--amber)}
+.hv-row.future{opacity:.8}
+.hv-row .d{color:var(--bright);font-weight:600}
+.hv-row .d small{display:block;color:var(--dim);font-weight:400;font-size:10px}
+.hv-row .run{color:var(--text);min-width:0}
+.hv-row .run.off{color:var(--dim)}
+.hv-row .run .tag{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;border:1px solid var(--line2);color:var(--dim);margin-left:6px;vertical-align:middle}
+.hv-row .run .tag.amber{color:var(--amber);border-color:rgba(245,166,35,.35)}
+.hv-row .run .tag.violet{color:var(--violet);border-color:rgba(167,139,250,.35)}
+.hv-row .run .tag.green{color:var(--green);border-color:rgba(61,214,140,.35)}
+.hv-row .run .tag.red{color:var(--red);border-color:rgba(255,107,107,.35)}
+.hv-row .run .ex{display:block;font-size:10px;color:var(--amber);margin-top:3px}
+.hv-row .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.hv-row .n.dim{color:var(--dim)}
+.hv-row .n.warn{color:var(--amber)}
+/* Read-only: rows are display only. */
+.hv-ro .hv-row{cursor:default}
+.hv-ro .hv-row:hover{background:none}
+.hv-ro .hv-row.today:hover{background:var(--amber-dim)}
+
+.hv-totals{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.hv-tot{background:var(--ink2);padding:12px}
+.hv-tot-k{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.hv-tot-v{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--bright);margin-top:4px;font-variant-numeric:tabular-nums}
+.hv-tot-v.amber{color:var(--amber)}
+.hv-tot-s{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+.hv-hint{font-family:var(--sans);font-size:12px;color:var(--dim);line-height:1.5;margin-top:10px}
+
+@media (max-width:560px){
+  .hv-hrow{grid-template-columns:78px 1fr 60px 60px;gap:6px;padding:8px}
+  .hv-row{grid-template-columns:78px 1fr 60px 60px;gap:6px;padding:10px 8px;font-size:11px}
+  .hv-totals{grid-template-columns:1fr 1fr 1fr}
+  .hv-tot-v{font-size:16px}
+}
