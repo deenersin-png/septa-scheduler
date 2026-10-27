@@ -13,6 +13,7 @@
 </script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/pa-account.css">
+<link rel="stylesheet" href="assets/pa-hours.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0b0d">
 <meta name="apple-mobile-web-app-title" content="Paddle">
@@ -44,42 +45,9 @@ header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 
 .gate a{color:var(--amber)}
 [hidden]{display:none!important}
 
-.weeknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .wk-btn{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;background:none;border:1px solid var(--line2);border-radius:4px;color:var(--mid);padding:8px 14px;cursor:pointer;line-height:1}
 .wk-btn:hover{color:var(--amber);border-color:var(--line3)}
-.wk-label{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--bright);text-align:center}
-.wk-pick{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-top:3px;text-align:center}
-.wk-pick.none{color:var(--dim)}
 
-.sheet{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--ink)}
-.hrow{display:grid;grid-template-columns:96px 1fr 72px 72px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:var(--ink2)}
-.hrow .n{text-align:right}
-.row{display:grid;grid-template-columns:96px 1fr 72px 72px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);border-left:3px solid transparent;font-family:var(--mono);font-size:12px;cursor:pointer}
-.row:last-child{border-bottom:none}
-.row:hover{background:var(--ink2)}
-.row.today{background:var(--amber-dim)}
-.row.flag{border-left-color:var(--amber)}
-.row.future{opacity:.8}
-.row .d{color:var(--bright);font-weight:600}
-.row .d small{display:block;color:var(--dim);font-weight:400;font-size:10px}
-.row .run{color:var(--text);min-width:0}
-.row .run.off{color:var(--dim)}
-.row .run .tag{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;border:1px solid var(--line2);color:var(--dim);margin-left:6px;vertical-align:middle}
-.row .run .tag.amber{color:var(--amber);border-color:rgba(245,166,35,.35)}
-.row .run .tag.violet{color:var(--violet);border-color:rgba(167,139,250,.35)}
-.row .run .tag.green{color:var(--green);border-color:rgba(61,214,140,.35)}
-.row .run .tag.red{color:var(--red);border-color:rgba(255,107,107,.35)}
-.row .run .ex{display:block;font-size:10px;color:var(--amber);margin-top:3px}
-.row .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
-.row .n.dim{color:var(--dim)}
-.row .n.warn{color:var(--amber)}
-
-.totals{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
-.tot{background:var(--ink2);padding:12px}
-.tot-k{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-.tot-v{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--bright);margin-top:4px;font-variant-numeric:tabular-nums}
-.tot-v.amber{color:var(--amber)}
-.tot-s{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
 .hint{font-family:var(--sans);font-size:12px;color:var(--dim);line-height:1.5;margin-top:10px}
 .lookup{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5;min-height:16px}
 .lookup.ok{color:var(--green)}.lookup.warn{color:var(--amber)}
@@ -95,10 +63,6 @@ header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 
 .extra-in{padding:8px 9px}.extra-note{padding:8px 9px;font-size:13px}
 
 @media (max-width:560px){
-  .hrow{grid-template-columns:78px 1fr 60px 60px;gap:6px;padding:8px}
-  .row{grid-template-columns:78px 1fr 60px 60px;gap:6px;padding:10px 8px;font-size:11px}
-  .totals{grid-template-columns:1fr 1fr 1fr}
-  .tot-v{font-size:16px}
   .extra-row{grid-template-columns:auto 70px auto auto;grid-template-areas:"k in u rm" "note note note note"}
   .extra-note{grid-area:note}
 }
@@ -127,28 +91,7 @@ header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 
     <br><button class="wk-btn" id="gate-retry-btn" type="button" style="margin-top:12px">TRY AGAIN</button>
   </div>
 
-  <section id="view" hidden>
-    <div class="weeknav">
-      <button class="wk-btn" id="prev" type="button">&larr; PREV</button>
-      <div>
-        <div class="wk-label" id="wk-label">&mdash;</div>
-        <div class="wk-pick" id="wk-pick"></div>
-      </div>
-      <button class="wk-btn" id="next" type="button">NEXT &rarr;</button>
-    </div>
-
-    <div class="sheet">
-      <div class="hrow"><span>Day</span><span>Run</span><span class="n">Sched</span><span class="n">Actual</span></div>
-      <div id="rows"></div>
-    </div>
-
-    <div class="totals">
-      <div class="tot"><div class="tot-k">Scheduled</div><div class="tot-v" id="t-sch">0.00</div><div class="tot-s">full week</div></div>
-      <div class="tot"><div class="tot-k">Actual</div><div class="tot-v amber" id="t-act">0.00</div><div class="tot-s" id="t-act-s">through today</div></div>
-      <div class="tot"><div class="tot-k">Days worked</div><div class="tot-v" id="t-days">0</div><div class="tot-s" id="t-days-s">through today</div></div>
-    </div>
-    <div class="hint" id="hint">Tap a day to swap the run, mark it off, sick, vacation or holiday, or add overtime and bonuses. Hours come from the paddle for the run number; you never type them. Amber-edged days have something extra on them.</div>
-  </section>
+  <section id="view" hidden></section>
 </div>
 
 <script>
@@ -170,12 +113,13 @@ window.addEventListener('error', function (e) {
 import * as S from './assets/pa-schedule.js';
 import * as A from './assets/pa-assignments.js';
 import * as E from './assets/pa-edit-sheet.js';
+import * as HV from './assets/pa-hours-view.js';
 import { loadProfile, loadProfileSafe, ensureUser } from './assets/pa-store.js';
 
 const $ = id => document.getElementById(id);
-const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
-const ctx = { user: null, profile: null, overrides: {}, seasons: [], seasonsLoaded: false, weekStart: null, subscribed: false, token: 0, authToken: 0, drawnVersion: -1, redrawTimer: null };
+const ctx = { user: null, profile: null, subscribed: false, authToken: 0, drawnVersion: -1, redrawTimer: null };
+const week = HV.mount($('view'), { getProfile: () => ctx.profile });
 
 function showOnly(id) { ['gate-out', 'gate-retry', 'gate-setup', 'view'].forEach(x => { $(x).hidden = x !== id; }); }
 
@@ -215,14 +159,11 @@ async function start() {
 function renderSyncLine() { E.renderSync($('sync-line'), A.getState(), () => A.retryNow()); }
 
 async function boot() {
-  const today = S.todayIso();
   $('hd-ctx').textContent = ' · ' + (ctx.profile.depotLabel || ctx.profile.depotKey);
   E.configure({ profile: ctx.profile, onSaved: () => renderWeek() });
-  if (!ctx.weekStart) ctx.weekStart = S.weekStartOf(today);
-  // Season list and holidays arrive in the background; the week renders
-  // from the operator's own schedule without waiting for them.
-  S.loadSeasons().then(s => { ctx.seasons = s || []; ctx.seasonsLoaded = true; renderWeek(); }).catch(() => {});
-  S.loadCalendarOverrides().then(ov => { ctx.overrides = ov || {}; renderWeek(); }).catch(() => {});
+  // Holidays arrive in the background; the week renders from the
+  // operator's own schedule without waiting for them.
+  S.loadCalendarOverrides().then(ov => week.setOverrides(ov)).catch(() => {});
   if (!ctx.subscribed) {
     ctx.subscribed = true;
     A.onChange(() => {
@@ -239,114 +180,9 @@ async function boot() {
   renderWeek();
 }
 
-$('prev').addEventListener('click', () => { ctx.weekStart = S.addDays(ctx.weekStart, -7); renderWeek(); });
-$('next').addEventListener('click', () => { ctx.weekStart = S.addDays(ctx.weekStart, 7); renderWeek(); });
+function renderWeek() { return week.render(); }
 
-function statusLabel(r) {
-  if (r.unregistered) return '—';
-  if (!r.off) return 'RUN ' + r.runNo + (r.runDayType && r.runDayType !== r.dayType ? ' (' + r.runDayType + ')' : '');
-  if (r.kind && A.KIND_LABELS[r.kind]) return A.KIND_LABELS[r.kind].toUpperCase();
-  return ({ off: 'OFF', sick: 'SICK', vacation: 'PAID DAY OFF', holiday: 'HOLIDAY' })[r.status] || r.status.toUpperCase();
-}
-
-function extrasText(r, hours) {
-  const bits = [];
-  (r.extras || []).forEach(x => {
-    if (x.kind === 'late') { bits.push('Late allowance ' + Math.abs(x.min) + 'm (+' + A.fmtHours(A.extraPayMin(x)) + 'h)'); return; }
-    if (x.kind === 'ot') { bits.push('OT ' + x.min + 'm'); return; }
-    const label = x.kind === 'holiday' ? 'Holiday' : (x.note || 'Extra');
-    bits.push(label + ' +' + (x.min / 60).toFixed(2).replace(/\.?0+$/, '') + 'h');
-  });
-  if (hours && hours.earlyReportMin) bits.push('Early report +' + A.fmtHours(hours.earlyReportMin) + 'h');
-  if (r.note) bits.push('“' + r.note + '”');
-  return bits.join(' · ');
-}
-
-async function renderWeek() {
-  const myToken = ++ctx.token;
-  const today = S.todayIso();
-  const ws = ctx.weekStart, we = S.addDays(ws, 6);
-  const season = S.seasonFor(ctx.seasons, ws);
-  const seasonEnd = S.seasonFor(ctx.seasons, we);
-  $('wk-label').textContent = S.fmtDate(ws) + ' – ' + S.fmtDate(we) + ', ' + S.fromIso(we).getFullYear();
-  const pick = $('wk-pick');
-  if (season) {
-    pick.textContent = season.label + ' pick' + (seasonEnd && seasonEnd.id !== season.id ? ' → ' + seasonEnd.label : '');
-    pick.className = 'wk-pick';
-  } else { pick.textContent = ctx.seasonsLoaded ? 'before any pick on record' : ''; pick.className = 'wk-pick none'; }
-
-  const resolved = A.resolveRange(ws, we, ctx.overrides);
-  const days = await Promise.all(resolved.map(async r => {
-    const run = r.off ? null : await E.runFor(r, r.date, ctx.profile.depotKey).catch(() => null);
-    return { r, run, hours: A.dayHours(r, run, today) };
-  }));
-  if (myToken !== ctx.token) return;      // a newer render superseded this one
-
-  const rows = $('rows'); rows.textContent = '';
-  let anyRegistered = false;
-  for (const d of days) {
-    const { r, run, hours } = d;
-    if (!r.unregistered) anyRegistered = true;
-    const row = el('div', 'row' + (r.date === today ? ' today' : '') + (hours.flagged ? ' flag' : '') + (!hours.past ? ' future' : ''));
-    const dc = el('div', 'd', S.DAY_SHORT[S.dowOf(r.date)].toUpperCase());
-    dc.appendChild(el('small', null, S.fmtDate(r.date).slice(4) + (r.date === today ? ' · today' : '')));
-
-    const rc = el('div', 'run' + (r.off ? ' off' : ''));
-    rc.appendChild(document.createTextNode(statusLabel(r)));
-    if (!r.off && run && run.pieces[0]) rc.appendChild(document.createTextNode(' · ' + run.pieces.map(p => p.routeLabel).join(' / ')));
-    if (r.extraShift) rc.appendChild(el('span', 'tag green', 'extra shift'));
-    else if (r.source === 'assignment' && !r.off && r.patternRunNo && r.runNo !== r.patternRunNo) rc.appendChild(el('span', 'tag violet', 'swapped'));
-    else if (r.source === 'assignment' && r.off && r.patternRunNo) rc.appendChild(el('span', 'tag red', 'override'));
-    if (r.holidayDate && !r.unregistered) rc.appendChild(el('span', 'tag amber', 'holiday'));
-    if (hours.unknownRun) rc.appendChild(el('span', 'tag amber', 'not in paddle'));
-    const rowSeason = S.seasonFor(ctx.seasons, r.date);
-    if (rowSeason && season && rowSeason.id !== season.id) rc.appendChild(el('span', 'tag', rowSeason.label));
-    const ex = extrasText(r, hours);
-    if (ex) rc.appendChild(el('span', 'ex', ex));
-
-    const sc = el('div', 'n' + (hours.scheduledMin ? '' : ' dim') + (hours.unknownRun ? ' warn' : ''), hours.scheduledMin ? A.fmtHours(hours.scheduledMin) : '—');
-    // Future days and plain days off show a dash; a day that was worked, or
-    // that carries extras (holiday pay, sick pay logged as "other"), shows hours.
-    const blank = hours.actualMin == null || (!hours.working && !(r.extras && r.extras.length));
-    const ac = el('div', 'n' + (blank ? ' dim' : ''), blank ? '—' : A.fmtHours(hours.actualMin));
-    row.append(dc, rc, sc, ac);
-    if (!r.unregistered || r.date >= (ctx.seasons[0] ? ctx.seasons[0].start : '0000')) {
-      row.addEventListener('click', () => E.openEdit(r));
-    }
-    rows.appendChild(row);
-  }
-
-  // Vacation is paid by the week, not by the day, so it is stated once
-  // rather than smeared across seven rows that each read "VACATION".
-  const t = A.weekTotals(days, today);
-  if (t.vacationWeeks) {
-    const vr = el('div', 'row flag');
-    const vd = el('div', 'd', 'VAC');
-    vd.appendChild(el('small', null, 'week'));
-    const vc = el('div', 'run');
-    vc.appendChild(document.createTextNode('VACATION WEEK'));
-    vc.appendChild(el('span', 'ex', 'Paid by the week, whatever the pick says.'));
-    const started = ws <= today;
-    vr.append(vd, vc,
-      el('div', 'n', A.fmtHours(t.vacationMin)),
-      el('div', 'n' + (started ? '' : ' dim'), started ? A.fmtHours(t.vacationMin) : '—'));
-    rows.appendChild(vr);
-  }
-  $('t-sch').textContent = A.fmtHours(t.scheduledMin);
-  $('t-act').textContent = A.fmtHours(t.actualMin);
-  $('t-days').textContent = String(t.daysWorked);
-  const whole = we < today;
-  $('t-act-s').textContent = whole ? 'full week' : (ws > today ? 'not started' : 'through today');
-  $('t-days-s').textContent = $('t-act-s').textContent;
-  const sync = A.getState().sync;
-  $('hint').textContent = anyRegistered
-    ? 'Tap a day to swap the run, mark it off, sick, vacation or holiday, or add overtime and bonuses. Hours come from the paddle for the run number; you never type them. Amber-edged days have something extra on them.'
-    : sync.status === 'connecting' ? 'Loading your schedule…'
-    : sync.status === 'error' && !A.getState().patterns.length ? 'Can’t load your schedule right now (' + sync.error + '). It will retry by itself.'
-    : 'Nothing is registered for this week. Set up your pick on My run and every week from its start date fills in by itself.';
-}
-
-window.PA_HOURS = { S, A, E, ctx, renderWeek };
+window.PA_HOURS = { S, A, E, ctx, week, renderWeek };
 // Modules linked fine: allow a future update to trigger one reload again.
 try { sessionStorage.removeItem('pa_update_reload'); } catch (_) {}
 </script>

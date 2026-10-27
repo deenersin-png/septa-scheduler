@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/pa-live-cards.css">
 <link rel="stylesheet" href="assets/pa-account.css">
+<link rel="stylesheet" href="assets/pa-hours.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -144,6 +145,9 @@ a.chip{text-decoration:none}
 .pay{font-family:var(--mono);font-size:12px;color:var(--mid);margin:10px 0}
 .pay b{color:var(--amber)}
 .sect{margin-bottom:12px}
+.sch-acts{display:flex;gap:8px;margin-top:16px}
+.sch-acts > *{flex:1 1 0;width:auto;margin-top:0}
+.bulk-back{margin-bottom:12px}
 h2.k{margin-bottom:10px}
 
 @media (max-width:640px){
@@ -194,6 +198,17 @@ h2.k{margin-bottom:10px}
   </section>
 
   <section id="view-schedule" hidden>
+    <div id="sch-week"></div>
+    <div class="sch-acts">
+      <button class="pa-ghost" id="sch-edit" type="button">Edit</button>
+      <button class="pa-ghost" id="sch-bulk" type="button">Bulk Edit</button>
+    </div>
+  </section>
+
+  <!-- Bulk Edit: the full schedule editor (picks, vacation, next 4 weeks).
+       Reached only from the Bulk Edit button on the Schedule tab. -->
+  <section id="view-bulk" hidden>
+    <button class="pa-ghost bulk-back" id="bulk-back" type="button">&larr; Back to schedule</button>
     <div class="card sect" id="sch-form"></div>
     <div class="card sect" id="sch-vacation"></div>
     <div class="card sect">
@@ -233,6 +248,7 @@ import { loadProfile, loadProfileSafe, ensureUser } from './assets/pa-store.js';
 import * as N from './assets/pa-notify.js';
 import * as E from './assets/pa-edit-sheet.js';
 import * as SU from './assets/pa-setup.js';
+import * as HV from './assets/pa-hours-view.js';
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -274,17 +290,30 @@ function findNext(fromIso, days) {
 // ---- boot / auth ----------------------------------------------------------
 
 function showOnly(id) {
-  ['gate-out', 'gate-retry', 'gate-setup', 'view-today', 'view-schedule', 'view-alerts'].forEach(x => { $(x).hidden = x !== id; });
-  $('tabs').hidden = !(id === 'view-today' || id === 'view-schedule' || id === 'view-alerts');
+  ['gate-out', 'gate-retry', 'gate-setup', 'view-today', 'view-schedule', 'view-bulk', 'view-alerts'].forEach(x => { $(x).hidden = x !== id; });
+  $('tabs').hidden = !(id === 'view-today' || id === 'view-schedule' || id === 'view-bulk' || id === 'view-alerts');
 }
+// 'bulk' is the old schedule editor, shown under the SCHEDULE tab.
 function setView(v) {
   ctx.view = v;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
-  showOnly(v === 'today' ? 'view-today' : v === 'alerts' ? 'view-alerts' : 'view-schedule');
-  if (v === 'schedule') renderSchedule();
+  const tab = v === 'bulk' ? 'schedule' : v;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === tab));
+  showOnly(v === 'today' ? 'view-today' : v === 'alerts' ? 'view-alerts' : v === 'bulk' ? 'view-bulk' : 'view-schedule');
+  if (v === 'schedule') { setWeekEditing(false); }
+  if (v === 'bulk') renderSchedule();
   if (v === 'alerts') renderAlerts();
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+
+// SCHEDULE tab: the Weekly Hours week, read-only until Edit is tapped.
+const week = HV.mount($('sch-week'), { readOnly: true, getProfile: () => ctx.profile, onEditDay: r => openEdit(r) });
+function setWeekEditing(on) {
+  $('sch-edit').textContent = on ? 'Done' : 'Edit';
+  week.setReadOnly(!on);
+}
+$('sch-edit').addEventListener('click', () => setWeekEditing(week.state.readOnly));
+$('sch-bulk').addEventListener('click', () => setView('bulk'));
+$('bulk-back').addEventListener('click', () => setView('schedule'));
 
 window.addEventListener('pa:auth', e => {
   ctx.user = e.detail.user;
@@ -333,7 +362,7 @@ function scheduleRedraw(force) {
   ctx.redrawTimer = setTimeout(() => {
     ctx.drawnVersion = A.getState().version;
     refreshToday();
-    if (ctx.view === 'schedule') renderSchedule();
+    redrawScheduleViews();
   }, 150);
 }
 
@@ -343,7 +372,7 @@ async function boot() {
   // Holidays, season and GTFS version come from other files on other sites.
   // None of them may hold up the operator's own schedule: fetch in the
   // background and redraw when each one lands.
-  S.loadCalendarOverrides().then(ov => { ctx.overrides = ov || {}; scheduleRedraw(true); }).catch(() => {});
+  S.loadCalendarOverrides().then(ov => { ctx.overrides = ov || {}; week.state.overrides = ctx.overrides; scheduleRedraw(true); }).catch(() => {});
   S.loadGtfsManifest().then(g => { ctx.gtfs = g || {}; if ($('meta')) $('meta').textContent = metaLine(); }).catch(() => {});
   slugForDate(ctx.profile.depotKey, today).then(info => {
     ctx.seasonLabel = info && info.season ? info.season.label : '';
@@ -964,6 +993,13 @@ function renderEmailAlerts(body, s) {
 
 // ---- SCHEDULE -------------------------------------------------------------
 
+function redrawScheduleViews() {
+  if (ctx.view === 'schedule') week.render();
+  if (ctx.view === 'bulk') renderSchedule();
+}
+
+// ---- BULK EDIT (the full schedule editor) ---------------------------------
+
 function renderSchedule() {
   if (!ctx.profile) return;
   const form = $('sch-form'); form.textContent = '';
@@ -1318,12 +1354,12 @@ async function renderUpcoming() {
 // ---- edit sheet (shared module) ------------------------------------------
 
 function openEdit(r) {
-  E.configure({ profile: ctx.profile, onSaved: () => { refreshToday(); if (ctx.view === 'schedule') renderSchedule(); } });
+  E.configure({ profile: ctx.profile, onSaved: () => { refreshToday(); redrawScheduleViews(); } });
   E.openEdit(r);
 }
 
 // Expose the pure pieces for in-browser checks (no side effects).
-window.PA_HOME = { S, A, N, E, computeState, ctx, renderSchedule, renderToday, renderAlerts, openEdit, refreshToday };
+window.PA_HOME = { S, A, N, E, computeState, ctx, week, renderSchedule, renderToday, renderAlerts, openEdit, refreshToday };
 // Modules linked fine: allow a future update to trigger one reload again.
 try { sessionStorage.removeItem('pa_update_reload'); } catch (_) {}
 </script>
