@@ -17,7 +17,7 @@
 //     served only when the network fails - a depot parking lot with one bar
 //     still gets the paddle viewer it loaded this morning.
 
-const VERSION = 'pa-sw-3';
+const VERSION = 'pa-sw-4';
 const CACHE = 'pa-cache-v2';
 
 // What the worker hands the PAGE is marked no-store. The browser's in-memory
@@ -67,18 +67,26 @@ self.addEventListener('notificationclick', e => {
            || new URL('home.html', self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     for (const c of list) {
-      if (c.url.indexOf('home.html') !== -1 && 'focus' in c) return c.focus();
+      if (c.url.indexOf('home.html') === -1 || !('focus' in c)) continue;
+      // A swap alert opens the Swap tab, not whatever tab was left open.
+      if (url.indexOf('view=swap') !== -1 && 'navigate' in c) return c.navigate(url).then(w => (w || c).focus());
+      return c.focus();
     }
     return self.clients.openWindow(url);
   }));
 });
 
-// Server-sent push (Tier 2). Payload: { title, body, url }.
+// Server-sent push (Tier 2). Payload: { title, body, url, tag }, either
+// bare or as Cloud Messaging wraps it ({ data: {...} } for the Swap board's
+// data-only messages, { notification: {...} } for console test sends).
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
+  if (d && d.data && (d.data.title || d.data.body)) d = d.data;
+  else if (d && d.notification) d = { ...d.notification, url: (d.data && d.data.url) || d.fcmOptions && d.fcmOptions.link };
   e.waitUntil(self.registration.showNotification(d.title || 'Paddle App', {
     body: d.body || '',
+    tag: d.tag || undefined,
     icon: new URL('assets/icon-192.png', self.registration.scope).href,
     badge: new URL('assets/icon-192.png', self.registration.scope).href,
     data: { url: d.url || new URL('home.html', self.registration.scope).href }

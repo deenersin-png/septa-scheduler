@@ -140,6 +140,140 @@ service cloud.firestore {
       }
     }
 
+    // ---- swap board -------------------------------------------------------
+    // The model is documented at the top of assets/pa-swap.js. The board is
+    // PUBLIC to read (a QR flyer opens it with no account) and every write
+    // needs a signed-in user. The app only connects operators; nothing here
+    // approves a swap, so these rules guard ownership and shape, not the
+    // schedule rules (those are advice, checked in the browser).
+
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+
+    // Not posted for a day already gone. A day's grace for time zones; the
+    // daily cleanup in functions/ removes what expires.
+    function notPast(iso) {
+      let p = iso.split('-');
+      return timestamp.date(int(p[0]), int(p[1]), int(p[2])) + duration.value(30, 'h') > request.time;
+    }
+
+    function validRunCard(c) {
+      return c is map
+        && isDate(c.date) && isStr(c.runNo, 8) && isStr(c.dayType, 12)
+        && isStr(c.routeLabel, 60) && c.routes is list && c.routes.size() <= 12
+        && c.keys().hasOnly(['date', 'dayType', 'runNo', 'routeLabel', 'routes', 'owl',
+                             'reportMin', 'finishMin', 'payHours', 'swing']);
+    }
+
+    function validOffer() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+               'v', 'kind', 'status', 'posterUid', 'posterName', 'depotKey', 'depotLabel',
+               'seasonId', 'seasonLabel', 'weekStart', 'give', 'wants', 'prefs', 'posterBusy',
+               'expiresOn', 'matchedUid', 'matchedName', 'matchedAt', 'arrangedBy',
+               'reportCount', 'createdAt', 'updatedAt'
+             ])
+        && d.posterUid is string
+        && isStr(d.posterName, 60) && d.posterName.size() > 0
+        && isStr(d.depotKey, 60) && isStr(d.depotLabel, 60)
+        && isStr(d.seasonId, 40) && isStr(d.seasonLabel, 60)
+        && d.kind in ['give', 'dayoff']
+        && d.status in ['open', 'matched', 'arranged', 'cancelled']
+        && isDate(d.weekStart) && isDate(d.expiresOn)
+        && validRunCard(d.give)
+        && d.wants is list && d.wants.size() >= 1 && d.wants.size() <= 8
+        && d.prefs is map && (!('note' in d.prefs) || isStr(d.prefs.note, 140))
+        && d.posterBusy is map && d.posterBusy.size() <= 9;
+    }
+
+    function offerDoc(offerId) { return get(/databases/$(database)/documents/swapOffers/$(offerId)).data; }
+
+    match /swapOffers/{offerId} {
+      // Anyone, signed out included, except an offer hidden by reports. The
+      // board's query filters status == 'open', which is how a LIST passes.
+      allow read: if resource.data.status != 'hidden'
+                  || (signedIn() && (resource.data.posterUid == request.auth.uid
+                                     || resource.data.matchedUid == request.auth.uid))
+                  || isAdmin();
+
+      allow create: if signedIn() && validOffer()
+                    && request.resource.data.posterUid == request.auth.uid
+                    && request.resource.data.status == 'open'
+                    && !('matchedUid' in request.resource.data)
+                    && !('reportCount' in request.resource.data)
+                    && notPast(request.resource.data.expiresOn);
+
+      // The poster edits, picks someone, marks arranged or cancels. Who they
+      // pick must have said "I'm interested". A hidden offer stays hidden and
+      // reportCount is the server's alone.
+      allow update: if signedIn() && validOffer()
+                    && resource.data.posterUid == request.auth.uid
+                    && request.resource.data.posterUid == resource.data.posterUid
+                    && resource.data.status != 'hidden'
+                    && request.resource.data.get('reportCount', 0) == resource.data.get('reportCount', 0)
+                    && (request.resource.data.status != 'matched'
+                        || exists(/databases/$(database)/documents/swapOffers/$(offerId)/interest/$(request.resource.data.matchedUid)));
+
+      // The person picked may only mark it arranged.
+      allow update: if signedIn()
+                    && resource.data.status == 'matched'
+                    && resource.data.matchedUid == request.auth.uid
+                    && request.resource.data.status == 'arranged'
+                    && request.resource.data.arrangedBy == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'arrangedBy', 'updatedAt']);
+
+      allow delete: if signedIn() && resource.data.posterUid == request.auth.uid;
+      allow write:  if isAdmin();
+
+      // "I'm interested": the operator and the poster can see it, nobody else.
+      match /interest/{iuid} {
+        allow read: if signedIn()
+                    && (request.auth.uid == iuid || offerDoc(offerId).posterUid == request.auth.uid);
+        allow create, update: if signedIn() && request.auth.uid == iuid
+                    && offerDoc(offerId).status == 'open'
+                    && offerDoc(offerId).posterUid != iuid
+                    && request.resource.data.uid == iuid
+                    && isStr(request.resource.data.name, 60)
+                    && request.resource.data.color in ['green', 'yellow', 'red']
+                    && (!('note' in request.resource.data) || isStr(request.resource.data.note, 140))
+                    && (request.resource.data.get('run', null) == null || validRunCard(request.resource.data.run))
+                    && request.resource.data.keys().hasOnly(['uid', 'name', 'run', 'wantIndex', 'color', 'reason', 'note', 'createdAt', 'updatedAt']);
+        // Withdrawn by the operator, or dismissed by the poster.
+        allow delete: if signedIn()
+                    && (request.auth.uid == iuid || offerDoc(offerId).posterUid == request.auth.uid);
+      }
+
+      // Phone / email. Each person writes their own; it is readable by the
+      // other ONLY once the poster has picked that person.
+      match /contact/{cuid} {
+        allow write: if signedIn() && request.auth.uid == cuid
+                     && isStr(request.resource.data.name, 60)
+                     && isStr(request.resource.data.phone, 30)
+                     && isStr(request.resource.data.email, 120)
+                     && request.resource.data.keys().hasOnly(['name', 'phone', 'email', 'updatedAt']);
+        allow read: if signedIn() && (request.auth.uid == cuid || (
+                       offerDoc(offerId).status in ['matched', 'arranged']
+                       && request.auth.uid in [offerDoc(offerId).posterUid, offerDoc(offerId).matchedUid]
+                       && cuid in [offerDoc(offerId).posterUid, offerDoc(offerId).matchedUid]));
+      }
+    }
+
+    // "Offers I'm interested in" is a collection-group query on uid.
+    match /{path=**}/interest/{iuid} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // One report per person per offer (the id is offerId_uid). Admins read
+    // them; functions/ counts them and hides an offer at three.
+    match /swapReports/{reportId} {
+      allow create: if signedIn()
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && reportId == request.resource.data.offerId + '_' + request.auth.uid
+                    && request.resource.data.reason in ['fake', 'rude', 'spam', 'other']
+                    && (!('note' in request.resource.data) || isStr(request.resource.data.note, 280))
+                    && request.resource.data.keys().hasOnly(['offerId', 'reporterUid', 'reason', 'note', 'createdAt']);
+      allow read: if isAdmin();
+    }
+
     // ---- deny everything else --------------------------------------------
     match /{document=**} {
       allow read, write: if false;

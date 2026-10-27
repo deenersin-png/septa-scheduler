@@ -204,3 +204,43 @@ decommissioned on 2026-10-30, after which nothing on it can be deployed.
 | `vendor/` | **generated** — copies of `assets/pa-schedule.js`, `pa-resolve.js`, `pa-live.js`. Never edit; edit the originals |
 | `scripts/sync.js` | makes those copies (`npm run sync`, and the deploy does it) |
 | `../firebase.json`, `../.firebaserc` | which project, which runtime (Node 24), what the deploy uploads |
+
+---
+
+# Swap board alerts
+
+`lib/swap.js` (wired in `index.js` as `swapInterest`, `swapStatus`,
+`swapReport`, `swapDeleted`, `swapCleanup`) sends a phone alert when someone
+is interested in your offer, when you are picked, when a swap is marked
+arranged (with the reminder that the dispatcher must approve it) and when a
+picked offer is cancelled. It also hides an offer reported by three
+different operators, and deletes expired offers every night at 3:15 AM.
+
+The Swap board itself works without any of this: the board, offers, interest,
+picking and contact all run on Firestore rules alone. Until these functions
+are deployed, the Swap tab's counts are the only alert.
+
+**Before any of it works, publish the rules and indexes** (no Blaze needed):
+
+```bash
+firebase deploy --only firestore --project paddle-app-3e565
+```
+
+**Phone alerts, once:**
+
+1. Firebase console → Project settings → **Cloud Messaging** → Web Push
+   certificates → **Generate key pair**. Paste the key into `FCM_VAPID_KEY` in
+   `assets/pa-swap-store.js`. It is public, like the API key.
+2. Deploy only the swap functions (the pre-run email needs its Gmail secrets
+   first, so do not deploy everything until those exist):
+
+```bash
+firebase deploy --only functions:swapInterest,functions:swapStatus,functions:swapReport,functions:swapDeleted,functions:swapCleanup --project paddle-app-3e565
+```
+
+Each operator then taps **Get swap alerts on this phone** under MY OFFERS. On
+iPhone that only works once the app is added to the Home Screen (Apple's rule
+for web push).
+
+Cost: one function run per interest, pick or report, and one a night. Far
+inside the free allowance.

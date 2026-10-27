@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swap Board</title>
+<meta name="description" content="Run swap offers posted by SEPTA operators, by district. Unofficial: every swap still needs the dispatcher's approval.">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/pa-account.css">
+<link rel="stylesheet" href="assets/pa-swap.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0b0d">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --ink:#0a0b0d; --ink2:#13151a; --ink3:#1d2028;
+  --line:rgba(255,255,255,0.07); --line2:rgba(255,255,255,0.13); --line3:rgba(255,255,255,0.22);
+  --dim:#4a4f5e; --mid:#8a909f; --text:#c8cdd8; --bright:#e8ecf4;
+  --amber:#f5a623; --amber-dim:rgba(245,166,35,0.12);
+  --green:#3dd68c; --green-dim:rgba(61,214,140,0.1);
+  --blue:#4d9fff; --blue-dim:rgba(77,159,255,0.1);
+  --red:#ff6b6b; --red-dim:rgba(255,107,107,0.1);
+  --violet:#a78bfa; --violet-dim:rgba(167,139,250,0.1);
+  --sans:'IBM Plex Sans Condensed',sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+html{font-size:16px}
+body{background:var(--ink);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 16px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:200;justify-content:space-between}
+.hd-left{display:flex;align-items:center;gap:12px;min-width:0}
+.hd-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);opacity:.7;flex:0 0 8px}
+.hd-title{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:.04em;color:var(--bright)}
+.hd-sub{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--dim);margin-top:2px}
+.hd-sub a{color:var(--dim);text-decoration:none}.hd-sub a:hover{color:var(--amber)}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+[hidden]{display:none!important}
+.k{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;padding:6px 10px;border-radius:3px;border:1px solid var(--line2);color:var(--mid);background:var(--ink3)}
+.chip.amber{color:var(--amber);border-color:rgba(245,166,35,.35);background:var(--amber-dim)}
+.chip.violet{color:var(--violet);border-color:rgba(167,139,250,.35);background:var(--violet-dim)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.stat{background:var(--ink);padding:10px 12px}
+.stat .v{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);margin-top:3px}
+.stat .v.pay{color:var(--amber)}
+.rowbtn{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:6px 10px;background:none;border:1px solid var(--line2);border-radius:3px;color:var(--mid);cursor:pointer}
+.rowbtn:hover{color:var(--amber);border-color:var(--line3)}
+.hint{font-family:var(--sans);font-size:12px;color:var(--dim);line-height:1.5;margin-top:6px}
+.msgline{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px;min-height:16px}
+.msgline.ok{color:var(--green)}.msgline.err{color:var(--red)}
+.notice{font-family:var(--sans);font-size:13px;line-height:1.5;color:var(--mid);border:1px solid var(--line);border-radius:4px;background:var(--ink2);padding:12px 14px;margin-bottom:12px}
+.notice b{color:var(--bright)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--dim);margin:0 0 12px 2px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+@media (max-width:640px){ .stats{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-left">
+    <div class="hd-dot"></div>
+    <div>
+      <div class="hd-title">SWAP BOARD</div>
+      <div class="hd-sub"><a href="./">&larr; Paddle App</a> · <a href="home.html?view=swap">My Swap tab</a></div>
+    </div>
+  </div>
+  <div id="pa-slot"></div>
+</header>
+
+<div class="wrap">
+  <div class="notice"><b>Unofficial.</b> This board only connects operators. It never approves a swap: once two of you agree, you still arrange it with the dispatcher.</div>
+
+  <div class="sw-bar">
+    <div class="pa-field">
+      <label class="pa-label" for="district">District</label>
+      <select class="pa-select" id="district"><option value="">Loading…</option></select>
+    </div>
+    <a class="pa-submit" id="post-btn" href="home.html?view=swap&amp;new=1" style="text-align:center;text-decoration:none;flex:0 0 auto;width:auto;margin-top:0;padding:12px 14px">+ Post an offer</a>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--green)"></i>fits you</span>
+    <span><i style="background:var(--red)"></i>not eligible</span>
+    <span><i style="background:var(--amber)"></i>check (sign in to see yours)</span>
+  </div>
+
+  <div id="list"><div class="sw-empty">Loading offers…</div></div>
+  <div class="hint" id="foot"></div>
+</div>
+
+<script type="module" src="assets/pa-account-ui.js"></script>
+<script type="module">
+import * as S from './assets/pa-schedule.js';
+import * as W from './assets/pa-swap.js';
+import * as U from './assets/pa-swap-ui.js';
+import { listBoard } from './assets/pa-swap-store.js';
+
+const $ = id => document.getElementById(id);
+const today = S.todayIso();
+const DISTRICT_KEY = 'pa_swap_district';
+const PENDING_KEY = 'pa_swap_pending';
+const signedIn = () => { try { return localStorage.getItem('pa_signed_in') === '1'; } catch (_) { return false; } };
+
+async function districts() {
+  const seasons = await S.loadSeasons();
+  const season = S.seasonFor(seasons, today);
+  const list = season ? await S.loadManifest(season) : [];
+  return list.map(d => ({ key: S.depotKeyOf(d.name), label: d.label }));
+}
+
+function chosen(list) {
+  const q = new URLSearchParams(location.search).get('d');
+  let saved = '';
+  try { saved = localStorage.getItem(DISTRICT_KEY) || ''; } catch (_) {}
+  return [q, saved].find(k => k && list.some(d => d.key === k)) || (list[0] && list[0].key) || '';
+}
+
+// A guest's "I'm interested": explain, then send them to make an account.
+// The offer is remembered so it is waiting in their Swap tab afterwards.
+function interestPrompt(card, offer) {
+  const old = card.querySelector('.sw-panel');
+  if (old) { old.remove(); return; }
+  const p = U.el('div', 'sw-panel');
+  const url = 'home.html?view=swap&offer=' + encodeURIComponent(offer.id);
+  if (signedIn()) {
+    p.appendChild(U.el('div', 'hint', 'Open it in your Swap tab to check it against your schedule and tell the poster.'));
+  } else {
+    p.appendChild(U.el('span', 'k', 'Free account needed'));
+    p.appendChild(U.el('div', 'hint', 'Create an account (email and password, about a minute) so the app can check this run against your schedule: green if it fits, red with the reason if not. The offer will be waiting in your Swap tab.'));
+  }
+  const acts = U.el('div', 'sw-acts');
+  const go = U.el('a', 'pa-submit', signedIn() ? 'Open in my Swap tab' : 'Create account / sign in');
+  go.href = url; go.style.textAlign = 'center'; go.style.textDecoration = 'none';
+  go.addEventListener('click', () => { try { localStorage.setItem(PENDING_KEY, offer.id); } catch (_) {} });
+  acts.append(go, U.button('pa-ghost', 'Not now', () => p.remove()));
+  p.appendChild(acts);
+  card.appendChild(p);
+}
+
+async function show(key) {
+  const list = $('list');
+  list.innerHTML = '<div class="sw-empty">Loading offers…</div>';
+  try { localStorage.setItem(DISTRICT_KEY, key); } catch (_) {}
+  const u = new URL(location.href); u.searchParams.set('d', key); history.replaceState(null, '', u);
+  let offers;
+  try {
+    offers = await Promise.race([listBoard(key, today),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000))]);
+  }
+  catch (e) {
+    console.warn('[swap] board', e);
+    list.innerHTML = '';
+    const box = U.el('div', 'sw-empty', 'Could not load offers. Check your signal and try again.');
+    box.appendChild(U.el('br'));
+    const retry = U.button('pa-ghost', 'Try again', () => show(key));
+    retry.style.marginTop = '12px';
+    box.appendChild(retry);
+    list.appendChild(box);
+    return;
+  }
+  list.innerHTML = '';
+  if (!offers.length) {
+    list.appendChild(U.el('div', 'sw-empty', 'No open offers for this district right now.'));
+  }
+  // Guests see every offer in yellow: the board cannot know their schedule.
+  for (const o of offers) {
+    const btn = U.button('pa-submit', 'I’m interested');
+    const card = U.scorecard(o, W.guestCheck(), { guest: true, actions: [btn] });
+    btn.addEventListener('click', () => interestPrompt(card, o));
+    list.appendChild(card);
+  }
+  $('foot').textContent = offers.length ? offers.length + ' open offer' + (offers.length === 1 ? '' : 's') + '. Offers disappear once their day has passed.' : '';
+}
+
+(async () => {
+  let list = [];
+  try { list = await districts(); } catch (_) {}
+  const sel = $('district');
+  sel.innerHTML = '';
+  list.forEach(d => { const o = document.createElement('option'); o.value = d.key; o.textContent = d.label; sel.appendChild(o); });
+  if (!list.length) { $('list').innerHTML = '<div class="sw-empty">Could not load the district list. Check your signal and reload.</div>'; return; }
+  sel.value = chosen(list);
+  sel.addEventListener('change', () => show(sel.value));
+  show(sel.value);
+})();
+</script>
+</body>
+</html>

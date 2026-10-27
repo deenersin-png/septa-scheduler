@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="assets/pa-live-cards.css">
 <link rel="stylesheet" href="assets/pa-account.css">
 <link rel="stylesheet" href="assets/pa-hours.css">
+<link rel="stylesheet" href="assets/pa-swap.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -51,6 +52,7 @@ header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 
 .tabs{display:flex;gap:6px;padding:12px 16px 0;max-width:860px;margin:0 auto}
 .tab{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;padding:9px 16px;background:none;border:1px solid var(--line);border-radius:4px;color:var(--dim);cursor:pointer}
 .tab:hover{color:var(--mid)}.tab.on{color:var(--amber);border-color:rgba(245,166,35,.35);background:var(--amber-dim)}
+.tab .tab-n{display:inline-block;min-width:16px;padding:0 4px;margin-left:5px;border-radius:8px;background:var(--amber);color:var(--ink);font-size:10px;line-height:16px;text-align:center}
 
 .wrap{max-width:860px;margin:0 auto;padding:16px}
 [hidden]{display:none!important}
@@ -151,6 +153,7 @@ a.chip{text-decoration:none}
 h2.k{margin-bottom:10px}
 
 @media (max-width:640px){
+  .tab{padding:9px 10px;flex:1 1 auto}
   .cd-digits{font-size:44px}
   .stats{grid-template-columns:repeat(2,1fr)}
   .row{grid-template-columns:64px 1fr;grid-template-areas:"d run" "d t";row-gap:2px}
@@ -176,6 +179,7 @@ h2.k{margin-bottom:10px}
   <button class="tab on" data-view="today" type="button">TODAY</button>
   <button class="tab" data-view="schedule" type="button">SCHEDULE</button>
   <button class="tab" data-view="alerts" type="button">ALERTS</button>
+  <button class="tab" data-view="swap" type="button">SWAP<span class="tab-n" id="swap-n" hidden></span></button>
 </nav>
 
 <div class="wrap">
@@ -221,6 +225,12 @@ h2.k{margin-bottom:10px}
   <section id="view-alerts" hidden>
     <div class="card sect" id="alerts-body"></div>
   </section>
+
+  <!-- SWAP: board, my offers, interested, new offer. assets/pa-swap-tab.js
+       owns everything inside it. -->
+  <section id="view-swap" hidden>
+    <div id="swap-body"></div>
+  </section>
 </div>
 
 <script>
@@ -249,6 +259,7 @@ import * as N from './assets/pa-notify.js';
 import * as E from './assets/pa-edit-sheet.js';
 import * as SU from './assets/pa-setup.js';
 import * as HV from './assets/pa-hours-view.js';
+import * as SW from './assets/pa-swap-tab.js';
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -290,18 +301,19 @@ function findNext(fromIso, days) {
 // ---- boot / auth ----------------------------------------------------------
 
 function showOnly(id) {
-  ['gate-out', 'gate-retry', 'gate-setup', 'view-today', 'view-schedule', 'view-bulk', 'view-alerts'].forEach(x => { $(x).hidden = x !== id; });
-  $('tabs').hidden = !(id === 'view-today' || id === 'view-schedule' || id === 'view-bulk' || id === 'view-alerts');
+  ['gate-out', 'gate-retry', 'gate-setup', 'view-today', 'view-schedule', 'view-bulk', 'view-alerts', 'view-swap'].forEach(x => { $(x).hidden = x !== id; });
+  $('tabs').hidden = !['view-today', 'view-schedule', 'view-bulk', 'view-alerts', 'view-swap'].includes(id);
 }
 // 'bulk' is the old schedule editor, shown under the SCHEDULE tab.
-function setView(v) {
+function setView(v, params) {
   ctx.view = v;
   const tab = v === 'bulk' ? 'schedule' : v;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === tab));
-  showOnly(v === 'today' ? 'view-today' : v === 'alerts' ? 'view-alerts' : v === 'bulk' ? 'view-bulk' : 'view-schedule');
+  showOnly(v === 'today' ? 'view-today' : v === 'alerts' ? 'view-alerts' : v === 'bulk' ? 'view-bulk' : v === 'swap' ? 'view-swap' : 'view-schedule');
   if (v === 'schedule') { setWeekEditing(false); }
   if (v === 'bulk') renderSchedule();
   if (v === 'alerts') renderAlerts();
+  if (v === 'swap') swap.show(params || {});
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
 
@@ -313,6 +325,26 @@ function setWeekEditing(on) {
 }
 $('sch-edit').addEventListener('click', () => setWeekEditing(week.state.readOnly));
 $('sch-bulk').addEventListener('click', () => setView('bulk'));
+
+// SWAP tab. Opens to the operator's own district.
+const swap = SW.mount($('swap-body'), {
+  getUser: () => ctx.user, getProfile: () => ctx.profile, getOverrides: () => ctx.overrides,
+  onBadge: n => { const b = $('swap-n'); b.hidden = !n; b.textContent = String(n); }
+});
+
+// Links from the public board (swap.html): ?view=swap&offer=<id> or &new=1.
+// Read once; the offer id also waits in localStorage through sign-up.
+const urlParams = (() => {
+  const q = new URLSearchParams(location.search);
+  const p = { view: q.get('view'), offer: q.get('offer'), new: q.get('new') === '1' };
+  if (p.offer) { try { localStorage.setItem(SW.PENDING_KEY, p.offer); } catch (_) {} }
+  if (p.view) history.replaceState(null, '', location.pathname);
+  return p;
+})();
+const pendingSwap = () => { try { return !!localStorage.getItem(SW.PENDING_KEY); } catch (_) { return false; } };
+if (urlParams.offer || pendingSwap()) {
+  $('gate-out').textContent = 'Sign in or create a free account to check the swap offer you opened against your schedule.';
+}
 $('bulk-back').addEventListener('click', () => setView('schedule'));
 
 window.addEventListener('pa:auth', e => {
@@ -321,7 +353,7 @@ window.addEventListener('pa:auth', e => {
   if (!ctx.user) {
     ctx.authToken++;
     ctx.runsGate = false;
-    A.detach(); N.detach(); ctx.profile = null;
+    A.detach(); N.detach(); ctx.profile = null; swap.reset(); $('swap-n').hidden = true;
     showOnly('gate-out'); $('hd-ctx').textContent = ''; renderSyncLine();
     return;
   }
@@ -383,6 +415,7 @@ async function boot() {
     A.onChange(() => { renderSyncLine(); scheduleRedraw(false); requireRuns(); });
   }
   E.configure({ profile: ctx.profile });
+  const toSwap = urlParams.view === 'swap' || pendingSwap();
   setView('today');
   await A.attach(ctx.user.uid);          // returns at once when this device has a copy
   renderSyncLine();
@@ -391,6 +424,8 @@ async function boot() {
   ctx.drawnVersion = A.getState().version;
   await refreshToday();
   requireRuns();
+  if (toSwap && !ctx.runsGate) { setView('swap', { offer: urlParams.offer, new: urlParams.new }); urlParams.view = urlParams.offer = null; urlParams.new = false; }
+  swap.refreshBadge();
 }
 
 // ---- runs gate (set up, but no run on record) -----------------------------
@@ -412,7 +447,7 @@ function requireRuns() {
     onDone: () => {
       ctx.runsGate = false;
       if (token !== ctx.authToken) return;
-      setView('today');
+      setView(pendingSwap() ? 'swap' : 'today');
       scheduleRedraw(true);
     }
   });
@@ -1359,7 +1394,7 @@ function openEdit(r) {
 }
 
 // Expose the pure pieces for in-browser checks (no side effects).
-window.PA_HOME = { S, A, N, E, computeState, ctx, week, renderSchedule, renderToday, renderAlerts, openEdit, refreshToday };
+window.PA_HOME = { S, A, N, E, computeState, ctx, week, renderSchedule, renderToday, renderAlerts, openEdit, refreshToday, swap, setView };
 // Modules linked fine: allow a future update to trigger one reload again.
 try { sessionStorage.removeItem('pa_update_reload'); } catch (_) {}
 </script>
