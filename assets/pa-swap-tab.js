@@ -257,19 +257,36 @@ export function mount(root, deps) {
     card = U.scorecard(o, check, { actions, menu });
     if (highlight) card.style.boxShadow = '0 0 0 1px rgba(245,166,35,.45)';
     if (check.color === 'yellow') manualPanel(card, check.needs);
+    else if (check.color !== 'mine') entryLine(card, o);
     return card;
   }
 
+  // Days of this offer the operator typed in by hand, as one line with a
+  // way to change them. Without it a mistyped run could never be fixed.
+  function entryLine(card, o) {
+    const m = manual();
+    const dates = [...new Set(W.offerDates(o).flatMap(d => [S.addDays(d, -1), d, S.addDays(d, 1)]))].filter(d => m[d]).sort();
+    if (!dates.length) return;
+    const line = el('div', 'sw-status');
+    line.append('You entered: ' + dates.map(d => W.shortDay(d) + ' ' + (m[d].off ? 'off' : 'run ' + m[d].runNo)).join(', ') + ' ');
+    line.appendChild(button('rowbtn', 'Change', () => { line.remove(); manualPanel(card, dates, true); }));
+    card.appendChild(line);
+  }
+
   // Yellow: ask which run they hold (or that they are off), then check again.
-  function manualPanel(card, needs) {
+  // `editing` reopens days already entered, with a way back to the schedule.
+  function manualPanel(card, needs, editing) {
     const old = card.querySelector('.sw-panel.manual');
     if (old) return;
+    const m = manual();
     const p = el('div', 'sw-panel manual');
-    p.appendChild(el('span', 'k', 'Your run that day'));
-    p.appendChild(el('div', 'hint', 'Your schedule has nothing for ' + needs.map(W.longDay).join(' or ') + '. Enter the run you hold (or say you\'re off) and the offer is checked again. This stays on this phone and does not change your schedule.'));
+    p.appendChild(el('span', 'k', editing ? 'Change what you entered' : 'Your run that day'));
+    p.appendChild(el('div', 'hint', editing
+      ? 'Fix the run number, mark the day off, or clear it to go back to your schedule.'
+      : 'Your schedule has nothing for ' + needs.map(W.longDay).join(' or ') + '. Enter the run you hold (or say you\'re off) and the offer is checked again. This stays on this phone and does not change your schedule.'));
     for (const d of needs) {
       const row = el('div', 'sw-row');
-      const inp = field(row, W.longDay(d) + ' ' + W.fmtDay(d).slice(4) + ' run #', { inputmode: 'numeric', maxlength: '8', placeholder: 'e.g. 209' });
+      const inp = field(row, W.longDay(d) + ' ' + W.fmtDay(d).slice(4) + ' run #', { inputmode: 'numeric', maxlength: '8', placeholder: 'e.g. 209', value: (m[d] && m[d].runNo) || '' });
       const msg = el('div', 'msgline');
       row.appendChild(button('pa-ghost', 'Check', async () => {
         const v = inp.value.trim();
@@ -281,7 +298,13 @@ export function mount(root, deps) {
         go(st.view);
       }));
       row.appendChild(button('pa-ghost', 'I\'m off', () => { setManual(d, { off: true }); go(st.view); }));
+      if (m[d]) row.appendChild(button('pa-ghost', 'Clear', () => { setManual(d, null); go(st.view); }));
       p.append(row, msg);
+    }
+    if (editing) {
+      const acts = el('div', 'sw-acts');
+      acts.appendChild(button('pa-ghost', 'Close', () => go(st.view)));
+      p.appendChild(acts);
     }
     card.appendChild(p);
   }
@@ -653,7 +676,14 @@ export function mount(root, deps) {
           const g = w.give;
           picked.append(W.longDay(w.date) + ' · ', strong('run ' + g.runNo), (g.routeLabel ? ' · ' + g.routeLabel : '')
             + (g.reportMin != null ? ' · ' + S.fmtClock(g.reportMin) + '–' + S.fmtClock(g.finishMin) : '') + (g.payHours ? ' · ' + g.payHours.toFixed(2) + ' h' : ''));
-          if (info && info.manual) picked.append(' (entered by you)');
+          if (info && info.manual) {
+            picked.append(' (entered by you) ');
+            picked.appendChild(button('rowbtn', 'Change', async () => {
+              setManual(w.date, null);
+              const fresh = await dayInfo(w.date).catch(() => ({ known: false, card: null }));
+              w.days.set(w.date, fresh); w.give = fresh.card; draw();
+            }));
+          }
         } else {
           picked.textContent = 'Your schedule has no run for ' + W.longDay(w.date) + '. Enter it:';
           const row = el('div', 'sw-row');
