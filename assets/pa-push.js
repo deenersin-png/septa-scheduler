@@ -20,7 +20,7 @@ import { initFirebase, firebaseConfig } from './pa-firebase.js';
 // Firebase console -> Project settings -> Cloud Messaging -> Web Push
 // certificates -> Generate key pair, then paste the "Key pair" value here.
 // Until then phone alerts are off and the screens say so.
-export const FCM_VAPID_KEY = 'REPLACE_ME';
+export const FCM_VAPID_KEY = 'BKOjs5OGkeLtRmYFefuA4LdWQEVpSShpyOztZYirmfS9cad3YWcvBQltTqrB08ebvhbniBtkbe1AzFt5yUKBCGI';
 export const pushConfigured = () => !FCM_VAPID_KEY.includes('REPLACE_ME');
 
 const LS_DEVICE = 'pa_push_device';
