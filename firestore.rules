@@ -278,13 +278,17 @@ service cloud.firestore {
     // The phone plans its own alerts (assets/pa-run-alerts.js); functions/
     // sends what is due and deletes it. One doc per operator per day, id
     // {uid}_{date}, so nobody can write alerts for anyone else or pile up
-    // more than one a day.
+    // more than one a day. Plus one test alert, {uid}_test, due within
+    // ten minutes (the ALERTS screen's "Send a test phone alert").
     match /runAlerts/{alertId} {
       allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
       allow create, update: if signedIn()
                     && request.resource.data.uid == request.auth.uid
                     && alertId == request.auth.uid + '_' + request.resource.data.date
-                    && isDate(request.resource.data.date)
+                    && (isDate(request.resource.data.date)
+                        || (request.resource.data.date == 'test'
+                            && request.resource.data.sendAtMs is int
+                            && request.resource.data.sendAtMs <= request.time.toMillis() + 600000))
                     && request.resource.data.sendAtMs is int
                     && isStr(request.resource.data.title, 80)
                     && isStr(request.resource.data.body, 200)

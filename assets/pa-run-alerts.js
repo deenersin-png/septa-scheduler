@@ -14,6 +14,7 @@
 //
 // runAlerts/{uid}_{date}   owner only (firestore.rules)
 //   uid, date, sendAtMs, title, body, updatedAt
+// runAlerts/{uid}_test     the same, date 'test': one test alert, minutes out
 //
 // The planning half is pure (no Firebase) so assets/tests/run-alerts.test.mjs
 // can pin it; Firestore is loaded only when syncRunAlerts runs.
@@ -87,7 +88,7 @@ export async function syncRunAlerts({ db, uid, enabled, leadMin, days, now = Dat
     // First sync on this phone: learn what another phone may have written.
     known = {};
     const snap = await F.getDocs(F.query(col, F.where('uid', '==', uid)));
-    snap.forEach(d => { const x = d.data(); known[d.id] = { s: sigOf(x), at: x.sendAtMs }; });
+    snap.forEach(d => { const x = d.data(); if (x.date !== 'test') known[d.id] = { s: sigOf(x), at: x.sendAtMs }; });
   }
   // The server deletes an alert once it is sent; forget those here too.
   Object.keys(known).forEach(id => { if (known[id].at <= now) delete known[id]; });
@@ -113,6 +114,30 @@ export async function syncRunAlerts({ db, uid, enabled, leadMin, days, now = Dat
   if (writes) await batch.commit();
   writeKnown(uid, known);
   return { count: want.length, next: want[0] || null, through: want.length ? want[want.length - 1].date : null, writes };
+}
+
+export const TEST_DELAY_MIN = 2;
+
+/** Pure: the test alert, sent by the same server path as a real one. */
+export function testAlert(nowMs, delayMin = TEST_DELAY_MIN) {
+  const sendAtMs = nowMs + delayMin * 60000;
+  const at = new Date(sendAtMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return { date: 'test', sendAtMs, title: 'Test alert · Paddle App',
+           body: 'Phone alerts work, even with the app closed. Set for ' + at + '.' };
+}
+
+/**
+ * Leave a test alert for the server to send in TEST_DELAY_MIN minutes, so
+ * the operator can close the app and see a real push arrive. Its own doc,
+ * runAlerts/{uid}_test, so it never replaces a real alert.
+ * Resolves the alert written.
+ */
+export async function sendTestAlert({ db, uid, now = Date.now() }) {
+  const F = await import(FIRESTORE);
+  const a = testAlert(now);
+  await F.setDoc(F.doc(db, 'runAlerts', uid + '_test'),
+                 { uid, date: a.date, sendAtMs: a.sendAtMs, title: a.title, body: a.body, updatedAt: F.serverTimestamp() });
+  return a;
 }
 
 /** Whether this phone has synced alerts for `uid` before. When it has not and

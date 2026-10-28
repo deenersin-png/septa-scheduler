@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { planRunAlerts, upcomingRuns, DEFAULT_LEAD_MIN } from '../pa-run-alerts.js';
+import { planRunAlerts, upcomingRuns, testAlert, TEST_DELAY_MIN, DEFAULT_LEAD_MIN } from '../pa-run-alerts.js';
 import { minToMs } from '../pa-schedule.js';
 
 const NOW = minToMs('2026-10-27', 600);          // Tue 10:00 AM
@@ -50,4 +50,13 @@ test('upcomingRuns skips days off and uses the run\'s report time', async () => 
   assert.deepEqual(days.map(d => d.date), ['2026-10-27', '2026-10-29']);
   assert.equal(days[0].routeLabel, '21-42');
   assert.equal(days[0].reportMin, 330);
+});
+
+test('the test alert is due a couple of minutes out and never looks like a run', () => {
+  const a = testAlert(NOW);
+  assert.equal(a.date, 'test');
+  assert.equal(a.sendAtMs, NOW + TEST_DELAY_MIN * 60000);
+  assert.ok(a.sendAtMs - NOW <= 600000, 'the rules only allow ten minutes out');
+  assert.ok(!/^Run /.test(a.title));
+  assert.ok(a.title.length <= 80 && a.body.length <= 200);
 });
