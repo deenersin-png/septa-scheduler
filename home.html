@@ -1000,13 +1000,14 @@ function renderAlerts() {
     : (s.enabled ? 'No upcoming alert planned — register a run first.' : '');
   body.appendChild(line);
 
-  const test = el('button', 'pa-ghost', 'Send a test alert'); test.type = 'button'; test.style.marginTop = '8px';
+  const test = el('button', 'pa-ghost', 'Test in-app alert'); test.type = 'button'; test.style.marginTop = '8px';
   test.addEventListener('click', async () => {
-    const ok = await N.show('Paddle App', 'Alerts are working. A departure alert looks like this.', 'pa-test');
-    test.textContent = ok ? 'Sent ✓' : 'Could not send — allow notifications first';
-    setTimeout(() => { test.textContent = 'Send a test alert'; }, 2500);
+    const ok = await N.show('Paddle App', 'In-app alerts are working. A departure alert looks like this.', 'pa-test');
+    test.textContent = ok ? 'Shown ✓' : 'Could not show — allow notifications first';
+    setTimeout(() => { test.textContent = 'Test in-app alert'; }, 2500);
   });
   body.appendChild(test);
+  body.appendChild(el('div', 'hint', 'This only checks alerts while the app is open. To check an alert with the app closed, use "Send a test phone alert" below.'));
 
   body.appendChild(el('div', 'hint', 'Alerts fire while this page is open or in the background. If the app is fully closed these do not fire; the phone alert below does. The alert time is the scheduled time; it never moves with the bus ahead of you.'));
 
@@ -1062,6 +1063,25 @@ function renderPhoneAlerts(body, s) {
         else { add.disabled = false; status.className = 'msgline err'; status.textContent = P.pushProblem(r.reason); }
       });
       body.appendChild(add);
+    } else {
+      // A real push through the server, the only honest check of "app closed".
+      const test = el('button', 'pa-ghost', 'Send a test phone alert in ' + RA.TEST_DELAY_MIN + ' min'); test.type = 'button';
+      const testLine = el('div', 'msgline');
+      test.addEventListener('click', async () => {
+        test.disabled = true;
+        const fb = initFirebase();
+        try {
+          const a = await RA.sendTestAlert({ db: fb.db, uid });
+          const at = new Date(a.sendAtMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          testLine.className = 'msgline ok';
+          testLine.textContent = 'Test alert set for ' + at + '. Close the app fully now (swipe it away) and wait. If nothing arrives by ' + at + ' plus a minute, tell us.';
+        } catch (e) {
+          testLine.className = 'msgline err';
+          testLine.textContent = 'Could not set the test alert (' + (e.code || e.message || 'error') + '). Check your signal and try again.';
+        }
+        setTimeout(() => { test.disabled = false; }, 15000);
+      });
+      body.append(test, testLine);
     }
     const pa = ctx.phoneAlerts;
     const when = ms => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
