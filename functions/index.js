@@ -1,8 +1,9 @@
 // ==========================================================================
 // Paddle App — Cloud Functions: the wiring.
 //
-//   runAlerts   every minute: send the phone alerts before runs that are due
-//               (decisions in lib/run-alerts.js)
+//   runAlerts   every minute: send the phone alerts for runs that are due
+//               (decisions in lib/run-alerts.js), and delete swap offers
+//               whose run has started without a swap (lib/swap.js)
 //   swap*       the Swap board's alerts, report counting and cleanup
 //               (decisions in lib/swap.js)
 //
@@ -24,6 +25,7 @@ import * as SWAP from './lib/swap.js';
 const ZONE = 'America/New_York';
 const REGION = 'us-east1';                 // the database's region; Firestore triggers require it
 const SITE = 'https://deenersin-png.github.io/septa-scheduler/';
+const SWAP_URL = SITE + 'home.html?view=swap';
 
 initializeApp();
 const db = getFirestore();
@@ -51,13 +53,15 @@ export const runAlerts = onSchedule({
   schedule: '* * * * *',            // every minute
   timeZone: ZONE, region: REGION, memory: '256MiB', timeoutSeconds: 60, retryCount: 0
 }, async () => {
-  const r = await sendDue(deps(SITE + 'home.html'), Date.now());
+  const now = Date.now();
+  const r = await sendDue(deps(SITE + 'home.html'), now);
   if (r.due) logger.info('run alerts', r);
+  // The same minute job, so swap expiry needs no scheduler job of its own.
+  const gone = await SWAP.expireStarted(deps(SWAP_URL), now).catch(e => { logger.error('swap expiry', String(e)); return 0; });
+  if (gone) logger.info('swap expired at run start', { deleted: gone });
 });
 
 // ---- swap board -------------------------------------------------------------
-
-const SWAP_URL = SITE + 'home.html?view=swap';
 
 export const swapInterest = onDocumentCreated({ document: 'swapOffers/{offerId}/interest/{uid}', region: REGION },
   async e => { await SWAP.onInterestCreated(deps(SWAP_URL), e.params.offerId, e.data && e.data.data()); });

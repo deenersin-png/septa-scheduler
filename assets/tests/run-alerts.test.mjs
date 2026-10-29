@@ -1,55 +1,106 @@
-// The phone alert before a run: planning only (no Firebase).
+// Phone alerts for a run: planning only (no Firebase).
 //
 //   node --test assets/tests/run-alerts.test.mjs
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { planRunAlerts, upcomingRuns, testAlert, TEST_DELAY_MIN, DEFAULT_LEAD_MIN } from '../pa-run-alerts.js';
-import { minToMs } from '../pa-schedule.js';
+import { planRunAlerts, upcomingRuns, runDepartures, testAlert, TEST_DELAY_MIN, DEFAULTS } from '../pa-run-alerts.js';
+import { minToMs, normalizeRun } from '../pa-schedule.js';
 
 const NOW = minToMs('2026-10-27', 600);          // Tue 10:00 AM
+const day = (date, reportMin, extra = {}) => ({ date, runNo: '209', reportMin, routeLabel: '21-42', ...extra });
+const REPORTS_ONLY = { depOn: false };
 
-test('one alert per working day, lead minutes before the scheduled report time', () => {
-  const a = planRunAlerts([
-    { date: '2026-10-28', runNo: '209', reportMin: 330, routeLabel: '21-42' },
-    { date: '2026-10-29', runNo: '209', reportMin: 330, routeLabel: '21-42' }
-  ], 30, NOW);
-  assert.equal(a.length, 2);
-  assert.equal(a[0].sendAtMs, minToMs('2026-10-28', 300));
+test('defaults: report 30 and 1 min before, every departure on time', () => {
+  assert.deepEqual(DEFAULTS, { report1On: true, report1Lead: 30, report2On: true, report2Lead: 1, depOn: true, depLead: 0 });
+  const a = planRunAlerts([day('2026-10-28', 330, { departures: [{ min: 345, what: 'pull-out', where: '21-42 · block 9101' }] })], {}, NOW);
+  assert.deepEqual(a.map(x => [x.key, x.sendAtMs]), [
+    ['rep1', minToMs('2026-10-28', 300)],
+    ['rep2', minToMs('2026-10-28', 329)],
+    ['d' + (345 + 1440), minToMs('2026-10-28', 345)]
+  ]);
   assert.equal(a[0].title, 'Run 209 · report in 30 min');
   assert.equal(a[0].body, 'Report 5:30 AM · 21-42 · Wed 10/28');
+  assert.equal(a[1].title, 'Run 209 · report in 1 min');
+  assert.equal(a[2].title, 'Run 209 · pull-out now');
+  assert.equal(a[2].body, '5:45 AM · 21-42 · block 9101');
+});
+
+test('each alert has its own lead time and its own switch', () => {
+  const d = [day('2026-10-28', 330, { departures: [{ min: 400, what: 'departure', where: 'from Olney · 21-42' }] })];
+  const a = planRunAlerts(d, { report1Lead: 45, report2On: false, depLead: 2 }, NOW);
+  assert.deepEqual(a.map(x => x.title), ['Run 209 · report in 45 min', 'Run 209 · departure in 2 min']);
+  assert.equal(a[1].sendAtMs, minToMs('2026-10-28', 398));
+  assert.equal(planRunAlerts(d, { report1On: false, report2On: false, depOn: false }, NOW).length, 0);
+});
+
+test('two alerts due at the same moment are sent once', () => {
+  const a = planRunAlerts([day('2026-10-28', 330)], { report1Lead: 5, report2Lead: 5, depOn: false }, NOW);
+  assert.equal(a.length, 1);
 });
 
 test('past and too-soon alerts are left out', () => {
   const a = planRunAlerts([
-    { date: '2026-10-27', runNo: '1', reportMin: 540, routeLabel: '' },   // earlier today
-    { date: '2026-10-27', runNo: '2', reportMin: 630, routeLabel: '' },   // alert at 10:00, now
-    { date: '2026-10-27', runNo: '3', reportMin: 700, routeLabel: '' }    // alert at 11:10
-  ], 30, NOW);
-  assert.deepEqual(a.map(x => x.title.split(' ')[1]), ['3']);
+    day('2026-10-27', 540),   // earlier today
+    day('2026-10-27', 630),   // 30-min alert at 10:00, now
+    day('2026-10-27', 700)    // 30-min alert at 11:10
+  ], { report2On: false, depOn: false }, NOW);
+  assert.deepEqual(a.map(x => x.sendAtMs), [minToMs('2026-10-27', 670)]);
+});
+
+test('a night liner filed under tomorrow alerts the evening before', () => {
+  // Run 51 Callowhill as the weekday CSV has it: start filed the day before.
+  const row = { runno: '51', start: '2023-10-10 11:54 PM', finish: '2023-10-11 9:13 AM', pay: '9.7',
+                r1: 'L1 OWL', b1: '9901', potype1: 'O', pot1: '12:08 AM', pitype1: 'CG', pit1: '05:30 AM', _dayOffset: -1 };
+  const run = normalizeRun(row, 'weekday');
+  assert.equal(run.reportMin, -6);
+  assert.equal(run.pullOutMin, 8);
+  const [a] = planRunAlerts([day('2026-10-29', run.reportMin)], REPORTS_ONLY, NOW);
+  assert.equal(a.sendAtMs, minToMs('2026-10-28', 1434 - 30));   // Wed 11:24 PM for Thursday's run
+  assert.equal(new Date(a.sendAtMs).getDate(), 28);
+  assert.equal(a.body, 'Report 11:54 PM · 21-42 · Thu 10/29');
 });
 
 test('a just-after-midnight report alerts the evening before', () => {
-  const [a] = planRunAlerts([{ date: '2026-10-29', runNo: '101', reportMin: 29, routeLabel: '' }], 60, NOW);
+  const [a] = planRunAlerts([day('2026-10-29', 29)], { report1Lead: 60, report2On: false }, NOW);
   assert.equal(a.sendAtMs, minToMs('2026-10-28', 1409));     // 11:29 PM Wednesday
-  assert.equal(new Date(a.sendAtMs).getDate(), 28);
 });
 
-test('an unknown lead falls back to the default', () => {
-  const [a] = planRunAlerts([{ date: '2026-10-28', runNo: '9', reportMin: 600, routeLabel: '' }], 7, NOW);
-  assert.match(a.title, new RegExp('in ' + DEFAULT_LEAD_MIN + ' min'));
+test('a lead that is not a number falls back to the default', () => {
+  const [a] = planRunAlerts([day('2026-10-28', 600)], { report1Lead: 'x', report2On: false, depOn: false }, NOW);
+  assert.match(a.title, new RegExp('in ' + DEFAULTS.report1Lead + ' min'));
 });
 
-test('upcomingRuns skips days off and uses the run\'s report time', async () => {
+test('departures: pull-out, each trip inside a piece, the next piece, one per minute', async () => {
+  const run = { dayType: 'weekday', pieces: [
+    { routeLabel: '21', block: '9101', startMin: 345, endMin: 600 },
+    { routeLabel: '42', block: '9202', startMin: 900, endMin: 1100 }
+  ] };
+  const trips = { 9101: [{ s: 360, first: 'Olney' }, { s: 360, first: 'Olney' }, { s: 450, first: '63rd' }, { s: 610, first: 'late' }], 9202: [] };
+  const d = await runDepartures(run, p => trips[p.block]);
+  assert.deepEqual(d.map(x => [x.min, x.what]), [[345, 'pull-out'], [360, 'departure'], [450, 'departure'], [900, 'next piece']]);
+  assert.equal(d[1].where, 'from Olney · 21');
+});
+
+test('upcomingRuns skips days off, uses the run\'s report time, departures only for the first days', async () => {
   const days = await upcomingRuns({
-    from: '2026-10-27', n: 3,
+    from: '2026-10-27', n: 4, depDays: 2,
     resolve: d => (d === '2026-10-28' ? { off: true } : { runNo: '209', reportMin: null }),
-    runFor: async () => ({ reportMin: 330, pieces: [{ routeLabel: '21-42' }, { routeLabel: '21-42' }] })
+    runFor: async () => ({ dayType: 'weekday', reportMin: 330, pieces: [{ routeLabel: '21-42', block: '9101', startMin: 345, endMin: 600 }] }),
+    tripsOf: async () => [{ s: 400, first: 'Olney' }]
   });
-  assert.deepEqual(days.map(d => d.date), ['2026-10-27', '2026-10-29']);
+  assert.deepEqual(days.map(d => d.date), ['2026-10-27', '2026-10-29', '2026-10-30']);
   assert.equal(days[0].routeLabel, '21-42');
   assert.equal(days[0].reportMin, 330);
+  assert.equal(days[0].departures.length, 2);
+  assert.equal(days[1].departures, undefined);       // day 3 of the window: no departures planned yet
+});
+
+test('titles and bodies fit the database rules', () => {
+  const long = 'x'.repeat(300);
+  const [a] = planRunAlerts([day('2026-10-28', 330, { departures: [{ min: 400, what: 'departure', where: long }] })], { report1On: false, report2On: false }, NOW);
+  assert.ok(a.title.length <= 80 && a.body.length <= 200);
 });
 
 test('the test alert is due a couple of minutes out and never looks like a run', () => {

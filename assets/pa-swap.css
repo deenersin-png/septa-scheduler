@@ -9,28 +9,38 @@
 .sw-seg button.on{color:var(--amber);border-color:rgba(245,166,35,.35);background:var(--amber-dim)}
 .sw-seg .n{display:inline-block;min-width:16px;padding:0 4px;margin-left:4px;border-radius:8px;background:var(--amber);color:var(--ink);font-size:10px;line-height:16px}
 
-.sw-card{border:1px solid var(--line);border-left:4px solid var(--line3);border-radius:4px;background:var(--ink2);padding:14px 14px 12px;margin-bottom:12px}
-.sw-card.green{border-left-color:var(--green)}
-.sw-card.red{border-left-color:var(--red)}
-.sw-card.yellow{border-left-color:var(--amber)}
-.sw-card.mine{border-left-color:var(--blue)}
+/* An offer: the swap details (.sw-details, a .prc-top) on the Paddle App's run
+   scorecard (.prc, pa-run-card.css), then who posted it and what to do, all
+   in one box with one day-colored stripe. The top edge is the eligibility. */
+.sw-card{position:relative;background:var(--ink2);border:1px solid var(--line2);border-radius:6px;overflow:hidden;margin-bottom:12px;padding-bottom:12px}
+.sw-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line3);z-index:1}
+.sw-card.day-Weekday::before{background:var(--amber)}
+.sw-card.day-Saturday::before{background:var(--blue)}
+.sw-card.day-Sunday::before{background:var(--green)}
+.sw-card > .prc-top,.sw-card > .prc-top + .prc{border:none;border-radius:0}
+.sw-card > .prc-top::before,.sw-card > .prc::before{display:none}
+.sw-card > .prc-top{border-top:3px solid var(--line3)}
+.sw-card.green > .prc-top{border-top-color:var(--green)}
+.sw-card.red > .prc-top{border-top-color:var(--red)}
+.sw-card.yellow > .prc-top{border-top-color:var(--amber)}
+.sw-card.mine > .prc-top{border-top-color:var(--blue)}
+.sw-card > .prc-top + .prc{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sw-card > :not(.prc):not(.prc-top){margin-left:17px;margin-right:12px}
 .sw-card.closed{opacity:.6}
-.sw-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.sw-run{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--bright);letter-spacing:.02em}
-.sw-run small{font-size:9px;font-weight:600;letter-spacing:.12em;color:var(--dim);margin-right:6px;vertical-align:middle}
-.sw-when{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);letter-spacing:.04em}
+.sw-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw-date{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--bright);letter-spacing:.02em;line-height:1.15}
+.sw-date small{display:block;font-size:9px;font-weight:600;letter-spacing:.12em;color:var(--dim);margin-bottom:2px}
 .sw-badge{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;padding:4px 8px;border-radius:3px;border:1px solid var(--line2);color:var(--mid)}
 .sw-badge.green{color:var(--green);border-color:rgba(61,214,140,.35);background:var(--green-dim)}
 .sw-badge.red{color:var(--red);border-color:rgba(255,107,107,.35);background:var(--red-dim)}
 .sw-badge.yellow{color:var(--amber);border-color:rgba(245,166,35,.35);background:var(--amber-dim)}
 .sw-badge.mine{color:var(--blue);border-color:rgba(77,159,255,.35);background:var(--blue-dim)}
-.sw-head{font-family:var(--sans);font-size:13px;color:var(--mid);margin-top:2px}
-.sw-card .chips{margin-top:10px}
-.sw-card .stats{margin-top:10px}
+.sw-head{font-family:var(--sans);font-size:13px;color:var(--mid);margin-top:4px}
 .sw-wants{margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:3px;background:var(--ink);font-family:var(--mono);font-size:12px;color:var(--bright);line-height:1.5}
-.sw-wants .k{display:block;margin-bottom:3px}
-.sw-prefs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.sw-prefs span{font-family:var(--mono);font-size:10px;letter-spacing:.03em;color:var(--mid);border:1px dashed var(--line2);border-radius:3px;padding:3px 7px}
+.sw-wants .k,.sw-prefs .k{display:block;margin-bottom:3px}
+.sw-prefs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.sw-prefs .k{flex:1 0 100%;margin-bottom:0}
+.sw-cond{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--text);border:1px dashed var(--line3);border-radius:3px;padding:3px 7px}
 .sw-note{font-family:var(--sans);font-size:13px;color:var(--text);margin-top:8px;font-style:italic;overflow-wrap:anywhere}
 .sw-reason{font-family:var(--mono);font-size:11px;line-height:1.5;margin-top:8px;color:var(--mid)}
 .sw-reason.green{color:var(--green)}.sw-reason.red{color:var(--red)}.sw-reason.yellow{color:var(--amber)}
@@ -82,6 +92,6 @@
 .sw-pick b{color:var(--amber)}
 
 @media (max-width:640px){
-  .sw-run{font-size:22px}
+  .sw-date{font-size:18px}
   .sw-days .sw-chip{font-size:10px}
 }

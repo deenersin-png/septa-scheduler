@@ -7,6 +7,7 @@
 <meta name="description" content="Run swap offers posted by SEPTA operators, by district. Unofficial: every swap still needs the dispatcher's approval.">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/pa-account.css">
+<link rel="stylesheet" href="assets/pa-run-card.css">
 <link rel="stylesheet" href="assets/pa-swap.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0b0d">
@@ -169,7 +170,7 @@ async function show(key) {
     btn.addEventListener('click', () => interestPrompt(card, o));
     list.appendChild(card);
   }
-  $('foot').textContent = offers.length ? offers.length + ' open offer' + (offers.length === 1 ? '' : 's') + '. Offers disappear once their day has passed.' : '';
+  $('foot').textContent = offers.length ? offers.length + ' open offer' + (offers.length === 1 ? '' : 's') + '. An offer disappears the moment its run starts.' : '';
 }
 
 (async () => {

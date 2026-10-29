@@ -1,0 +1,98 @@
+/* Paddle App — the run scorecard, as the paddle viewer (index.html) draws it.
+   Values are index.html's .card / .card-head / .stats-row / .timeline rules,
+   renamed with a prc- prefix so they cannot collide with a host page's own
+   .card or .stat. assets/pa-run-card.js builds the markup.
+
+   .prc-stack holds an optional .prc-top block (the My Run countdown, a swap
+   offer's details) sitting on the scorecard as one piece. Relies on the
+   page's tokens (--ink, --amber, --mono ...). */
+
+.prc{background:var(--ink2);border:1px solid var(--line2);border-radius:6px;overflow:hidden;position:relative;font-family:var(--sans);color:var(--text)}
+.prc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.prc.day-Sunday::before{background:var(--green)}
+.prc.day-Weekday::before{background:var(--amber)}
+.prc.day-Saturday::before{background:var(--blue)}
+
+.prc-head{display:grid;grid-template-rows:auto auto;gap:0;border-bottom:1px solid var(--line);background:var(--ink3)}
+.prc-head-top{display:flex;align-items:center;justify-content:flex-start;padding:6px 12px;gap:8px;border-bottom:1px solid var(--line)}
+.prc-day{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);flex-shrink:0}
+.prc.day-Sunday .prc-day{color:var(--green)}
+.prc.day-Weekday .prc-day{color:var(--amber)}
+.prc.day-Saturday .prc-day{color:var(--blue)}
+.prc-num{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--amber);line-height:1;flex-shrink:0;text-decoration:none}
+.prc.day-Sunday .prc-num{color:var(--green)}
+.prc.day-Weekday .prc-num{color:var(--amber)}
+.prc.day-Saturday .prc-num{color:var(--blue)}
+.prc-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.prc-paddle{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;background:var(--blue);border:1px solid var(--blue);color:#0a1020;padding:4px 10px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.prc-paddle:hover{border-color:#6fb4ff;background:#6fb4ff;color:#0a1020}
+.prc-paddle:active{background:#3c8ae6;border-color:#3c8ae6}
+.prc-head-bottom{display:flex;align-items:center;justify-content:flex-end;padding:6px 12px}
+.prc-routes{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--bright);letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis}
+
+.prc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.prc-stat{padding:10px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;text-align:center}
+.prc-stat:last-child{border-right:none}
+.prc-stat-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+.prc-stat-val{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--bright);line-height:1.1}
+.prc-stat-val.pay{color:var(--amber)}
+
+.prc-swing{padding:6px 12px;border-top:1px solid var(--line);background:var(--ink3);font-family:var(--mono);font-size:10px;color:var(--mid);display:flex;justify-content:flex-start;gap:2px}
+.prc-swing-label{color:var(--dim);font-weight:600}
+.prc-swing-value{color:var(--violet);font-weight:600}
+
+.prc-timeline{padding:12px 14px 12px 17px}
+.prc-seg{display:flex;align-items:stretch;gap:0;margin-bottom:6px;position:relative}
+.prc-seg:last-child{margin-bottom:0}
+.prc-seg-connector{width:16px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;position:relative;margin-right:8px}
+.prc-seg-dot{width:8px;height:8px;border-radius:50%;border:2px solid;flex-shrink:0;margin-top:4px;z-index:1;border-color:var(--green);background:var(--green)}
+.prc-seg-line{width:1px;background:var(--line2);flex:1;margin-top:2px}
+.prc-seg:last-child .prc-seg-line{display:none}
+.prc-seg-body{flex:1;min-width:0;padding-bottom:6px}
+.prc-seg-top{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+.prc-seg-route{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--bright);min-width:36px}
+.prc-seg-block{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.08em;color:var(--bright);background:var(--ink3);border:1px solid var(--line3);border-radius:3px;padding:2px 6px}
+.prc-seg-block-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;color:var(--dim);margin-right:-2px}
+.prc-seg-sched{font-family:var(--mono);font-size:11px;color:var(--mid);margin-left:auto}
+.prc-seg-times{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px;color:var(--mid);flex-wrap:wrap}
+.prc-seg-time-tag{font-size:10px;font-weight:600;letter-spacing:.05em;padding:1px 4px;border-radius:2px;background:var(--green-dim);color:var(--green)}
+.prc-seg-arrow{color:var(--dim);font-size:10px}
+
+/* ---- a block sitting on top of the scorecard -------------------------- */
+.prc-stack{margin-bottom:12px}
+.prc-stack > .prc-top{background:var(--ink3);border:1px solid var(--line2);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;position:relative;padding:12px 14px 12px 17px}
+.prc-stack > .prc-top::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-top-left-radius:6px}
+.prc-stack.day-Sunday > .prc-top::before{background:var(--green)}
+.prc-stack.day-Weekday > .prc-top::before{background:var(--amber)}
+.prc-stack.day-Saturday > .prc-top::before{background:var(--blue)}
+.prc-stack > .prc-top + .prc{border-top:none;border-radius:0 0 6px 6px}
+
+/* My Run: status line + countdown */
+.prc-cd-status{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);line-height:1.5}
+.prc-stack.day-Sunday .prc-cd-status{color:var(--green)}
+.prc-stack.day-Weekday .prc-cd-status{color:var(--amber)}
+.prc-stack.day-Saturday .prc-cd-status{color:var(--blue)}
+.prc-cd-digits{font-family:var(--mono);font-size:48px;font-weight:700;letter-spacing:.02em;color:var(--bright);line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.prc-cd-digits.soon{color:var(--amber)}
+.prc-cd-digits.now{color:var(--red)}
+
+@media (max-width:768px){
+  .prc-head{display:flex;flex-direction:column}
+  .prc-head-top{gap:8px;padding:4px 10px;flex-wrap:nowrap;overflow:hidden}
+  .prc-day{font-size:12px;letter-spacing:.04em}
+  .prc-num{font-size:20px}
+  .prc-paddle{font-size:10px;padding:4px 9px}
+  .prc-head-bottom{padding:6px 10px}
+  .prc-routes{font-size:11px;text-align:right}
+  .prc-swing{font-size:12px;padding:6px 10px;gap:4px}
+  .prc-stat-val{font-size:17px}
+  .prc-seg-route{font-size:13px}
+  .prc-cd-digits{font-size:42px}
+}
+@media (max-width:480px){
+  .prc-num{font-size:18px}
+  .prc-stat-val{font-size:16px}
+  .prc-seg-times{font-size:11px}
+  .prc-routes{font-size:10px}
+  .prc-day{font-size:11px}
+}

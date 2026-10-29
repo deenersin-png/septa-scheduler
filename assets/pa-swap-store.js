@@ -15,6 +15,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js';
 
 import { initFirebase } from './pa-firebase.js';
+import { hasStarted } from './pa-swap.js';
 
 
 const db = () => { const fb = initFirebase(); if (!fb) throw new Error('Firebase is not configured'); return fb.db; };
@@ -24,11 +25,13 @@ const withId = s => ({ id: s.id, ...s.data() });
 
 // ---- the board ------------------------------------------------------------
 
-/** Open offers for one district that have not expired, soonest first. */
+/** Open offers for one district that have not expired, soonest first. An
+ *  offer whose run has started is over even before the server deletes it. */
 export async function listBoard(depotKey, today) {
   const snap = await getDocs(query(offersCol(),
     where('depotKey', '==', depotKey), where('status', '==', 'open'), where('expiresOn', '>=', today)));
-  return snap.docs.map(withId).sort((a, b) => a.give.date.localeCompare(b.give.date)
+  const now = Date.now();
+  return snap.docs.map(withId).filter(o => !hasStarted(o, now)).sort((a, b) => a.give.date.localeCompare(b.give.date)
     || (a.give.reportMin || 0) - (b.give.reportMin || 0));
 }
 
@@ -39,9 +42,14 @@ export async function getOffer(id) {
 
 // ---- my offers ------------------------------------------------------------
 
+/** The operator's own offers. One whose run has started without a swap is
+ *  deleted here too, in case the server has not got to it yet. */
 export async function myOffers(uid) {
   const snap = await getDocs(query(offersCol(), where('posterUid', '==', uid)));
-  return snap.docs.map(withId).sort((a, b) => a.give.date.localeCompare(b.give.date));
+  const now = Date.now();
+  const all = snap.docs.map(withId);
+  all.filter(o => hasStarted(o, now)).forEach(o => { deleteOffer(o.id).catch(() => {}); });
+  return all.filter(o => !hasStarted(o, now)).sort((a, b) => a.give.date.localeCompare(b.give.date));
 }
 
 export async function createOffer(fields) {
@@ -112,7 +120,8 @@ export async function interestedOffers(uid) {
     try { const o = await getOffer(offerId); return o ? { offer: o, interest: withId(d) } : null; }
     catch (_) { return null; }
   }));
-  return rows.filter(Boolean).sort((a, b) => a.offer.give.date.localeCompare(b.offer.give.date));
+  const now = Date.now();
+  return rows.filter(r => r && !hasStarted(r.offer, now)).sort((a, b) => a.offer.give.date.localeCompare(b.offer.give.date));
 }
 
 // ---- contact (shared only after a pick) -----------------------------------

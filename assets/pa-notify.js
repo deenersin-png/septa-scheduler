@@ -1,51 +1,51 @@
 // ==========================================================================
-// Paddle App — departure alerts (Tier 1: while the app is open).
+// Paddle App — alert settings, and what this phone can do.
 //
-// Fires browser notifications a few minutes before the next SCHEDULED
-// moment — report time, pull-out, each trip departure, the next piece of a
-// swing. Runs entirely in the page: a single setTimeout for the next alert,
-// re-planned every time the home screen recomputes. No server.
+// Every alert is a PHONE notification, sent by the server with the app
+// closed (pa-run-alerts.js plans them, functions/ sends them). There is no
+// in-app timer any more. This module keeps the operator's choices:
 //
-// What that buys and what it does not:
-//   - Desktop / Android Chrome: works with the tab open or in the background.
-//   - iPhone: only inside an app added to the Home Screen, and iOS suspends
-//     timers when the app is backgrounded, so it is reliable while the app
-//     is on screen (a layover) and best-effort otherwise.
-//   - App fully closed: nothing fires. That needs real push (Tier 2, later).
+//   pushEnabled              this account wants phone alerts (the phone
+//                            registered through pa-push.js)
+//   report1On / report1Lead  first report alert, minutes before report   (30)
+//   report2On / report2Lead  second report alert                         (1)
+//   depOn / depLead          every departure, minutes before it          (0)
 //
-// Times come from pa-schedule / pa-countdown only. The scheduled-time rule
-// applies here exactly as it does to the countdown.
+// Times are SCHEDULED times only; a late bus ahead never moves an alert.
 // ==========================================================================
 
 import { doc, getDoc, setDoc, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js';
 import { initFirebase } from './pa-firebase.js';
-import * as S from './pa-schedule.js';
 
 export const DEFAULTS = {
-  enabled: false,
-  departureLeadMin: 5,
-  shiftLeadMin: 30,
-  oneMinEnabled: true,               // a second alert when the countdown reaches 1 min
-  quietEnabled: false,
-  quietStart: '22:00',
-  quietEnd: '05:00',
-  // The phone alert before a run, which arrives with the app closed: planned
-  // by pa-run-alerts.js, sent by functions/. Off until the operator turns it on.
   pushEnabled: false,
-  pushLeadMin: 30
+  report1On: true, report1Lead: 30,
+  report2On: true, report2Lead: 1,
+  depOn: true, depLead: 0
 };
+/** Longest lead an operator can type, in minutes. */
+export const MAX_LEAD_MIN = 180;
 const LS_SETTINGS = 'pa_notify';
-const LS_FIRED    = 'pa_notify_fired';
-const MAX_DELAY   = 12 * 3600000;      // re-plan rather than sleep for days
 
 let db = null, uid = null;
 let settings = { ...DEFAULTS };
-let timer = null, swReg = null, lastInput = null;
 const listeners = new Set();
 
+/** Saved settings on today's model. The single phone alert before a run
+ *  (pushLeadMin) becomes the first report alert. */
+function upgrade(j) {
+  const s = { ...DEFAULTS, ...j };
+  if (j && j.report1Lead == null && j.pushLeadMin != null) s.report1Lead = j.pushLeadMin;
+  ['report1Lead', 'report2Lead', 'depLead'].forEach(k => { s[k] = clampLead(s[k], DEFAULTS[k]); });
+  return s;
+}
+export function clampLead(v, dflt = 0) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_LEAD_MIN, n)) : dflt;
+}
 function loadLocal() {
-  try { const j = JSON.parse(localStorage.getItem(LS_SETTINGS) || 'null'); if (j) settings = { ...DEFAULTS, ...j }; } catch (_) {}
+  try { const j = JSON.parse(localStorage.getItem(LS_SETTINGS) || 'null'); if (j) settings = upgrade(j); } catch (_) {}
 }
 function saveLocal() { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); } catch (_) {} }
 loadLocal();
@@ -63,17 +63,13 @@ export async function attach(userId) {
     const snap = await getDoc(doc(db, 'users', uid, 'settings', 'notifications'));
     if (snap.exists()) {
       const d = snap.data(); delete d.updatedAt;
-      settings = { ...DEFAULTS, ...d };
+      settings = upgrade(d);
       saveLocal(); emit();
-      if (lastInput) schedule(lastInput);
     }
   } catch (e) { console.warn('[pa] notify settings', e.code || e.message); }
 }
 
-export function detach() {
-  db = null; uid = null;
-  clearTimeout(timer); timer = null; lastInput = null;
-}
+export function detach() { db = null; uid = null; }
 
 export async function save(patch) {
   settings = { ...settings, ...patch };
@@ -84,7 +80,6 @@ export async function save(patch) {
                    { ...settings, updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.warn('[pa] notify save', e.code || e.message); }
   }
-  if (lastInput) schedule(lastInput);
 }
 
 /**
@@ -140,123 +135,6 @@ export function support() {
 export async function registerSW() {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    swReg = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href);
-    return swReg;
+    return await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href);
   } catch (e) { console.warn('[pa] service worker', e.message); return null; }
-}
-
-/** Must be called from a user gesture (a tap on the toggle). */
-export async function requestPermission() {
-  if (!('Notification' in window)) return 'unsupported';
-  try { return await Notification.requestPermission(); } catch (_) { return Notification.permission; }
-}
-
-export async function show(title, body, tag, url) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
-  const opts = {
-    body, tag: tag || 'pa', renotify: true,
-    icon: new URL('assets/icon-192.png', document.baseURI).href,
-    badge: new URL('assets/icon-192.png', document.baseURI).href,
-    data: { url: new URL(url || 'home.html', document.baseURI).href }
-  };
-  // Through the service worker when we can (survives the tab being in the
-  // background), plain Notification otherwise.
-  try {
-    const reg = swReg || (navigator.serviceWorker && await navigator.serviceWorker.getRegistration());
-    if (reg && reg.showNotification) { await reg.showNotification(title, opts); return true; }
-  } catch (_) {}
-  try { new Notification(title, opts); return true; } catch (_) { return false; }
-}
-
-// ---- planning -------------------------------------------------------------
-
-function firedSet() {
-  try { return new Set(JSON.parse(localStorage.getItem(LS_FIRED) || '[]')); } catch (_) { return new Set(); }
-}
-function markFired(key) {
-  const s = firedSet(); s.add(key);
-  const today = S.todayIso(), y = S.addDays(today, -1);
-  const keep = [...s].filter(k => k.startsWith(today) || k.startsWith(y));   // keys begin with the date
-  try { localStorage.setItem(LS_FIRED, JSON.stringify(keep)); } catch (_) {}
-}
-
-function inQuiet(ms) {
-  if (!settings.quietEnabled) return false;
-  const d = new Date(ms); const m = d.getHours() * 60 + d.getMinutes();
-  const p = t => { const x = String(t || '').split(':'); return (parseInt(x[0], 10) || 0) * 60 + (parseInt(x[1], 10) || 0); };
-  const a = p(settings.quietStart), b = p(settings.quietEnd);
-  return a <= b ? (m >= a && m < b) : (m >= a || m < b);
-}
-
-/**
- * Every alert this run could still produce, soonest first, minus the ones
- * already fired. `current` is the home screen's chosen context; tripsByBlock
- * is its loaded GTFS trips (may be empty — then pull-out / piece / report
- * alerts still work).
- */
-export function plan(input) {
-  const current = input && input.current, tripsByBlock = input && input.tripsByBlock;
-  if (!current || !current.run || !current.r) return [];
-  const run = current.run, date = current.date, rn = current.r.runNo, now = Date.now();
-  const lead = settings.departureLeadMin, slead = settings.shiftLeadMin;
-  const items = [];
-  const add = (min, l, kind, title, body) => {
-    if (min == null) return;
-    const eventAt = S.minToMs(date, min);
-    if (eventAt <= now) return;
-    const key = date + '|' + kind + '|' + min;
-    if (items.some(i => i.key === key)) return;   // GTFS lists some trips twice (service variants)
-    items.push({ at: eventAt - l * 60000, eventAt, key: date + '|' + kind + '|' + min, title, body });
-  };
-  // The same moment again when the countdown on the home screen reads 1 min.
-  const one = (min, kind, what, body) => {
-    if (settings.oneMinEnabled) add(min, 1, kind + '|1m', 'Run ' + rn + ' · ' + what + ' in 1 min', body);
-  };
-  add(run.reportMin, slead, 'report', 'Run ' + rn + ' · report in ' + slead + ' min', 'Report ' + S.fmtClock(run.reportMin));
-  one(run.reportMin, 'report', 'report', 'Report ' + S.fmtClock(run.reportMin));
-  run.pieces.forEach((p, i) => {
-    const pb = p.routeLabel + ' · block ' + p.block + ' · ' + S.fmtClock(p.startMin);
-    add(p.startMin, lead, 'piece' + p.index,
-        'Run ' + rn + (i === 0 ? ' · pull-out in ' : ' · next piece in ') + lead + ' min', pb);
-    one(p.startMin, 'piece' + p.index, i === 0 ? 'pull-out' : 'next piece', pb);
-    const nx = run.pieces[i + 1];
-    if (!nx || nx.startMin !== p.endMin) one(p.endMin, 'end' + p.index, p.endType === 'I' ? 'pull-in' : 'piece ends', 'Block ' + p.block + ' · ' + S.fmtClock(p.endMin));
-    const trips = (tripsByBlock && tripsByBlock.get(p.block)) || [];
-    trips.forEach(t => {
-      if (t.s > p.startMin && t.s < p.endMin) {
-        add(t.s, lead, 'dep', 'Run ' + rn + ' · departure in ' + lead + ' min', S.fmtClock(t.s) + ' from ' + t.first);
-        one(t.s, 'dep', 'departure', S.fmtClock(t.s) + ' from ' + t.first);
-      }
-    });
-  });
-  if (run.finishMin != null) one(run.finishMin, 'finish', 'finish', 'Finish ' + S.fmtClock(run.finishMin));
-  items.sort((a, b) => a.at - b.at);
-  const fired = firedSet();
-  return items.filter(i => !fired.has(i.key));
-}
-
-/** Arm the single timer for the next alert. Idempotent; call freely. */
-export function schedule(input) {
-  lastInput = input;
-  clearTimeout(timer); timer = null;
-  if (!settings.enabled) return null;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return null;
-  const next = plan(input)[0];
-  if (!next) return null;
-  const delay = next.at - Date.now();
-  if (delay > MAX_DELAY) { timer = setTimeout(() => schedule(lastInput), MAX_DELAY); return next; }
-  timer = setTimeout(async () => {
-    timer = null;
-    // Woke up long after the moment passed (backgrounded tab) — skip silently.
-    if (Date.now() > next.eventAt + 120000) { markFired(next.key); schedule(lastInput); return; }
-    if (!inQuiet(Date.now())) await show(next.title, next.body, next.key);
-    markFired(next.key);
-    schedule(lastInput);
-  }, Math.max(0, delay));
-  return next;
-}
-
-export function nextPlanned() {
-  if (!settings.enabled || !lastInput) return null;
-  return plan(lastInput)[0] || null;
 }

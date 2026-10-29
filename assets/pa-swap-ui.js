@@ -2,13 +2,14 @@
 // Paddle App — swap scorecards and small form pieces.
 //
 // Shared by the public board (swap.html) and the SWAP tab (pa-swap-tab.js),
-// so an offer looks the same everywhere: run number, route, start, finish,
-// pay, and what the poster wants in return — the paddle viewer's style.
-// DOM only; no Firebase.
+// so an offer looks the same everywhere: the swap details (the day, what the
+// poster wants in return, their conditions) on top of the Paddle App's own
+// run scorecard. DOM only; no Firebase.
 // ==========================================================================
 
-import { fmtClock, dayLabel } from './pa-schedule.js';
+import { slugFor, getRun, paddleLinkFor } from './pa-schedule.js';
 import * as W from './pa-swap.js';
+import * as RC from './pa-run-card.js';
 
 export function el(tag, cls, text) {
   const n = document.createElement(tag);
@@ -42,65 +43,88 @@ export function field(parent, label, attrs = {}) {
 
 const BADGE = { green: 'FITS', red: 'NOT ELIGIBLE', yellow: 'CHECK', mine: 'YOURS' };
 
-function stat(label, value, cls) {
-  const s = el('div', 'stat');
-  s.appendChild(el('div', 'k', label));
-  s.appendChild(el('div', 'v' + (cls ? ' ' + cls : ''), value));
-  return s;
+// The offered run as the paddle has it, for the scorecard's timeline and
+// PADDLE link: { run, url } or null. One lookup per run, shared by every card.
+const runCache = new Map();
+function paddleRun(offer) {
+  const g = offer.give || {};
+  if (!offer.depotKey || !g.date || !g.runNo || !g.dayType) return Promise.resolve(null);
+  const k = offer.depotKey + '|' + g.date + '|' + g.dayType + '|' + g.runNo;
+  if (!runCache.has(k)) {
+    const p = slugFor(offer.depotKey, g.date).then(async ({ slug }) => {
+      if (!slug) return null;
+      const [run, url] = await Promise.all([getRun(slug, g.dayType, g.runNo), paddleLinkFor(slug, g.dayType, g.runNo).catch(() => '')]);
+      return run ? { run, url } : null;
+    });
+    p.catch(() => runCache.delete(k));
+    runCache.set(k, p);
+  }
+  return runCache.get(k).catch(() => null);
 }
 
 /**
- * One offer, Paddle style.
+ * One offer: the swap details on top of the Paddle App's run scorecard
+ * (pa-run-card.js), as one card.
  *   check  — checkOffer()'s answer (or guestCheck())
  *   opts.actions — nodes for the footer (e.g. the "I'm interested" button)
  *   opts.menu    — [[label, onClick], ...] behind the ⋯ button (report, block)
  *   opts.guest   — show the guest badge text
+ *   opts.blocked — names of the operators the poster blocked; given only on
+ *                  the poster's own offers, because blocks are private
  */
 export function scorecard(offer, check, opts = {}) {
   const g = offer.give || {};
   const c = check || W.guestCheck();
   const closed = offer.status && !['open', 'matched'].includes(offer.status);
-  const card = el('div', 'sw-card ' + c.color + (closed ? ' closed' : ''));
-  card.dataset.offer = offer.id || '';
 
-  const top = el('div', 'sw-top');
-  const run = el('div', 'sw-run'); run.appendChild(el('small', null, 'RUN')); run.appendChild(document.createTextNode(g.runNo || '?'));
-  top.appendChild(run);
-  top.appendChild(el('div', 'sw-when', W.fmtDay(g.date).toUpperCase() + ' · ' + dayLabel(g.dayType)));
+  // ---- the swap details
+  const top = el('div', 'sw-details');
+  const row = el('div', 'sw-top');
+  const when = el('div', 'sw-date');
+  when.appendChild(el('small', null, offer.kind === 'dayoff' ? 'DAY OFF WANTED' : 'OFFERED FOR'));
+  when.appendChild(document.createTextNode(g.date ? W.longDay(g.date) + ' ' + W.fmtDay(g.date).slice(4) : '?'));
+  row.appendChild(when);
   const badge = opts.guest ? 'SIGN IN TO CHECK' : (offer.status && offer.status !== 'open' && c.color !== 'mine')
     ? W.STATUS_LABELS[offer.status].toUpperCase() : BADGE[c.color];
-  top.appendChild(el('span', 'sw-badge ' + c.color, badge));
-  card.appendChild(top);
-  card.appendChild(el('div', 'sw-head', W.headline(offer)));
-
-  const chips = el('div', 'chips');
-  chips.appendChild(el('span', 'chip amber', g.routeLabel || (g.routes || []).join(' / ') || 'Route ?'));
+  row.appendChild(el('span', 'sw-badge ' + c.color, badge));
+  top.appendChild(row);
   const sh = W.shiftOf(g.reportMin);
-  if (sh) chips.appendChild(el('span', 'chip' + (sh === 'night' ? ' violet' : ''), W.SHIFTS[sh]));
-  if (g.swing) chips.appendChild(el('span', 'chip', 'Swing'));
-  card.appendChild(chips);
-
-  const stats = el('div', 'stats');
-  stats.appendChild(stat('Start', fmtClock(g.reportMin)));
-  stats.appendChild(stat('Finish', fmtClock(g.finishMin)));
-  stats.appendChild(stat('Pay', g.payHours ? g.payHours.toFixed(2) + ' h' : '—', 'pay'));
-  stats.appendChild(stat('Week of', W.fmtDay(offer.weekStart || W.weekOf(g.date)).slice(4)));
-  card.appendChild(stats);
+  top.appendChild(el('div', 'sw-head', W.headline(offer)
+    + (sh ? ' · ' + W.SHIFTS[sh] + ' run' : '')
+    + (g.reportMin != null && g.reportMin < 0 ? ' · starts the night before' : '')
+    + ' · week of ' + W.fmtDay(offer.weekStart || W.weekOf(g.date || '')).slice(4)));
 
   const wants = el('div', 'sw-wants');
   wants.appendChild(el('span', 'k', 'Wants in return'));
   wants.appendChild(document.createTextNode(W.describeWants(offer)));
-  card.appendChild(wants);
+  top.appendChild(wants);
 
-  const prefs = W.describePrefs(offer.prefs);
-  if (prefs.length) {
+  const conds = W.describePrefs(offer.prefs);
+  if (opts.blocked && opts.blocked.length) conds.push('Not swapping with ' + opts.blocked.join(', '));
+  if (conds.length) {
     const p = el('div', 'sw-prefs');
-    prefs.forEach(t => p.appendChild(el('span', null, t)));
-    card.appendChild(p);
+    p.appendChild(el('span', 'k', 'Conditions'));
+    conds.forEach(t => p.appendChild(el('span', 'sw-cond', t)));
+    top.appendChild(p);
   }
-  if (offer.prefs && offer.prefs.note) card.appendChild(el('div', 'sw-note', '“' + offer.prefs.note + '”'));
-  if (c.reason && c.color !== 'mine') card.appendChild(el('div', 'sw-reason ' + c.color, c.reason));
+  if (offer.prefs && offer.prefs.note) top.appendChild(el('div', 'sw-note', '“' + offer.prefs.note + '”'));
+  if (c.reason && c.color !== 'mine') top.appendChild(el('div', 'sw-reason ' + c.color, c.reason));
 
+  // ---- the run, as the paddle viewer draws it; the timeline fills in once
+  // the paddle answers
+  const fallback = { runNo: g.runNo, dayType: g.dayType, reportMin: g.reportMin, finishMin: g.finishMin, payHours: g.payHours, routeLabel: g.routeLabel };
+  let runEl = RC.card(RC.modelFromRun(null, fallback));
+  const card = RC.stack(top, runEl, g.dayType);
+  card.classList.add('sw-card', c.color);
+  if (closed) card.classList.add('closed');
+  card.dataset.offer = offer.id || '';
+  paddleRun(offer).then(x => {
+    if (!x || !card.contains(runEl)) return;
+    const full = RC.card(RC.modelFromRun(x.run, fallback), { paddleUrl: x.url });
+    runEl.replaceWith(full); runEl = full;
+  });
+
+  // ---- who posted it, and what can be done
   const foot = el('div', 'sw-foot');
   foot.appendChild(el('div', 'sw-by', 'Posted by ' + (offer.posterName || 'an operator') + (offer.depotLabel ? ' · ' + offer.depotLabel : '')));
   (opts.actions || []).forEach(n => foot.appendChild(n));
