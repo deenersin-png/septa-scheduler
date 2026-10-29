@@ -281,6 +281,9 @@ a.run-chip:active{opacity:.7}
 .msg .icon{font-size:36px;margin-bottom:10px}
 .msg .main{font-size:16px;font-weight:600;margin-bottom:6px}
 .msg .sub{font-size:14px;color:var(--text-faint);line-height:1.6}
+.msg.find-msg .main{font-size:21px;font-weight:800;color:var(--text)}
+.msg.find-msg .sub{font-size:21px;font-weight:800;color:var(--text-dim);line-height:1.4}
+.msg.find-msg .one-line{white-space:nowrap;font-size:min(21px,4.6vw)}
 .retry-btn{display:inline-block;margin-top:16px;padding:10px 24px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .retry-btn:active{opacity:.7}
 
@@ -2042,7 +2045,7 @@ function findBannersHtml() {
   if (!f) return '';
   let h = '';
   if (!state.bus && f.lastSeen)
-    h += '<div class="alert-banner info"><span class="alert-icon">🚌</span><span>' + esc('Bus ' + f.num + ' isn\'t out now. ' + f.lastSeen + '.') + '</span></div>';
+    h += '<div class="alert-banner info"><span class="alert-icon">🚌</span><span>' + esc('Bus ' + f.num + ' isn\'t out now. ' + f.lastSeen[0] + ' ' + f.lastSeen.slice(1).join(', ') + '.') + '</span></div>';
   if (f.bus && f.block && !isSameRoute(f.bus.route, f.block.route)) {
     const other = state.bus ? 'Block ' + f.num + ' · Route ' + f.block.route : 'Bus ' + f.num + ' · Route ' + f.bus.route;
     h += '<button type="button" class="alert-banner info find-alt" onclick="switchFindView()"><span class="alert-icon">↔</span>' +
@@ -2722,7 +2725,7 @@ async function onBusSearch() {
   const num = document.getElementById('busSearch').value.trim();
   if (!num) return;
   document.getElementById('routeSelect').value = '';
-  const f = { num, bus: null, block: null, lastSeen: '' };
+  const f = { num, bus: null, block: null, lastSeen: null };
   state.find = f; state.bus = ''; state.busBlock = ''; state.block = '';
   const superseded = () => state.find !== f; // a route was picked (or another number searched) meanwhile
   document.getElementById('alertArea').innerHTML = '';
@@ -2754,7 +2757,7 @@ async function onBusSearch() {
         // Not out today (or swapped off its block): where it was last seen.
         const at = r => r.lastSeenAtMs || r.endedAtMs || 0;
         const seen = rows.filter(r => String(r.vehicleId) === num && at(r)).sort((a, c) => at(c) - at(a))[0];
-        if (seen) f.lastSeen = lastSeenText(seen);
+        if (seen) f.lastSeen = lastSeenParts(seen);
       }
     }
     if (!f.block) f.block = await blockToday(num, rows);
@@ -2774,8 +2777,10 @@ async function onBusSearch() {
     setStatus('idle');
     document.getElementById('routeBar').classList.add('hidden');
     setContent(f.lastSeen
-      ? '<div class="msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(num) + ' isn\'t out now</div><div class="sub">' + esc(f.lastSeen) + '.<br>No block ' + esc(num) + ' runs today either.</div></div>'
-      : '<div class="msg"><div class="icon">🚌</div><div class="main">' + esc(num) + ' not found</div><div class="sub">No bus with this number has been seen,<br>and no block ' + esc(num) + ' runs today</div></div>');
+      ? '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(num) + ' isn\'t out now</div><div class="sub">' + f.lastSeen.map(esc).join('<br>') + '</div>' +
+        '<div class="sub one-line">and no block ' + esc(num) + ' currently running.</div></div>'
+      : '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">' + esc(num) + ' not found</div><div class="sub">No bus with this number has been seen</div>' +
+        '<div class="sub one-line">and no block ' + esc(num) + ' currently running.</div></div>');
     return;
   }
   if (f.bus) {
@@ -2816,33 +2821,34 @@ function pickRoutes(names) {
   });
 }
 
-// "Last seen yesterday at 10:42 PM on Route 44 · Block 9663 · Run 209" from
-// a state.json row. "yesterday" is by the calendar, as a person reads a
-// time; the run goes by its service day (a 1 AM sighting belongs to the
-// evening before) and only when that day ran today's pick.
-function lastSeenText(row) {
+// ["Last seen", "yesterday at 10:42 PM", "on Route 44 Block 9663", "Run 209"]
+// from a state.json row — one line each in the not-found message. "yesterday"
+// is by the calendar, as a person reads a time; the run goes by its service
+// day (a 1 AM sighting belongs to the evening before) and only when that day
+// ran today's pick.
+function lastSeenParts(row) {
   const ms = row.lastSeenAtMs || row.endedAtMs;
   const cal = new Date(ms); cal.setHours(0, 0, 0, 0);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const ago = Math.round((today - cal) / 86400000);
   const when = ago <= 0 ? 'today'
     : ago === 1 ? 'yesterday'
-    : ago < 7 ? 'on ' + cal.toLocaleDateString([], { weekday: 'long' })
-    : 'on ' + cal.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    : ago < 7 ? cal.toLocaleDateString([], { weekday: 'long' })
+    : cal.toLocaleDateString([], { month: 'short', day: 'numeric' });
   const day = new Date(ms);
   if (inOwlWindow(day)) day.setDate(day.getDate() - 1);
   day.setHours(0, 0, 0, 0);
   const time = new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  let txt = 'Last seen ' + when + ' at ' + time + ' on Route ' + row.routeId + ' · Block ' + row.blockId;
+  const parts = ['Last seen', when + ' at ' + time, 'on Route ' + row.routeId + ' Block ' + row.blockId];
   const rec = paddle.byBlock.get(String(row.blockId));
   if (rec && rec.runs.length && dayTypeOfDate(day) === getDayType()) {
     // The run out at that moment: the last to have pulled out by then. A
     // relief run has no pull-out time, so with one of those, list them all.
     const m = (ms - day.getTime()) / 60000;
     const out = rec.runs.every(r => r.sortMin !== Infinity) && rec.runs.filter(r => r.sortMin <= m).pop();
-    txt += out ? ' · Run ' + out.runno : ' · Run' + (rec.runs.length > 1 ? 's ' : ' ') + rec.runs.map(r => r.runno).join(', ');
+    parts.push(out ? 'Run ' + out.runno : 'Run' + (rec.runs.length > 1 ? 's ' : ' ') + rec.runs.map(r => r.runno).join(' & '));
   }
-  return txt;
+  return parts;
 }
 
 async function loadRoute(route) {
