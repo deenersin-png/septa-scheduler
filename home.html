@@ -460,6 +460,7 @@ async function boot() {
   renderSyncLine();
   N.attach(ctx.user.uid).catch(() => {});
   N.registerSW();
+  P.refreshPush(ctx.user.uid);           // a changed or dropped push token, sent again
   ctx.drawnVersion = A.getState().version;
   await refreshToday();
   requireRuns();

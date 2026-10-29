@@ -435,7 +435,11 @@ export async function loadRouteTrips(route, dayType) {
   if (tripsMem.has(key)) return tripsMem.get(key);
   const p = (async () => {
     const j = await fetchJson(GTFS_BASE + '/' + encodeURIComponent(route) + '.json');
-    let list = (j && j[dayType]) || [];
+    // A failed download is NOT an empty timetable. Remembering it as one left
+    // the page with no trips (and phone alerts with no departures) until it
+    // was reloaded; throw so callers know, and try again next time.
+    if (!j) { tripsMem.delete(key); throw new Error('trips not loaded: ' + route); }
+    let list = j[dayType] || [];
     // septa-gtfs's weekday list also carries every Saturday and Sunday trip
     // (route 42: 216 weekday trips + all 136 Sunday ones), so each weekday
     // block got a second, overlapping Sunday timetable and Sunday buses showed

@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { planRunAlerts, upcomingRuns, runDepartures, testAlert, TEST_DELAY_MIN, DEFAULTS } from '../pa-run-alerts.js';
+import { planRunAlerts, upcomingRuns, runDepartures, syncRunAlerts, testAlert, TEST_DELAY_MIN, DEFAULTS } from '../pa-run-alerts.js';
 import { minToMs, normalizeRun } from '../pa-schedule.js';
 
 const NOW = minToMs('2026-10-27', 600);          // Tue 10:00 AM
@@ -110,4 +110,83 @@ test('the test alert is due a couple of minutes out and never looks like a run',
   assert.ok(a.sendAtMs - NOW <= 600000, 'the rules only allow ten minutes out');
   assert.ok(!/^Run /.test(a.title));
   assert.ok(a.title.length <= 80 && a.body.length <= 200);
+});
+
+// ---- syncRunAlerts against a stand-in Firestore ------------------------------
+
+// Just enough of the Firestore web SDK: docs by path, batches, one where().
+function fakeFirestore() {
+  const store = new Map();
+  const pathOf = (base, ...seg) => [base && base.path, ...seg].filter(Boolean).join('/');
+  const F = {
+    store,
+    collection: (_db, name) => ({ path: name }),
+    doc: (base, ...seg) => ({ path: base && base.path ? pathOf(base, ...seg) : seg.join('/') }),
+    where: (field, _op, value) => ({ field, value }),
+    query: (col, w) => ({ col, w }),
+    serverTimestamp: () => 'TS',
+    async getDoc(ref) { const v = store.get(ref.path); return { exists: () => v !== undefined, data: () => v }; },
+    async getDocs(q) {
+      const hits = [...store].filter(([k, v]) => k.startsWith(q.col.path + '/') && v[q.w.field] === q.w.value);
+      return { forEach: f => hits.forEach(([k, v]) => f({ id: k.slice(q.col.path.length + 1), data: () => v })) };
+    },
+    writeBatch() {
+      const ops = [];
+      return { set: (r, v) => ops.push(() => store.set(r.path, v)), delete: r => ops.push(() => store.delete(r.path)),
+               async commit() { ops.forEach(f => f()); } };
+    }
+  };
+  return F;
+}
+// Each "device" has its own localStorage.
+function device() {
+  const m = new Map();
+  return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
+}
+const alertIds = F => [...F.store.keys()].filter(k => k.startsWith('runAlerts/')).sort();
+const DAYS = [day('2026-10-28', 330, { departures: [{ min: 345, what: 'pull-out', where: 'block 9101' }, { min: 400, what: 'departure', where: '21' }] })];
+
+test('a phone puts back alerts another device deleted behind its back', async () => {
+  const F = fakeFirestore(), phone = device(), laptop = device();
+  const sync = (ls, args) => { globalThis.localStorage = ls; return syncRunAlerts({ db: {}, uid: 'deen', settings: {}, now: NOW, firestore: F, ...args }); };
+  await sync(phone, { enabled: true, days: DAYS });
+  const full = alertIds(F);
+  assert.equal(full.length, 4);
+  // The laptop planned with no departures (its trips failed before this fix) and deleted them.
+  await sync(laptop, { enabled: true, days: [day('2026-10-28', 330)] });
+  assert.equal(alertIds(F).length, 2);
+  // Before: the phone's copy said all four were saved and it wrote nothing.
+  const r = await sync(phone, { enabled: true, days: DAYS });
+  assert.deepEqual(alertIds(F), full);
+  assert.equal(r.writes, 3);                       // two departures + the rev stamp
+  // Nothing changed since: one read, no writes.
+  assert.equal((await sync(phone, { enabled: true, days: DAYS })).writes, 0);
+});
+
+test('a day whose trips did not load keeps the departure alerts already saved', async () => {
+  const F = fakeFirestore(); globalThis.localStorage = device();
+  const sync = days => syncRunAlerts({ db: {}, uid: 'deen', enabled: true, settings: {}, days, now: NOW, firestore: F });
+  await sync(DAYS);
+  assert.equal(alertIds(F).length, 4);
+  await sync([day('2026-10-28', 330, { partial: true, departures: [{ min: 345, what: 'pull-out', where: 'block 9101' }] })]);
+  assert.equal(alertIds(F).length, 4, 'the 6:40 departure is still there');
+  // A different run that day is a real change: its old departures go.
+  await sync([{ ...day('2026-10-28', 330, { partial: true }), runNo: '310' }]);
+  assert.ok(alertIds(F).every(k => !k.includes('_d')));
+});
+
+test('upcomingRuns marks a day partial when the trips or the paddle did not load', async () => {
+  const days = await upcomingRuns({
+    from: '2026-10-27', n: 2,
+    resolve: () => ({ runNo: '209', reportMin: 330 }),
+    runFor: async (_r, d) => (d === '2026-10-27' ? { dayType: 'weekday', reportMin: 330, pieces: [{ routeLabel: '21', block: '9101', startMin: 345, endMin: 600 }] } : null),
+    tripsOf: async () => { throw new Error('trips not loaded: 21'); }
+  });
+  assert.equal(days[0].partial, true);
+  assert.deepEqual(days[0].departures.map(x => x.what), ['pull-out']);
+  assert.equal(days[1].partial, true);
+  const ok = await upcomingRuns({ from: '2026-10-27', n: 1, resolve: () => ({ runNo: '209', reportMin: 330 }),
+    runFor: async () => ({ dayType: 'weekday', reportMin: 330, pieces: [{ routeLabel: '21', block: '9101', startMin: 345, endMin: 600 }] }),
+    tripsOf: async () => [] });
+  assert.equal(ok[0].partial, undefined);
 });

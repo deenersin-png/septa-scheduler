@@ -71,3 +71,17 @@ test('each alert of a day has its own tag, so none replaces another on the phone
   await sendDue(h.deps, NOW);
   assert.deepEqual(h.pushes.map(p => p.tag).sort(), ['run-2026-10-28-d1785', 'run-2026-10-28-rep1']);
 });
+
+test('a phone is only forgotten when Google says its token is dead', async () => {
+  const h = harness();
+  h.db.store.set('users/deen/devices/b', { fcmToken: 'tB' });
+  h.deps.sendPush = async token => {
+    const e = new Error('x');
+    e.code = token === 'tA' ? 'messaging/invalid-argument' : 'messaging/registration-token-not-registered';
+    throw e;
+  };
+  h.alert('deen_w', 'deen', NOW - 1000);
+  await sendDue(h.deps, NOW);
+  assert.equal(h.db.store.has('users/deen/devices/a'), true, 'a bad message is not a dead phone');
+  assert.equal(h.db.store.has('users/deen/devices/b'), false);
+});
