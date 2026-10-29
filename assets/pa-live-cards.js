@@ -14,11 +14,9 @@
 // scheduled countdown.
 // ==========================================================================
 
-import { blockStatus, isPhantomTrip } from './pa-schedule.js';
+import { blockStatus, isPhantomTrip, blockOutSince } from './pa-schedule.js';
 
 const LATE_BAD = 6;
-/** Minutes before its pull-out that a bus can log in on a block at the depot. */
-const PAIR_LOGIN_SLACK = 30;
 
 export const ICONS = {
   bus:  '<svg viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>',
@@ -108,14 +106,10 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
       const m = nowMin - (Date.now() - ts) / 60000;
       return own.some(t => m >= t.s + 2 && m <= t.e - 2);
     };
-    // Only a bus seen since this block pulled out today (the pick's pull-out,
-    // less PAIR_LOGIN_SLACK for logging in at the depot). A bus seen on it
-    // yesterday afternoon is still inside the 14-hour log-in window the next
-    // morning, before today's bus has even left (9112 showed Wednesday's 3398
-    // on Thursday before its 5:54 AM pull-out).
-    const po = pullOuts && pullOuts.get(b);
-    if (po != null && nowMin < po - PAIR_LOGIN_SLACK) return '';
-    const since = po != null ? Date.now() - (nowMin - po + PAIR_LOGIN_SLACK) * 60000 : 0;
+    // Only a bus seen since this block last pulled out (pa-schedule
+    // blockOutSince): never yesterday's bus on today's block.
+    const since = pullOuts ? blockOutSince(pullOuts.get(b), pullIns && pullIns.get(b)) : 0;
+    if (since > Date.now()) return '';
     return knownBus(b, route, busyAt, since);
   };
   let bus;

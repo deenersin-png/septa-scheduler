@@ -35,27 +35,45 @@ test('a block that has already pulled in never leads', () => {
 // ---- a leader's bus number: today's only -----------------------------------
 
 import { buildBusModel } from '../pa-live-cards.js';
+import { blockOutSince } from '../pa-schedule.js';
 
-const B9112 = [trip('9112', 377, PINE), trip('9112', 430, '38th Parellel Pl', 1)];   // 6:17 AM first trip
-const PULLOUTS = new Map([['9112', 354]]);                                           // pulls out 5:54 AM
-// The pairing store as knownBus sees it: bus 3398 last seen on 9112 at `seenMs`.
-const store = seenMs => (block, route, busyAt, sinceTs = 0) => (seenMs >= sinceTs ? '3398' : '');
-const model = (nowMin, seenMs) => buildBusModel({ block: '9112', allTrips: B9112, buses: [], nowMin, pullOuts: PULLOUTS, knownBus: store(seenMs) });
+const at = (d, h, m) => new Date(2026, 9, d, h, m).getTime();      // October 2026, local time
+const PO_9112 = 6 * 60 + 8, PI_9112 = 19 * 60;                     // out 6:08 AM, in 7:00 PM
 
-test('before the block pulls out today it has no bus, whatever was seen on it yesterday', () => {
-  assert.equal(model(300, Date.now() - 60000).VehicleID, '');            // 5:00 AM
+test('before the block pulls out today, it is in: no bus', () => {
+  assert.equal(blockOutSince(PO_9112, PI_9112, at(29, 5, 0)), Infinity);       // Thu 5:00 AM
 });
 
-test('after the pull-out, a bus last seen before it (yesterday) does not count', () => {
-  const yesterday = Date.now() - 10 * 3600000;
-  assert.equal(model(380, yesterday).VehicleID, '');                     // 6:20 AM
+test('from 30 min before the pull-out, only a bus seen since then counts', () => {
+  assert.equal(blockOutSince(PO_9112, PI_9112, at(29, 5, 40)), at(29, 5, 38));
+  assert.equal(blockOutSince(PO_9112, PI_9112, at(29, 14, 0)), at(29, 5, 38));
 });
 
-test('a bus seen since the pull-out keeps its number between trips', () => {
-  assert.equal(model(380, Date.now() - 5 * 60000).VehicleID, '3398');
+test('a block out past midnight keeps the bus it pulled out with', () => {
+  // out 5:00 PM, in 1:30 AM: at 1:00 AM Thursday it is still Wednesday's bus
+  assert.equal(blockOutSince(17 * 60, 90, at(29, 1, 0)), at(28, 16, 30));
 });
 
-test('without pull-out times the old rule stands', () => {
-  const m = buildBusModel({ block: '9112', allTrips: B9112, buses: [], nowMin: 300, knownBus: store(Date.now() - 10 * 3600000) });
-  assert.equal(m.VehicleID, '3398');
+test('a night liner pulled out after midnight', () => {
+  // 9102: out 1:27 AM, in 10:46 AM
+  assert.equal(blockOutSince(87, 646, at(29, 2, 0)), at(29, 0, 57));
+  assert.equal(blockOutSince(87, 646, at(29, 23, 0)), Infinity);
+});
+
+test('no pull-out in the pick: no limit', () => {
+  assert.equal(blockOutSince(null, null, at(29, 5, 0)), 0);
+});
+
+test('the leader card shows no bus before the pull-out, and keeps the bus seen since', () => {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const B = [trip('9112', nowMin + 120, PINE), trip('9112', nowMin + 180, '38th Parellel Pl', 1)];
+  const store = seenMs => (block, route, busyAt, sinceTs = 0) => (seenMs >= sinceTs ? '3398' : '');
+  const card = (po, pi, seenMs) => buildBusModel({ block: '9112', allTrips: B, buses: [], nowMin,
+    pullOuts: new Map([['9112', po]]), pullIns: new Map([['9112', pi]]), knownBus: store(seenMs) }).VehicleID;
+  // pulls out in 90 min, last pulled in 2 h ago: in for now, yesterday's bus ignored
+  assert.equal(card(nowMin + 90, nowMin + 1320, Date.now() - 10 * 3600000), '');   // 1320 = 2 h ago on the clock
+  // pulled out an hour ago: yesterday's bus ignored, one seen 5 min ago kept
+  assert.equal(card(nowMin - 60, nowMin + 600, Date.now() - 10 * 3600000), '');
+  assert.equal(card(nowMin - 60, nowMin + 600, Date.now() - 5 * 60000), '3398');
 });
