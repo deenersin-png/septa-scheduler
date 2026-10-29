@@ -543,6 +543,19 @@ function parseCSV(text) {
 // Builds into local collections and commits atomically at the end, guarded by
 // a request id, so a stale in-flight load (e.g. from rapid route switching)
 // can't clobber a newer one or interleave writes into the same Map.
+// septa-gtfs's weekday list also carries every Saturday and Sunday trip
+// (route 42: 216 weekday trips + all 136 Sunday ones), which gave each
+// weekday block a second, overlapping Sunday timetable. A weekday trip that
+// is also in the Saturday or Sunday list is one of those (same rule as
+// assets/pa-schedule.js loadRouteTrips).
+function dayTrips(data, day) {
+  const list = (data && data[day]) || [];
+  if (day !== 'weekday') return list;
+  const weekend = new Set([...(data.saturday || []), ...(data.sunday || [])].map(t => String(t.trip_id)));
+  const own = list.filter(t => !weekend.has(String(t.trip_id)));
+  return own.length ? own : list;
+}
+
 async function loadScheduleData(route) {
   const reqId = ++schedRequestId;
   sched.loaded = false;
@@ -557,7 +570,7 @@ async function loadScheduleData(route) {
     }
     if (!data || reqId !== schedRequestId) return;
 
-    const trips = data[getDayType()] || [];
+    const trips = dayTrips(data, getDayType());
     const blockTrips = new Map();
     const order = [];
     for (const t of trips) {
@@ -1108,7 +1121,7 @@ async function routeForBlockNow(blk, own, routes, nowMin = serviceNowMin()) {
         const res = await fetch(GTFS_BASE + '/' + encodeURIComponent(name) + '.json');
         if (!res.ok) continue;
         let best = Infinity;
-        for (const t of (await res.json())[day] || []) {
+        for (const t of dayTrips(await res.json(), day)) {
           if (String(t.block_id) !== blk) continue;
           const s = timeStrToMin(t.start), e = timeStrToMin(t.end);
           if (s == null || e == null || isPhantomTrip(blk, s)) continue;

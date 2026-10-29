@@ -66,13 +66,19 @@ function seatInfo(v) {
  * a finished block never shows up as a leader (block-tracker isPhantomTrip).
  */
 export function leaderForTrip(allTrips, block, trip, pullIns) {
-  let best = null;
+  // Start times only compare at the same place: a 4:44 trip from the far end
+  // of the line (Wycombe Loop) is not ahead of a 5:05 departure from 61st &
+  // Pine the way the 4:35 from 61st & Pine is. So the bus that left MY first
+  // stop before me wins; any trip in my direction only when none did.
+  let best = null, sameStop = null;
   for (const t of allTrips) {
     if (t.block === String(block) || t.route !== trip.route || t.dir !== trip.dir) continue;
     if (isPhantomTrip(t, pullIns)) continue;
-    if (t.s < trip.s && (!best || t.s > best.s)) best = t;
+    if (t.s >= trip.s) continue;
+    if (!best || t.s > best.s) best = t;
+    if (trip.first && t.first === trip.first && (!sameStop || t.s > sameStop.s)) sameStop = t;
   }
-  return best;
+  return sameStop || best;
 }
 
 /**

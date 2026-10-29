@@ -435,7 +435,17 @@ export async function loadRouteTrips(route, dayType) {
   if (tripsMem.has(key)) return tripsMem.get(key);
   const p = (async () => {
     const j = await fetchJson(GTFS_BASE + '/' + encodeURIComponent(route) + '.json');
-    const list = (j && j[dayType]) || [];
+    let list = (j && j[dayType]) || [];
+    // septa-gtfs's weekday list also carries every Saturday and Sunday trip
+    // (route 42: 216 weekday trips + all 136 Sunday ones), so each weekday
+    // block got a second, overlapping Sunday timetable and Sunday buses showed
+    // up as leaders. A weekday trip that is also in the Saturday or Sunday
+    // list is one of those.
+    if (dayType === 'weekday' && j) {
+      const weekend = new Set([...(j.saturday || []), ...(j.sunday || [])].map(t => String(t.trip_id)));
+      const own = list.filter(t => !weekend.has(String(t.trip_id)));
+      if (own.length) list = own;
+    }
     return list.map(t => ({
       tripId: String(t.trip_id), block: String(t.block_id || ''), route,
       dir: t.direction, headsign: t.headsign || '',
