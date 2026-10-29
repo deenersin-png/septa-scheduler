@@ -283,7 +283,6 @@ a.run-chip:active{opacity:.7}
 .msg .sub{font-size:14px;color:var(--text-faint);line-height:1.6}
 .msg.find-msg .main{font-size:21px;font-weight:800;color:var(--text)}
 .msg.find-msg .sub{font-size:21px;font-weight:800;color:var(--text-dim);line-height:1.4}
-.msg.find-msg .one-line{white-space:nowrap;font-size:min(21px,4.6vw)}
 .retry-btn{display:inline-block;margin-top:16px;padding:10px 24px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .retry-btn:active{opacity:.7}
 
@@ -1183,8 +1182,11 @@ async function routeForBlockNow(blk, own, routes, nowMin = serviceNowMin()) {
 }
 
 // Same, plus `wait`: 0 mid-trip, minutes to its next trip, Infinity when the
-// block has nothing left today on any of `routes`.
+// block has nothing left today on any of `routes`; and `running`: out now —
+// mid-trip, or between trips once its first has started.
 async function blockRouteNow(blk, own, routes, nowMin = serviceNowMin()) {
+  const begun = new Set(); // routes on which the block has started a trip today
+  const result = (route, wait) => ({ route, wait, running: wait === 0 || (wait < Infinity && begun.has(route)) });
   const score = async route => {
     for (const name of getAliases(route)) {
       try {
@@ -1195,6 +1197,7 @@ async function blockRouteNow(blk, own, routes, nowMin = serviceNowMin()) {
           if (String(t.block_id) !== blk) continue;
           const s = timeStrToMin(t.start), e = timeStrToMin(t.end);
           if (s == null || e == null || isPhantomTrip(blk, s)) continue;
+          if (s <= nowMin) begun.add(route);
           if (nowMin >= s && nowMin <= e) best = 0;
           else if (s > nowMin) best = Math.min(best, s - nowMin);
         }
@@ -1204,14 +1207,14 @@ async function blockRouteNow(blk, own, routes, nowMin = serviceNowMin()) {
     return Infinity;
   };
   const ownScore = await score(own);
-  if (ownScore < Infinity) return { route: own, wait: ownScore };
+  if (ownScore < Infinity) return result(own, ownScore);
   let pick = own, pickScore = Infinity;
   for (const r of routes) {
     if (isSameRoute(r, own)) continue;
     const sc = await score(r);
     if (sc < pickScore) { pick = r; pickScore = sc; }
   }
-  return { route: pick, wait: pickScore };
+  return result(pick, pickScore);
 }
 
 // SEPTA's all-routes vehicle feed (JSONP, same as TransitView). Notes every
@@ -2717,8 +2720,8 @@ async function onRouteChange() {
 // live, its block today from the day's pairing (plus the poller's
 // state.json), skipping any block it has since been swapped off; failing
 // that, where it was last seen. As a block: the route it is live on, else
-// the route it is on now or runs next per the timetable — only a block with
-// service left today counts. Resets the dropdown to "Select Route" and loads
+// the route it is on now per the timetable — only a block running now (out
+// on a trip or between trips) counts. Resets the dropdown to "Select Route" and loads
 // the route showing only those cards: both when they share a route, else the
 // bus's, with a button over to the block's.
 async function onBusSearch() {
@@ -2777,10 +2780,8 @@ async function onBusSearch() {
     setStatus('idle');
     document.getElementById('routeBar').classList.add('hidden');
     setContent(f.lastSeen
-      ? '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(num) + ' isn\'t out now</div><div class="sub">' + f.lastSeen.map(esc).join('<br>') + '</div>' +
-        '<div class="sub one-line">and no block ' + esc(num) + ' currently running.</div></div>'
-      : '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">' + esc(num) + ' not found</div><div class="sub">No bus with this number has been seen</div>' +
-        '<div class="sub one-line">and no block ' + esc(num) + ' currently running.</div></div>');
+      ? '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">Bus ' + esc(num) + ' isn\'t out now</div><div class="sub">' + f.lastSeen.map(esc).join('<br>') + '</div></div>'
+      : '<div class="msg find-msg"><div class="icon">🚌</div><div class="main">' + esc(num) + ' not found</div><div class="sub">No bus with this number has been seen</div></div>');
     return;
   }
   if (f.bus) {
@@ -2792,9 +2793,9 @@ async function onBusSearch() {
   return loadRoute(f.block.route);
 }
 
-// A searched block number's route, or null when no such block has service
-// left today: from today's pick (which routes it runs) and the poller's
-// sightings, the route it is on now or runs next.
+// A searched block number's route, or null unless that block is running now
+// (mid-trip, or between trips once out): from today's pick (which routes it
+// runs) and the poller's sightings, the route it is on.
 async function blockToday(num, rows) {
   const rec = paddle.byBlock.get(num);
   if (paddle.loaded && !rec) return null; // not in today's pick
@@ -2804,7 +2805,7 @@ async function blockToday(num, rows) {
   const routes = [...new Set([...seen.map(r => String(r.routeId)), ...pickRoutes(rec ? rec.routes : [])])];
   if (!routes.length) return null;
   const hit = await blockRouteNow(num, routes[0], routes);
-  return hit.wait < Infinity ? { route: hit.route } : null;
+  return hit.running ? { route: hit.route } : null;
 }
 
 // The pick names routes its own way: owl lines by line name and a block
