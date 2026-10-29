@@ -15,6 +15,7 @@
 <!-- Inter: the live tracker's scorecard font, used by the leader card. -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/pa-live-cards.css">
+<link rel="stylesheet" href="assets/pa-run-card.css">
 <link rel="stylesheet" href="assets/pa-account.css">
 <link rel="stylesheet" href="assets/pa-hours.css">
 <link rel="stylesheet" href="assets/pa-swap.css">
@@ -62,12 +63,6 @@ header{background:var(--ink2);border-bottom:1px solid var(--line2);padding:12px 
 
 .card{border:1px solid var(--line);border-radius:4px;background:var(--ink2);padding:16px;margin-bottom:12px}
 .k{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-.cd-phase{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
-.cd-digits{font-family:var(--mono);font-size:56px;font-weight:600;letter-spacing:.02em;color:var(--bright);line-height:1.1;margin:8px 0 4px;font-variant-numeric:tabular-nums}
-.cd-digits.soon{color:var(--amber)}
-.cd-digits.now{color:var(--red)}
-.cd-at{font-family:var(--mono);font-size:13px;color:var(--text);letter-spacing:.02em}
-.cd-place{font-family:var(--sans);font-size:14px;color:var(--mid);margin-top:2px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .chip{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;padding:6px 10px;border-radius:3px;border:1px solid var(--line2);color:var(--mid);background:var(--ink3)}
 .chip.amber{color:var(--amber);border-color:rgba(245,166,35,.35);background:var(--amber-dim)}
@@ -83,6 +78,18 @@ a.chip{text-decoration:none}
 .chip.run-link.pending{cursor:default}
 .live-sect{margin:14px 0 12px}
 .live-h{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:0 0 8px 2px}
+.leader-cards > .bt + .bt{margin-top:8px}
+/* ALERTS: one row per phone alert, switch on the left, lead time on the right */
+.al-rows{margin-top:12px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.al-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 12px;background:var(--ink);border-bottom:1px solid var(--line)}
+.al-row:last-child{border-bottom:none}
+.al-row .check{margin:6px 0;color:var(--bright)}
+.al-row.off .check{color:var(--mid)}
+.al-lead{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--mid);flex:0 0 auto}
+.al-lead .pa-input{width:64px;text-align:center;padding:8px 6px;margin:0}
+.al-row.off .al-lead{opacity:.45}
+.al-lead span{display:inline-block;width:150px}
+@media (max-width:480px){.al-row{flex-wrap:wrap}.al-lead span{width:auto}}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-top:12px}
 .stat{background:var(--ink);padding:10px 12px}
@@ -154,7 +161,6 @@ h2.k{margin-bottom:10px}
 
 @media (max-width:640px){
   .tab{padding:9px 10px;flex:1 1 auto}
-  .cd-digits{font-size:44px}
   .stats{grid-template-columns:repeat(2,1fr)}
   .row{grid-template-columns:64px 1fr;grid-template-areas:"d run" "d t";row-gap:2px}
   .row .d{grid-area:d}.row .run{grid-area:run}.row .t{grid-area:t;white-space:normal}
@@ -254,6 +260,7 @@ import * as A from './assets/pa-assignments.js';
 import { computeState, phaseLabel } from './assets/pa-countdown.js';
 import * as L from './assets/pa-live.js';
 import * as C from './assets/pa-live-cards.js';
+import * as RC from './assets/pa-run-card.js';
 import { loadProfile, loadProfileSafe, ensureUser } from './assets/pa-store.js';
 import * as N from './assets/pa-notify.js';
 import * as E from './assets/pa-edit-sheet.js';
@@ -402,10 +409,11 @@ function scheduleRedraw(force) {
   }, 150);
 }
 
-// ---- phone alert before a run (arrives with the app closed) ---------------
+// ---- phone alerts (arrive with the app closed) ------------------------------
 // The phone plans its own alerts and saves only what changed
 // (assets/pa-run-alerts.js); functions/ sends them. Called after every
-// schedule change, so an edited day moves its alert too.
+// schedule change, so an edited day moves its alerts too. Planning starts
+// yesterday, for a run still going past midnight.
 function syncPhoneAlerts(now, force) {
   clearTimeout(ctx.alertSyncTimer);
   ctx.alertSyncTimer = setTimeout(async () => {
@@ -416,10 +424,11 @@ function syncPhoneAlerts(now, force) {
     if (!fb) return;
     try {
       const days = s.pushEnabled
-        ? await RA.upcomingRuns({ resolve: d => A.resolve(d, ctx.overrides), runFor: (r, d) => runFor(r, d), from: S.todayIso() })
+        ? await RA.upcomingRuns({ resolve: d => A.resolve(d, ctx.overrides), runFor: (r, d) => runFor(r, d),
+                                  tripsOf: (p, dt) => S.pieceTrips(p, dt), from: S.addDays(S.todayIso(), -1), n: RA.PLAN_DAYS + 1 })
         : [];
       if (token !== ctx.authToken) return;
-      ctx.phoneAlerts = await RA.syncRunAlerts({ db: fb.db, uid, enabled: !!s.pushEnabled, leadMin: s.pushLeadMin, days });
+      ctx.phoneAlerts = await RA.syncRunAlerts({ db: fb.db, uid, enabled: !!s.pushEnabled, settings: s, days });
     } catch (e) {
       ctx.phoneAlerts = { error: e.code || e.message || 'error' };
       console.warn('[pa] phone alerts', ctx.phoneAlerts.error);
@@ -516,33 +525,32 @@ function tripsFor(iso) { return ctx.trips.get(iso) || new Map(); }
 
 async function refreshToday() {
   if (!ctx.user || !A.isAttached()) return;
-  const today = S.todayIso(), yday = S.addDays(today, -1);
+  const today = S.todayIso();
   const nowM = S.nowMinutes();
-  const SKIP = ['done', 'before_report', 'before_pullout', 'unknown', 'none'];
-  let chosen = null;
+  let chosen = null, doneToday = null;
 
-  // 1. Yesterday's run, if it is still going past midnight (owl / late runs).
-  const ry = A.resolve(yday, ctx.overrides);
-  if (!ry.off && ry.runNo) {
-    const run = await runFor(ry, yday);
-    if (run) {
-      const nowMin = nowM + 1440;
-      const st = computeState({ run, nowMin, tripsByBlock: tripsFor(yday) });
-      if (!SKIP.includes(st.phase)) chosen = { mode: 'live', date: yday, r: ry, run, st, nowMin };
-    }
+  // A run belongs to its SCHEDULE day (the paddle CSV's), and its minutes
+  // count from that day's midnight: yesterday's run can still be going past
+  // midnight, and tomorrow's night liner reports tonight at 11:5x PM (a
+  // negative minute). So look at yesterday, today and tomorrow in turn.
+  for (const off of [-1, 0, 1]) {
+    const date = S.addDays(today, off);
+    const r = A.resolve(date, ctx.overrides);
+    if (r.off || !r.runNo) continue;
+    const run = await runFor(r, date);
+    if (!run) { if (off === 0) { chosen = { mode: 'unknown', date, r }; break; } continue; }
+    const nowMin = nowM - off * 1440;
+    const st = computeState({ run, nowMin, tripsByBlock: tripsFor(date) });
+    if (st.phase === 'done') { if (off === 0) doneToday = { date, r, run }; continue; }
+    // Yesterday's counts only while it is still going; tomorrow's only once
+    // it has started (before that it is simply the next run, below).
+    if (off === -1 && ['before_report', 'before_pullout'].includes(st.phase)) continue;
+    if (off === 1 && st.phase === 'before_report') continue;
+    chosen = { mode: 'live', date, r, run, st, nowMin };
+    break;
   }
-  // 2. Today's run.
+  // Nothing on now -> the next registered day.
   if (!chosen) {
-    const rt = A.resolve(today, ctx.overrides);
-    if (!rt.off && rt.runNo) {
-      const run = await runFor(rt, today);
-      if (!run) chosen = { mode: 'unknown', date: today, r: rt };
-      else chosen = { mode: 'live', date: today, r: rt, run, st: computeState({ run, nowMin: nowM, tripsByBlock: tripsFor(today) }), nowMin: nowM };
-    }
-  }
-  // 3. Nothing today, or done for today -> the next registered day.
-  if (!chosen || (chosen.mode === 'live' && chosen.st.phase === 'done')) {
-    const doneToday = chosen;
     const nx = findNext(S.addDays(today, 1), 21);
     chosen = nx
       ? { mode: 'next', date: nx.date, r: nx.r, run: await runFor(nx.r, nx.date), doneToday }
@@ -552,7 +560,6 @@ async function refreshToday() {
   ctx.current = chosen;
   renderToday();
   startTicker();
-  planAlerts();
   if (chosen.mode === 'live') { ensureTrips(chosen); refreshLeader(); }
   refreshDetours();
 }
@@ -573,14 +580,13 @@ async function ensureTrips(c) {
 function recompute() {
   const c = ctx.current;
   if (!c || c.mode !== 'live' || !c.run) return;
-  const offset = c.date === S.todayIso() ? 0 : 1440;
-  c.nowMin = S.nowMinutes() + offset;
+  // +1440 for yesterday's run, -1440 for tomorrow's night liner.
+  c.nowMin = S.nowMinutes() + S.daysBetween(c.date, S.todayIso()) * 1440;
   const st = computeState({ run: c.run, nowMin: c.nowMin, tripsByBlock: tripsFor(c.date) });
   const changed = !c.st || st.phase !== c.st.phase || st.targetMin !== c.st.targetMin;
   c.st = st;
   if (st.phase === 'done') { refreshToday(); return; }
   if (changed) { renderToday(); refreshLeader(); }
-  planAlerts();
 }
 
 function stopTimers() {
@@ -666,84 +672,28 @@ function renderToday() {
     $('meta').textContent = metaLine(); wakeLock(false); return;
   }
 
-  const card = el('div', 'card');
+  // One run a day: the Paddle App's run scorecard, with the countdown header
+  // sitting on top of it. The header holds the status line and the countdown
+  // to the next scheduled moment, nothing else.
   const run = c.run, r = c.r;
-  let phase, at, place;
-  if (c.mode === 'next') {
-    // On vacation the countdown still runs to the next registered run, but
-    // the line says why nothing is happening before then.
-    const onVac = A.resolve(S.todayIso(), ctx.overrides).source === 'vacation';
-    phase = onVac ? 'On vacation · next run ' + S.fmtDate(c.date)
-          : (c.doneToday ? 'Done for today · next run ' : 'Next run · ') + S.fmtDate(c.date);
-    at = run && run.reportMin != null ? 'Report ' + S.fmtClock(run.reportMin) : 'Report time unknown';
-    place = run && run.pieces[0] ? 'Pull-out ' + S.fmtClock(run.pullOutMin) + ' · ' + run.pieces[0].routeLabel + ' · block ' + run.pieces[0].block : '';
-    wakeLock(false);
-  } else {
-    const st = c.st;
-    phase = phaseLabel(st);
-    at = st.targetMin != null ? 'at ' + S.fmtClock(st.targetMin) : '';
-    if (st.phase === 'layover' || st.phase === 'in_service' || st.phase === 'first_departure') {
-      place = (st.from ? 'from ' + st.from : '') + (st.to ? ' → ' + st.to : '');
-      if (st.phase === 'in_service' && st.arriveMin != null && !st.lastTrip) place = 'Arrive ' + st.arriveAt + ' ' + S.fmtClock(st.arriveMin) + ' · then ' + place;
-    } else if (st.piece) {
-      place = st.piece.routeLabel + ' · block ' + st.piece.block;
-    } else place = '';
-    wakeLock(st.phase === 'layover' || st.phase === 'in_service' || st.phase === 'first_departure');
-  }
-  card.appendChild(el('div', 'cd-phase', phase));
-  card.appendChild(el('div', 'cd-digits', '—')).id = 'cd-digits';
-  card.appendChild(el('div', 'cd-at', at));
-  if (place) card.appendChild(el('div', 'cd-place', place));
+  const top = el('div');
+  top.appendChild(el('div', 'prc-cd-status', statusLine(c)));
+  top.appendChild(el('div', 'prc-cd-digits', '—')).id = 'cd-digits';
+  const dayType = (run && run.dayType) || r.runDayType || r.dayType;
+  const cardEl = RC.card(RC.modelFromRun(run, { runNo: r.runNo, dayType }));
+  if (r.runNo && run && !run.synthetic) attachPaddleLink(cardEl, r, run, c.date);
+  body.appendChild(RC.stack(top, cardEl, dayType));
+  wakeLock(c.mode === 'live' && ['layover', 'in_service', 'first_departure'].includes(c.st.phase));
 
-  const chips = el('div', 'chips');
-  // The run number opens the operator's own paddle page on septa.org.
-  const runChip = el('a', 'chip amber run-link pending', 'RUN ' + (r.runNo || '—'));
-  runChip.setAttribute('aria-label', 'Open the official SEPTA paddle for run ' + (r.runNo || ''));
-  chips.appendChild(runChip);
-  if (r.runNo && run && !run.synthetic) attachPaddleLink(runChip, r, run, c.date);
-  else runChip.classList.remove('run-link', 'pending');
-  const piece = c.mode === 'live' && c.st.piece ? c.st.piece : (run && run.pieces[0]);
-  if (piece) { chips.appendChild(el('span', 'chip blue', 'ROUTE ' + piece.routeLabel)); chips.appendChild(el('span', 'chip', 'BLOCK ' + piece.block)); }
-  if (run && run.swing) chips.appendChild(el('span', 'chip violet', 'SWING'));
-  if (r.holiday && r.holiday.isHoliday) chips.appendChild(el('span', 'chip amber', 'HOLIDAY'));
-  if (A.hasExtra(r, 'ot')) chips.appendChild(el('span', 'chip red', 'OT'));
-  if (run && run.synthetic) chips.appendChild(el('span', 'chip', 'MANUAL TIME'));
-  card.appendChild(chips);
-  body.appendChild(card);
-
-  if (run) {
-    const rc = el('div', 'card');
-    rc.appendChild(el('div', 'k', 'Run ' + run.runNo + ' · ' + run.dayType + (run.synthetic ? ' · not in paddle' : '')));
-    const stats = el('div', 'stats');
-    [['Report', S.fmtClock(run.reportMin)], ['Pull-out', S.fmtClock(run.pullOutMin)], ['Finish', S.fmtClock(run.finishMin)], ['Pay hrs', run.payHours ? run.payHours.toFixed(1) : '—', 'pay']]
-      .forEach(([k, v, cls]) => { const s = el('div', 'stat'); s.appendChild(el('div', 'k', k)); s.appendChild(el('div', 'v' + (cls ? ' ' + cls : ''), v)); stats.appendChild(s); });
-    rc.appendChild(stats);
-    if (run.pieces.length) {
-      const ps = el('div', 'pieces');
-      run.pieces.forEach(p => {
-        const d = el('div', 'piece' + (piece && piece.index === p.index && c.mode === 'live' ? ' cur' : ''));
-        d.appendChild(el('span', 'r', p.routeLabel));
-        d.appendChild(el('span', 'b', 'BLK ' + p.block + (p.durLabel ? ' · ' + p.durLabel : '')));
-        const t = el('span', 't'); t.innerHTML = '<span class="ty">' + esc(p.startType) + '</span>' + esc(S.fmtClock(p.startMin)) + ' → <span class="ty">' + esc(p.endType) + '</span>' + esc(S.fmtClock(p.endMin));
-        d.appendChild(t); ps.appendChild(d);
-      });
-      rc.appendChild(ps);
-    }
-    if (r.holiday && r.holiday.isHoliday) {
-      const pay = A.payHoursFor(r, run);
-      rc.appendChild(el('div', 'pay', 'Holiday pay today: ' + pay.parts.map(([k, v]) => k + ' ' + v).join(' + ') + ' = ' + pay.total.toFixed(1) + ' hrs'));
-    }
-    body.appendChild(rc);
-  }
-
-  // Leader: the live tracker's scorecard for the bus scheduled ahead of you.
-  // Informational only - nothing here feeds the countdown above.
+  // Leaders: the live tracker's scorecard for every bus still scheduled ahead
+  // of you today, the next one on top. Informational only - nothing here
+  // feeds the countdown above.
   const lb = el('div', 'live-sect'); lb.id = 'leader-box';
-  lb.appendChild(el('div', 'live-h', 'Your leader · live · info only'));
-  const lcard = el('div', 'bt'); lcard.id = 'leader-card';
-  lcard.innerHTML = ctx.leaderHtml || '<div class="leader-line">Looking up the bus ahead of you…</div>';
-  lb.appendChild(lcard);
-  lb.appendChild(el('div', 'leader-note', 'Countdown above is the scheduled time and does not move with your leader.'));
+  lb.appendChild(el('div', 'live-h', 'Your leaders · live · info only'));
+  const lcards = el('div', 'leader-cards'); lcards.id = 'leader-cards';
+  lcards.innerHTML = ctx.leaderHtml || '<div class="leader-line">Looking up the buses ahead of you…</div>';
+  lb.appendChild(lcards);
+  lb.appendChild(el('div', 'leader-note', 'Countdown above is the scheduled time and does not move with your leaders.'));
   lb.hidden = c.mode !== 'live';
   body.appendChild(lb);
 
@@ -763,6 +713,21 @@ function renderToday() {
   tick();
 }
 
+// The countdown header's one line: where the operator stands, and what the
+// countdown counts to. A night liner filed under tomorrow reports tonight.
+function statusLine(c) {
+  const run = c.run;
+  const rep = m => 'Report ' + S.fmtClock(m) + (m < 0 ? ' the night before' : '');
+  if (c.mode === 'next') {
+    const onVac = A.resolve(S.todayIso(), ctx.overrides).source === 'vacation';
+    return (onVac ? 'On vacation · Next run ' : c.doneToday ? 'Done for today · Next run ' : 'Next run · ')
+      + S.fmtDate(c.date) + (run && run.reportMin != null ? ' · ' + rep(run.reportMin) : '');
+  }
+  const st = c.st;
+  if (st.phase === 'before_report') return 'Today · ' + (c.date === S.todayIso() ? rep(st.targetMin) : 'Report ' + S.fmtClock(st.targetMin));
+  return phaseLabel(st) + (st.targetMin != null ? ' ' + S.fmtClock(st.targetMin) : '');
+}
+
 function metaLine() {
   const gv = ctx.gtfs && ctx.gtfs.gtfs_version ? 'GTFS ' + ctx.gtfs.gtfs_version : 'GTFS unavailable';
   const stale = ctx.gtfs && ctx.gtfs.feed_end && ctx.gtfs.feed_end < S.todayIso().replace(/-/g, '') ? ' · FEED EXPIRED' : '';
@@ -775,43 +740,73 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '
 
 const lineHtml = text => '<div class="leader-line">' + esc(text) + '</div>';
 
+// A run can have several leaders in a day: a different bus can be ahead of
+// you on each trip, and on each piece of a swing. Every leader still ahead
+// of you is shown, the next one on top. One drops off once all the trips it
+// leads you on are over (scheduled), unless its bus is still out on that very
+// trip, running late; and once it has pulled in or gone out of service.
 async function refreshLeader() {
   const c = ctx.current;
-  if (!$('leader-card') || !c || c.mode !== 'live' || !c.st || !c.st.piece) return;
-  const p = c.st.piece;
+  if (!$('leader-cards') || !c || c.mode !== 'live' || !c.st || !c.run) return;
   const token = ctx.leaderToken = (ctx.leaderToken || 0) + 1;
   const show = html => {
-    if (token !== ctx.leaderToken || !$('leader-card')) return;
+    if (token !== ctx.leaderToken || !$('leader-cards')) return;
     ctx.leaderHtml = html;
-    $('leader-card').innerHTML = html;
+    $('leader-cards').innerHTML = html;
   };
-  const mine = tripsFor(c.date).get(p.block);
-  if (!mine) { if (!ctx.leaderHtml) show(lineHtml('Loading your block’s trips…')); return; }
-  if (!mine.length) { show(lineHtml('No GTFS trips found for block ' + p.block + ' on ' + p.routeLabel + ' — leader unknown.')); return; }
+  const byBlock = tripsFor(c.date);
+  const pieces = c.run.pieces.filter(p => p.endMin == null || p.endMin >= c.nowMin);
+  if (!pieces.length) { show(lineHtml('No more pieces today.')); return; }
+  if (!pieces.some(p => byBlock.has(p.block))) { if (!ctx.leaderHtml) show(lineHtml('Loading your block’s trips…')); return; }
   try {
     // Every district's pull-in times ride along, so a block that has already
     // pulled in (its later GTFS trips are phantom) is never chosen as leader.
-    const [{ all, routes, nowMin }, table] = await Promise.all([
-      S.leaderTrips(p, c.run.dayType, c.nowMin),
-      allBlockPaddles(c).catch(() => null)
-    ]);
-    const pullIns = S.pullInMap(table);
-    const lb = S.leaderBlock(all, p.block, nowMin, pullIns);
-    if (!lb) { show(lineHtml('No bus is scheduled ahead of you in this direction.')); }
-    else {
-      const [buses, names, rec] = await Promise.all([
-        L.fetchRoutes(p.routes),
-        Promise.all(routes.map(rt => S.routeDirectionNames(rt).then(n => [rt, n]))),
-        blockPaddle(lb.block, c).catch(() => null)
-      ]);
-      await L.learnPairs(p.routes, buses, lb.block); // keep its bus number between trips
-      const model = C.buildBusModel({ block: lb.block, allTrips: all, buses, nowMin, dirNamesByRoute: Object.fromEntries(names), pullIns, knownBus: L.knownBus });
-      let html = C.busCardHtml(model, { rec, leadersOpen: !!ctx.leadersOpen });
-      if (model._scheduledOnly && !model._doneForDay) html += lineHtml(model.VehicleID
-        ? 'Bus ' + model.VehicleID + ' isn’t sending live data right now — likely between trips at the terminal.'
-        : 'No live data for block ' + lb.block + ' — it may not be in service.');
-      show(html);
+    const pullIns = S.pullInMap(await allBlockPaddles(c).catch(() => null));
+    const found = new Map();      // block -> { piece, all, nowMin, active, late:Set(tripId) }
+    for (const p of pieces) {
+      const mine = (byBlock.get(p.block) || []).filter(t => p.startMin == null || (t.s >= p.startMin - 5 && t.s <= p.endMin + 5));
+      if (!mine.length) continue;
+      const { all, nowMin } = await S.leaderTrips(p, c.run.dayType, c.nowMin);
+      for (const t of mine) {
+        // My trip back on the GTFS clock, where the candidates are.
+        const ldr = C.leaderForTrip(all, p.block, { ...t, s: t.s - (t.dayShift || 0) }, pullIns);
+        if (!ldr) continue;
+        let f = found.get(ldr.block);
+        if (!f) { f = { block: ldr.block, piece: p, all, nowMin, active: false, late: new Set() }; found.set(ldr.block, f); }
+        if (t.e >= c.nowMin) f.active = true;          // a trip it leads me on is not over yet
+        else f.late.add(String(ldr.tripId));           // over by schedule: kept only if still on it
+      }
     }
+    if (!found.size) { show(lineHtml('No bus is scheduled ahead of you for the rest of the run.')); return; }
+
+    const busesFor = new Map(), namesFor = new Map();
+    const routesKey = p => p.routes.join(',');
+    const leaders = [];
+    for (const f of found.values()) {
+      const k = routesKey(f.piece);
+      if (!busesFor.has(k)) busesFor.set(k, L.fetchRoutes(f.piece.routes));
+      const buses = await busesFor.get(k);
+      const liveBus = buses.find(b => String(b.BlockID || '') === f.block);
+      const runningLate = !!liveBus && liveBus.trip != null && f.late.has(String(liveBus.trip));
+      if (!f.active && !runningLate) continue;
+      const routes = [...new Set(f.all.filter(t => t.block === f.block).map(t => t.route))];
+      for (const rt of routes) if (!namesFor.has(rt)) namesFor.set(rt, S.routeDirectionNames(rt).catch(() => ({})));
+      const names = Object.fromEntries(await Promise.all(routes.map(async rt => [rt, await namesFor.get(rt)])));
+      await L.learnPairs(f.piece.routes, buses, f.block); // keep its bus number between trips
+      const model = C.buildBusModel({ block: f.block, allTrips: f.all, buses, nowMin: f.nowMin, dirNamesByRoute: names, pullIns, knownBus: L.knownBus });
+      if (model._doneForDay) continue;                  // pulled in, or out of service
+      leaders.push({ f, model });
+    }
+    if (!leaders.length) { show(lineHtml('No bus is scheduled ahead of you for the rest of the run.')); return; }
+    const recs = await Promise.all(leaders.map(x => blockPaddle(x.f.block, c).catch(() => null)));
+    ctx.leadersOpen = ctx.leadersOpen || new Set();
+    show(leaders.map(({ f, model }, i) => {
+      let html = C.busCardHtml(model, { rec: recs[i], leadersOpen: ctx.leadersOpen.has(f.block) });
+      if (model._scheduledOnly) html += lineHtml(model.VehicleID
+        ? 'Bus ' + model.VehicleID + ' isn’t sending live data right now — likely between trips at the terminal.'
+        : 'No live data for block ' + f.block + ' — it may not be in service.');
+      return '<div class="bt leader-card" data-block="' + esc(f.block) + '">' + html + '</div>';
+    }).join(''));
   } catch (_) { show(lineHtml('Live lookup failed — no leader data right now.')); }
   clearInterval(ctx.leaderTimer);
   ctx.leaderTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshLeader(); }, 30000);
@@ -880,229 +875,151 @@ async function refreshDetours() {
   ctx.detourTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshDetours(); }, 120000);
 }
 
-// The scorecard's "Leaders ▸" control, exactly as on the tracker.
+// Each leader scorecard's "Leaders ▸" control, exactly as on the tracker.
 function toggleLeaders(t) {
-  const tl = t.closest('.leader-tl');
-  if (!tl) return;
-  ctx.leadersOpen = !tl.classList.contains('open');
-  tl.classList.toggle('open', ctx.leadersOpen);
+  const tl = t.closest('.leader-tl'), cardEl = t.closest('[data-block]');
+  if (!tl || !cardEl) return;
+  const open = !tl.classList.contains('open');
+  ctx.leadersOpen = ctx.leadersOpen || new Set();
+  if (open) ctx.leadersOpen.add(cardEl.dataset.block); else ctx.leadersOpen.delete(cardEl.dataset.block);
+  tl.classList.toggle('open', open);
   const bodyEl = tl.querySelector('.leader-body');
-  if (bodyEl) bodyEl.classList.toggle('hidden', !ctx.leadersOpen);
-  if ($('leader-card')) ctx.leaderHtml = $('leader-card').innerHTML;
+  if (bodyEl) bodyEl.classList.toggle('hidden', !open);
+  if ($('leader-cards')) ctx.leaderHtml = $('leader-cards').innerHTML;
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest && e.target.closest('#leader-card [data-lead-toggle]');
+  const t = e.target.closest && e.target.closest('#leader-cards [data-lead-toggle]');
   if (t) toggleLeaders(t);
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
-  const t = e.target.closest && e.target.closest('#leader-card [data-lead-toggle]');
+  const t = e.target.closest && e.target.closest('#leader-cards [data-lead-toggle]');
   if (t) { e.preventDefault(); toggleLeaders(t); }
 });
 
-// Upgrade the RUN chip to a link once pdfs.csv answers; a run with no paddle
-// page stays a plain chip.
-function attachPaddleLink(a, r, run, iso) {
+// The run number and PADDLE button link to the official SEPTA paddle once
+// pdfs.csv answers; a run with no paddle page keeps plain text.
+function attachPaddleLink(cardEl, r, run, iso) {
   slugForDate(r.depotKey || ctx.profile.depotKey, iso)
     .then(({ slug }) => S.paddleLinkFor(slug, run.dayType, r.runNo))
-    .then(url => {
-      a.classList.remove('pending');
-      if (!url) { a.classList.remove('run-link'); return; }
-      a.href = url; a.target = '_blank'; a.rel = 'noopener';
-      a.appendChild(el('span', 'ext', 'PADDLE ↗'));
-    })
-    .catch(() => { a.classList.remove('pending', 'run-link'); });
+    .then(url => { if (url) RC.setPaddleUrl(cardEl, url); })
+    .catch(() => {});
 }
 
 // ---- ALERTS ---------------------------------------------------------------
+// Every alert is a phone notification, sent by the server even with the app
+// closed (assets/pa-run-alerts.js plans them, functions/ sends them). There is
+// no in-app alert. Each kind has its own switch and its own lead time.
 
-function planAlerts() {
-  const c = ctx.current;
-  N.schedule({ current: c, tripsByBlock: c ? tripsFor(c.date) : null });
-}
-
-function selectField(label, options, value, onChange, suffix) {
-  const f = el('div', 'pa-field');
-  f.appendChild(el('label', 'pa-label', label));
-  const s = el('select', 'pa-select');
-  options.forEach(v => { const o = el('option', null, v + (suffix || '')); o.value = String(v); if (v === value) o.selected = true; s.appendChild(o); });
-  s.addEventListener('change', () => onChange(parseInt(s.value, 10)));
-  f.appendChild(s);
-  return f;
-}
-function timeField(label, value, onChange) {
-  const f = el('div', 'pa-field');
-  f.appendChild(el('label', 'pa-label', label));
-  const i = el('input', 'pa-input'); i.type = 'time'; i.value = value || '';
-  i.addEventListener('change', () => onChange(i.value));
-  f.appendChild(i);
-  return f;
-}
+const ALERT_ROWS = [
+  ['report1', 'Report alert', 'min before report'],
+  ['report2', 'Second report alert', 'min before report'],
+  ['dep', 'Departure alerts', 'min before each departure']
+];
 
 function renderAlerts() {
   const body = $('alerts-body'); body.textContent = '';
-  const sup = N.support(), s = N.getSettings();
-  body.appendChild(el('h2', 'k', 'Departure alerts'));
-
-  const permTxt = sup.permission === 'granted' ? 'allowed'
-                : sup.permission === 'denied' ? 'blocked in your browser settings'
-                : sup.permission === 'default' ? 'not asked yet' : 'not supported here';
-  body.appendChild(el('div', 'hint', 'Alerts: ' + (s.enabled ? 'ON' : 'OFF') + ' · permission ' + permTxt + ' · ' + (sup.standalone ? 'installed app' : 'browser tab')));
-  if (sup.ios && !sup.standalone) {
-    body.appendChild(el('div', 'msgline', 'iPhone: alerts only work after you add this page to your Home Screen (Share → Add to Home Screen) and open it from there.'));
-  } else if (!sup.api) {
-    body.appendChild(el('div', 'msgline err', 'This browser cannot show notifications.'));
-  }
-
-  const master = el('label', 'check');
-  const cb = el('input'); cb.type = 'checkbox'; cb.checked = s.enabled; cb.disabled = !sup.api;
-  cb.addEventListener('change', async () => {
-    if (cb.checked) {
-      const p = await N.requestPermission();
-      if (p !== 'granted') { cb.checked = false; await N.save({ enabled: false }); renderAlerts(); return; }
-      await N.registerSW();
-      await N.save({ enabled: true });
-    } else {
-      await N.save({ enabled: false });
-    }
-    planAlerts(); renderAlerts();
-  });
-  master.append(cb, document.createTextNode('Alert me before departures'));
-  body.appendChild(master);
-
-  const row = el('div', 'form-row');
-  row.appendChild(selectField('Before each departure', [2, 5, 10, 15], s.departureLeadMin, v => N.save({ departureLeadMin: v }).then(renderAlerts), ' min'));
-  row.appendChild(selectField('Before report time', [15, 30, 45, 60, 90], s.shiftLeadMin, v => N.save({ shiftLeadMin: v }).then(renderAlerts), ' min'));
-  body.appendChild(row);
-
-  const om = el('label', 'check');
-  const omc = el('input'); omc.type = 'checkbox'; omc.checked = s.oneMinEnabled;
-  omc.addEventListener('change', async () => { await N.save({ oneMinEnabled: omc.checked }); renderAlerts(); });
-  om.append(omc, document.createTextNode('Also alert me when the countdown reaches 1 min'));
-  body.appendChild(om);
-
-  const q = el('label', 'check');
-  const qc = el('input'); qc.type = 'checkbox'; qc.checked = s.quietEnabled;
-  qc.addEventListener('change', async () => { await N.save({ quietEnabled: qc.checked }); renderAlerts(); });
-  q.append(qc, document.createTextNode('Quiet hours — no alerts between'));
-  body.appendChild(q);
-  if (s.quietEnabled) {
-    const qr = el('div', 'form-row');
-    qr.appendChild(timeField('From', s.quietStart, v => N.save({ quietStart: v })));
-    qr.appendChild(timeField('Until', s.quietEnd, v => N.save({ quietEnd: v })));
-    body.appendChild(qr);
-  }
-
-  const np = N.nextPlanned();
-  const line = el('div', 'msgline' + (np ? ' ok' : ''));
-  line.textContent = np
-    ? 'Next alert: ' + np.title + ' · ' + new Date(np.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    : (s.enabled ? 'No upcoming alert planned — register a run first.' : '');
-  body.appendChild(line);
-
-  const test = el('button', 'pa-ghost', 'Test in-app alert'); test.type = 'button'; test.style.marginTop = '8px';
-  test.addEventListener('click', async () => {
-    const ok = await N.show('Paddle App', 'In-app alerts are working. A departure alert looks like this.', 'pa-test');
-    test.textContent = ok ? 'Shown ✓' : 'Could not show — allow notifications first';
-    setTimeout(() => { test.textContent = 'Test in-app alert'; }, 2500);
-  });
-  body.appendChild(test);
-  body.appendChild(el('div', 'hint', 'This only checks alerts while the app is open. To check an alert with the app closed, use "Send a test phone alert" below.'));
-
-  body.appendChild(el('div', 'hint', 'Alerts fire while this page is open or in the background. If the app is fully closed these do not fire; the phone alert below does. The alert time is the scheduled time; it never moves with the bus ahead of you.'));
-
-  renderPhoneAlerts(body, s);
-}
-
-// The alert that arrives with the app closed: a phone notification before
-// report time, sent by the server through Cloud Messaging (free).
-function renderPhoneAlerts(body, s) {
-  body.appendChild(el('h2', 'k', 'Phone alert before my run')).style.marginTop = '22px';
-  body.appendChild(el('div', 'hint', 'Arrives even when the app is closed, at the scheduled report time minus your lead time. A late bus ahead never moves it.'));
-  const uid = ctx.user && ctx.user.uid;
+  const s = N.getSettings(), sup = N.support(), uid = ctx.user && ctx.user.uid;
+  body.appendChild(el('h2', 'k', 'Phone alerts'));
+  body.appendChild(el('div', 'hint', 'Sent to your phone, even when the app is closed. They use the scheduled times; a late bus ahead never moves them.'));
   if (!P.pushConfigured()) {
     body.appendChild(el('div', 'msgline warn', 'Phone alerts are not switched on for this app yet.'));
     return;
   }
-  const sup = N.support();
   if (sup.ios && !sup.standalone) {
     body.appendChild(el('div', 'msgline', 'iPhone: phone alerts only work after you add this page to your Home Screen (Share → Add to Home Screen) and open it from there.'));
   }
   const status = el('div', 'msgline');
-  const box = el('label', 'check');
-  const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!s.pushEnabled;
-  cb.addEventListener('change', async () => {
-    cb.disabled = true;
-    if (cb.checked) {
-      status.className = 'msgline'; status.textContent = 'Turning on…';
+
+  // Off, or on for the account but set up on another phone: one button.
+  if (!s.pushEnabled || !P.registeredHere(uid)) {
+    const on = el('button', s.pushEnabled ? 'pa-ghost' : 'pa-submit', s.pushEnabled ? 'Also send them to this phone' : 'Turn on phone alerts');
+    on.type = 'button'; on.style.marginTop = '12px';
+    on.addEventListener('click', async () => {
+      on.disabled = true; status.className = 'msgline'; status.textContent = 'Turning on…';
       const r = await P.registerPush(uid);
-      if (!r.ok) { cb.checked = false; cb.disabled = false; status.className = 'msgline err'; status.textContent = P.pushProblem(r.reason); return; }
-      await N.save({ pushEnabled: true });
-    } else {
-      await N.save({ pushEnabled: false });
-    }
+      if (!r.ok) { on.disabled = false; status.className = 'msgline err'; status.textContent = P.pushProblem(r.reason); return; }
+      if (!s.pushEnabled) await N.save({ pushEnabled: true });
+      ctx.phoneAlerts = null;
+      renderAlerts();
+      syncPhoneAlerts(true, true);
+    });
+    body.appendChild(on);
+  }
+  if (!s.pushEnabled) { body.appendChild(status); return; }
+
+  // One row per alert: switch, lead time.
+  const rows = el('div', 'al-rows');
+  const changed = patch => N.save(patch).then(() => { ctx.phoneAlerts = null; renderAlerts(); syncPhoneAlerts(true); });
+  ALERT_ROWS.forEach(([id, label, unit]) => {
+    const row = el('div', 'al-row' + (s[id + 'On'] ? '' : ' off'));
+    const sw = el('label', 'check');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!s[id + 'On'];
+    cb.addEventListener('change', () => changed({ [id + 'On']: cb.checked }));
+    sw.append(cb, document.createTextNode(label));
+    const lead = el('label', 'al-lead');
+    const inp = el('input', 'pa-input'); inp.type = 'number'; inp.inputMode = 'numeric';
+    inp.min = '0'; inp.max = String(N.MAX_LEAD_MIN); inp.step = '1'; inp.value = String(s[id + 'Lead']);
+    inp.disabled = !s[id + 'On'];
+    inp.setAttribute('aria-label', label + ', ' + unit);
+    inp.addEventListener('change', () => {
+      const v = N.clampLead(inp.value, N.DEFAULTS[id + 'Lead']);
+      inp.value = String(v);
+      if (v !== s[id + 'Lead']) changed({ [id + 'Lead']: v });
+    });
+    lead.append(inp, el('span', null, unit));
+    row.append(sw, lead);
+    rows.appendChild(row);
+  });
+  body.appendChild(rows);
+
+  const pa = ctx.phoneAlerts;
+  const when = ms => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  status.className = 'msgline' + (pa && pa.error ? ' err' : pa && pa.next ? ' ok' : '');
+  status.textContent = !pa ? 'Planning your alerts…'
+    : pa.error ? 'Could not save your alerts (' + pa.error + '). They will be tried again when the app next opens.'
+    : !pa.next ? 'Nothing to send in the next ' + RA.PLAN_DAYS + ' days.'
+    : 'Next: ' + when(pa.next.sendAtMs) + ' · ' + pa.next.title + '. '
+      + pa.reports + ' report and ' + pa.departures + ' departure alerts planned.';
+  body.appendChild(status);
+  body.appendChild(el('div', 'hint', 'Report alerts are planned ' + RA.PLAN_DAYS + ' days ahead and departure alerts '
+    + (RA.DEP_DAYS - 2) + ' days ahead. Open the app at least once a week to keep them coming.'));
+
+  // A real push through the server, the only honest check of "app closed".
+  if (P.registeredHere(uid)) {
+    const test = el('button', 'pa-ghost', 'Send a test phone alert in ' + RA.TEST_DELAY_MIN + ' min'); test.type = 'button';
+    test.style.marginTop = '12px';
+    const testLine = el('div', 'msgline');
+    test.addEventListener('click', async () => {
+      test.disabled = true;
+      const fb = initFirebase();
+      try {
+        const a = await RA.sendTestAlert({ db: fb.db, uid });
+        const at = new Date(a.sendAtMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        testLine.className = 'msgline ok';
+        testLine.textContent = 'Test alert set for ' + at + '. Close the app fully now (swipe it away) and wait. If nothing arrives by ' + at + ' plus a minute, tell us.';
+      } catch (e) {
+        testLine.className = 'msgline err';
+        testLine.textContent = 'Could not set the test alert (' + (e.code || e.message || 'error') + '). Check your signal and try again.';
+      }
+      setTimeout(() => { test.disabled = false; }, 15000);
+    });
+    body.append(test, testLine);
+  }
+  const sender = el('div', 'msgline');
+  body.appendChild(sender);
+  N.senderStatus().then(st => { const m = N.senderMessage(st); sender.textContent = m.text; sender.className = 'msgline ' + m.kind; }).catch(() => {});
+
+  const off = el('button', 'pa-ghost', 'Turn off phone alerts'); off.type = 'button'; off.style.marginTop = '16px';
+  off.addEventListener('click', async () => {
+    off.disabled = true;
+    await N.save({ pushEnabled: false });
     ctx.phoneAlerts = null;
     renderAlerts();
     syncPhoneAlerts(true, true);
   });
-  box.append(cb, document.createTextNode('Alert my phone before my run'));
-  body.appendChild(box);
-
-  if (s.pushEnabled) {
-    const row = el('div', 'form-row');
-    row.appendChild(selectField('Before report time', RA.LEAD_CHOICES, s.pushLeadMin || RA.DEFAULT_LEAD_MIN,
-      v => N.save({ pushLeadMin: v }).then(() => { ctx.phoneAlerts = null; renderAlerts(); syncPhoneAlerts(true); }), ' min'));
-    body.appendChild(row);
-    // On for the account, but this phone has not registered (set up on another phone).
-    if (!P.registeredHere(uid)) {
-      const add = el('button', 'pa-ghost', 'Also send them to this phone'); add.type = 'button';
-      add.addEventListener('click', async () => {
-        add.disabled = true;
-        const r = await P.registerPush(uid);
-        if (r.ok) renderAlerts();
-        else { add.disabled = false; status.className = 'msgline err'; status.textContent = P.pushProblem(r.reason); }
-      });
-      body.appendChild(add);
-    } else {
-      // A real push through the server, the only honest check of "app closed".
-      const test = el('button', 'pa-ghost', 'Send a test phone alert in ' + RA.TEST_DELAY_MIN + ' min'); test.type = 'button';
-      const testLine = el('div', 'msgline');
-      test.addEventListener('click', async () => {
-        test.disabled = true;
-        const fb = initFirebase();
-        try {
-          const a = await RA.sendTestAlert({ db: fb.db, uid });
-          const at = new Date(a.sendAtMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          testLine.className = 'msgline ok';
-          testLine.textContent = 'Test alert set for ' + at + '. Close the app fully now (swipe it away) and wait. If nothing arrives by ' + at + ' plus a minute, tell us.';
-        } catch (e) {
-          testLine.className = 'msgline err';
-          testLine.textContent = 'Could not set the test alert (' + (e.code || e.message || 'error') + '). Check your signal and try again.';
-        }
-        setTimeout(() => { test.disabled = false; }, 15000);
-      });
-      body.append(test, testLine);
-    }
-    const pa = ctx.phoneAlerts;
-    const when = ms => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-    status.className = 'msgline' + (pa && pa.error ? ' err' : pa && pa.next ? ' ok' : '');
-    status.textContent = !pa ? 'Planning your alerts…'
-      : pa.error ? 'Could not save your alerts (' + pa.error + '). They will be tried again when the app next opens.'
-      : !pa.next ? 'No run in the next ' + RA.PLAN_DAYS + ' days, so no alert planned.'
-      : 'Next: ' + when(pa.next.sendAtMs) + ' (' + pa.next.title + ') · ' + pa.count + ' planned through ' + S.fmtDate(pa.through) + '.';
-    body.appendChild(status);
-    body.appendChild(el('div', 'hint', 'Alerts are planned ' + RA.PLAN_DAYS + ' days ahead. Open the app at least once every two weeks to keep them coming.'));
-    const sender = el('div', 'msgline');
-    body.appendChild(sender);
-    N.senderStatus().then(st => {
-      const m = N.senderMessage(st);
-      sender.textContent = m.text;
-      sender.className = 'msgline ' + m.kind;
-    }).catch(() => {});
-    if (!pa) syncPhoneAlerts(true);
-  } else {
-    body.appendChild(status);
-  }
+  body.appendChild(off);
+  if (!pa) syncPhoneAlerts(true);
 }
 
 // ---- SCHEDULE -------------------------------------------------------------

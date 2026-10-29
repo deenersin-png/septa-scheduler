@@ -57,7 +57,10 @@ export async function runFor(r, iso, depotKey) {
   const dt = r.runDayType || r.dayType;
   let run = slug ? await S.getRun(slug, dt, r.runNo) : null;
   // Keep the paddle's start: the Slate report time is paid against it.
-  if (run && r.reportMin != null) run = { ...run, paddleStartMin: run.reportMin, reportMin: r.reportMin, overridden: true };
+  // A night liner starts the evening before its date (a negative minute), so
+  // an evening report time typed in for it belongs to that evening too.
+  const typed = r.reportMin != null && run && run.reportMin < 0 && r.reportMin >= 720 ? r.reportMin - 1440 : r.reportMin;
+  if (run && r.reportMin != null) run = { ...run, paddleStartMin: run.reportMin, reportMin: typed, overridden: true };
   if (!run && r.reportMin != null) {
     run = { runNo: r.runNo, dayType: dt, reportMin: r.reportMin, finishMin: null,
             pullOutMin: r.reportMin, pullInMin: null, payHours: 0, pieces: [], routes: [], blocks: [], synthetic: true };

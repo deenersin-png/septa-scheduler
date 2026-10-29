@@ -63,3 +63,11 @@ test('someone with no registered phone just gets nothing', async () => {
   assert.deepEqual([r.due, r.sent], [1, 0]);
   assert.equal(h.db.store.has('runAlerts/kim_z'), false);
 });
+
+test('each alert of a day has its own tag, so none replaces another on the phone', async () => {
+  const h = harness();
+  h.db.store.set('runAlerts/deen_2026-10-28_rep1', { uid: 'deen', date: '2026-10-28', key: 'rep1', sendAtMs: NOW - 1000, title: 'a', body: 'a' });
+  h.db.store.set('runAlerts/deen_2026-10-28_d1785', { uid: 'deen', date: '2026-10-28', key: 'd1785', sendAtMs: NOW - 1000, title: 'b', body: 'b' });
+  await sendDue(h.deps, NOW);
+  assert.deepEqual(h.pushes.map(p => p.tag).sort(), ['run-2026-10-28-d1785', 'run-2026-10-28-rep1']);
+});

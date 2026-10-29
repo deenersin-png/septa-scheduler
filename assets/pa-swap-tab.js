@@ -254,7 +254,7 @@ export function mount(root, deps) {
     } else {
       const b = button('pa-ghost', 'Not eligible'); b.disabled = true; actions.push(b);
     }
-    card = U.scorecard(o, check, { actions, menu });
+    card = U.scorecard(o, check, { actions, menu, blocked: check.color === 'mine' ? blockedNames() : null });
     if (highlight) card.style.boxShadow = '0 0 0 1px rgba(245,166,35,.45)';
     if (check.color === 'yellow') manualPanel(card, check.needs);
     else if (check.color !== 'mine') entryLine(card, o);
@@ -394,7 +394,7 @@ export function mount(root, deps) {
     } else if (st_ === 'cancelled' || st_ === 'hidden') {
       actions.push(button('pa-ghost', 'Delete', async () => { await store.deleteOffer(o.id).catch(e => alert(errText(e))); go('mine'); }));
     }
-    const card = U.scorecard(o, { color: 'mine', reason: '' }, { actions });
+    const card = U.scorecard(o, { color: 'mine', reason: '' }, { actions, blocked: blockedNames() });
     const box = el('div', 'sw-status');
     if (st_ === 'hidden') box.textContent = 'Hidden after reports from other operators. An admin will review it.';
     if (st_ === 'cancelled') box.textContent = 'Cancelled.';
@@ -478,6 +478,10 @@ export function mount(root, deps) {
   }
 
   const remind = () => el('div', 'sw-remind', W.DISPATCH_REMINDER);
+
+  // The operators this poster blocked: shown on their own offers only, since
+  // a block is private.
+  const blockedNames = () => [...st.blocks.values()].map(n => n || 'an operator');
 
   function arrangedConfirm(card, o) {
     const old = card.querySelector('.sw-panel.arr');

@@ -216,11 +216,28 @@ export function isHoliday(iso, overrides) { return !!(overrides && overrides[iso
 
 // ---- paddle runs ----------------------------------------------------------
 
-/** Map runNo -> raw CSV row for one depot slug + day type. */
+/**
+ * Map runNo -> raw CSV row for one depot slug + day type.
+ * Each row gets `_dayOffset`: how many days its start is filed before the
+ * file's schedule day. The paddle CSVs stamp every start with one date
+ * ("2023-10-11 05:35 AM"), except night liners, which report the evening
+ * BEFORE ("2023-10-10 11:54 PM"): they belong to the next day's schedule.
+ * The schedule day is the date most starts carry.
+ */
 export async function loadPaddle(slug, dayType) {
   const rows = parseCSV(await fetchText(PADDLE_BASE + slug + '/' + dayType + '.csv'));
   const m = new Map();
-  rows.forEach(r => { if (r.runno) m.set(String(r.runno), r); });
+  const dateOf = r => { const x = String(r.start || '').match(/^(\d{4}-\d{2}-\d{2})/); return x ? x[1] : null; };
+  const counts = new Map();
+  rows.forEach(r => { const d = dateOf(r); if (d) counts.set(d, (counts.get(d) || 0) + 1); });
+  let base = null;
+  for (const [d, n] of counts) if (!base || n > counts.get(base)) base = d;
+  rows.forEach(r => {
+    if (!r.runno) return;
+    const d = dateOf(r);
+    r._dayOffset = base && d ? daysBetween(base, d) : 0;
+    m.set(String(r.runno), r);
+  });
   return m;
 }
 
@@ -237,6 +254,11 @@ export function routesOfLabel(label) {
  * finish, any value smaller than the one before it is a midnight crossing
  * and gets +1440. That is how an 11:54 PM report with a 9:10 AM finish
  * becomes 1434 -> 1990 rather than 1434 -> 550.
+ *
+ * Minutes count from midnight of the run's SCHEDULE day. A night liner the
+ * CSV files the evening before (row._dayOffset -1, see loadPaddle) reports
+ * at a negative minute: 11:54 PM the night before is -6, so minToMs(date,
+ * reportMin) is the real clock time and its 12:08 AM pull-out is minute 8.
  */
 export function normalizeRun(row, dayType) {
   if (!row) return null;
@@ -253,10 +275,14 @@ export function normalizeRun(row, dayType) {
       startMin: clockToMin(row['pot' + i]),
       endType: row['pitype' + i] || '',
       endMin: clockToMin(row['pit' + i]),
-      durLabel: row['stime' + i] || ''
+      durLabel: row['stime' + i] || '',
+      startClock: row['pot' + i] || '',
+      endClock: row['pit' + i] || ''
     });
   }
+  const shift = (row._dayOffset || 0) * 1440;
   let reportMin = clockToMin(timePart(row.start));
+  if (reportMin != null) reportMin += shift;
   let finishMin = clockToMin(timePart(row.finish));
 
   let prev = reportMin != null ? reportMin : ((pieces[0] && pieces[0].startMin) || 0);
@@ -272,6 +298,9 @@ export function normalizeRun(row, dayType) {
     pullInMin:  pieces.length ? pieces[pieces.length - 1].endMin : finishMin,
     payHours: parseFloat(row.pay) || 0,
     workTime: row.worktime || '',
+    // As the paddle prints them, for the Paddle App's run scorecard.
+    startText: timePart(row.start), finishText: timePart(row.finish),
+    payText: row.pay || '', swingDur: row.pullout2 ? (row.swingdur || '') : '',
     swing: pieces.length > 1,
     pieces,
     routes: [...new Set(pieces.flatMap(p => p.routes))],
@@ -457,12 +486,17 @@ export async function pieceTrips(piece, dayType) {
   const trips = await blockTrips(piece.block, gtfsRoutesOfLabel(piece.routeLabel), dayType);
   if (piece.startMin == null || piece.endMin == null) return trips;
   const SLACK = 5;
-  const out = [];
+  const out = [], seen = new Set();
   for (const t of trips) {
-    const d = [0, 1440, 2880].find(d => t.s + d >= piece.startMin - SLACK && t.s + d <= piece.endMin + SLACK);
-    if (d != null) out.push(d ? { ...t, s: t.s + d, e: t.e + d, dayShift: d } : t);
+    // -1440: a 24:05 trip on the GTFS clock is a night liner's 12:05 AM.
+    const d = [0, 1440, 2880, -1440].find(d => t.s + d >= piece.startMin - SLACK && t.s + d <= piece.endMin + SLACK);
+    if (d == null) continue;
+    const key = (t.s + d) + '|' + t.route + '|' + t.dir;
+    if (d === -1440 && seen.has(key)) continue;            // the same trip filed as 00:05 too
+    seen.add(key);
+    out.push(d ? { ...t, s: t.s + d, e: t.e + d, dayShift: d } : t);
   }
-  return out;
+  return out.sort((a, b) => a.s - b.s);
 }
 
 /**

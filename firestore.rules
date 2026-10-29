@@ -169,7 +169,7 @@ service cloud.firestore {
       return d.keys().hasOnly([
                'v', 'kind', 'status', 'posterUid', 'posterName', 'depotKey', 'depotLabel',
                'seasonId', 'seasonLabel', 'weekStart', 'give', 'wants', 'prefs', 'posterBusy',
-               'expiresOn', 'matchedUid', 'matchedName', 'matchedAt', 'arrangedBy',
+               'expiresOn', 'startsAtMs', 'matchedUid', 'matchedName', 'matchedAt', 'arrangedBy',
                'reportCount', 'createdAt', 'updatedAt'
              ])
         && d.posterUid is string
@@ -179,6 +179,7 @@ service cloud.firestore {
         && d.kind in ['give', 'dayoff']
         && d.status in ['open', 'matched', 'arranged', 'cancelled']
         && isDate(d.weekStart) && isDate(d.expiresOn)
+        && (!('startsAtMs' in d) || d.startsAtMs is int)
         && validRunCard(d.give)
         && d.wants is list && d.wants.size() >= 1 && d.wants.size() <= 8
         && d.prefs is map && (!('note' in d.prefs) || isStr(d.prefs.note, 140))
@@ -284,7 +285,12 @@ service cloud.firestore {
       allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
       allow create, update: if signedIn()
                     && request.resource.data.uid == request.auth.uid
-                    && alertId == request.auth.uid + '_' + request.resource.data.date
+                    // One alert per document: {uid}_{date}_{key}. {uid}_{date} is the
+                    // older one-a-day form, and {uid}_test the test alert.
+                    && (alertId == request.auth.uid + '_' + request.resource.data.date
+                        || (request.resource.data.get('key', null) is string
+                            && request.resource.data.key.matches('^[a-z0-9]{1,12}$')
+                            && alertId == request.auth.uid + '_' + request.resource.data.date + '_' + request.resource.data.key))
                     && (isDate(request.resource.data.date)
                         || (request.resource.data.date == 'test'
                             && request.resource.data.sendAtMs is int
@@ -292,7 +298,7 @@ service cloud.firestore {
                     && request.resource.data.sendAtMs is int
                     && isStr(request.resource.data.title, 80)
                     && isStr(request.resource.data.body, 200)
-                    && request.resource.data.keys().hasOnly(['uid', 'date', 'sendAtMs', 'title', 'body', 'updatedAt']);
+                    && request.resource.data.keys().hasOnly(['uid', 'date', 'key', 'sendAtMs', 'title', 'body', 'updatedAt']);
     }
 
     // ---- deny everything else --------------------------------------------

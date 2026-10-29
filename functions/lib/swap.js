@@ -110,6 +110,26 @@ export async function cleanupExpired(deps, today) {
   return n;
 }
 
+/**
+ * Every minute: an offer whose run has started (startsAtMs, the real clock
+ * time, a night liner's the evening before its date) is over unless the swap
+ * was arranged, and is deleted with everything under it. An arranged one is
+ * left for cleanupExpired and its startsAtMs cleared so it is not read again.
+ */
+export async function expireStarted(deps, nowMs) {
+  const { db, deleteTree } = deps;
+  const snap = await db.collection('swapOffers').where('startsAtMs', '<=', nowMs).get();
+  let n = 0;
+  for (const d of snap.docs) {
+    const o = d.data();
+    if (typeof o.startsAtMs !== 'number') continue;
+    if (o.status === 'arranged') { await d.ref.set({ startsAtMs: null }, { merge: true }); continue; }
+    await deleteTree(d.ref);
+    n++;
+  }
+  return n;
+}
+
 export function addDaysIso(iso, n) {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(Date.UTC(y, m - 1, d + n));

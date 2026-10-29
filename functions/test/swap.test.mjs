@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { onInterestCreated, onOfferUpdated, onReportCreated, cleanupExpired, statusMessage, interestMessage, runLabel, HIDE_AT_REPORTS } from '../lib/swap.js';
+import { onInterestCreated, onOfferUpdated, onReportCreated, cleanupExpired, expireStarted, statusMessage, interestMessage, runLabel, HIDE_AT_REPORTS } from '../lib/swap.js';
 import { makeDb } from './fake-db.mjs';
 
 const GIVE = { date: '2026-11-07', runNo: '300' };   // a Saturday
@@ -110,4 +110,20 @@ test('daily cleanup removes expired offers, keeps arranged ones a week', async (
 test('labels', () => {
   assert.equal(runLabel({ date: '2026-11-03', runNo: '209' }), 'Tue run 209');
   assert.match(interestMessage({ id: 'o', give: GIVE }, null).body, /^An operator wants your Sat run 300\./);
+});
+
+test('an offer is deleted the moment its run starts, unless the swap was arranged', async () => {
+  const h = harness();
+  const NOW = Date.UTC(2026, 9, 29, 3, 54);
+  h.offer('started', { startsAtMs: NOW - 1000 });
+  h.offer('talking', { startsAtMs: NOW, status: 'matched' });
+  h.offer('later', { startsAtMs: NOW + 60000 });
+  h.offer('old', {});                                  // posted before startsAtMs: left to the daily cleanup
+  h.offer('arranged', { startsAtMs: NOW - 5000, status: 'arranged' });
+  const n = await expireStarted(h.deps, NOW);
+  assert.equal(n, 2);
+  assert.deepEqual([...h.db.store.keys()].filter(k => k.startsWith('swapOffers/')).sort(),
+    ['swapOffers/arranged', 'swapOffers/later', 'swapOffers/old']);
+  assert.equal(h.db.store.get('swapOffers/arranged').startsAtMs, null);
+  assert.equal(await expireStarted(h.deps, NOW), 0);
 });

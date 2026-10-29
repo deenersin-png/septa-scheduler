@@ -32,7 +32,8 @@ export async function sendDue(deps, nowMs) {
     catch (_) { out.raced++; continue; }                // another run took it
     if (nowMs - a.sendAtMs > STALE_MS) { out.stale++; continue; }
     try {
-      const n = await notify(deps, [a.uid], { title: a.title, body: a.body, tag: 'run-' + a.date });
+      // Its own tag, so the 1-minute alert never silently replaces the 30-minute one.
+      const n = await notify(deps, [a.uid], { title: a.title, body: a.body, tag: 'run-' + a.date + (a.key ? '-' + a.key : '') });
       if (n) out.sent++;
     } catch (e) { if (log) log.error('run alert failed', { uid: a.uid, error: String(e) }); }
   }

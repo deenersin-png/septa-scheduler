@@ -28,6 +28,9 @@
 //                                          the rest rule can be checked without
 //                                          reading the poster's private schedule
 //   expiresOn                              earliest date in the offer; gone after it
+//   startsAtMs                             when the offered run starts on the real clock
+//                                          (a night liner: the evening before its date);
+//                                          unless arranged, the offer is deleted then
 //   matchedUid, matchedName                set when the poster picks someone
 //   reportCount                            server-maintained (functions/)
 //   createdAt, updatedAt
@@ -48,7 +51,7 @@
 //             finishMin, payHours, swing }
 // ==========================================================================
 
-import { addDays, dowOf, weekStartOf, fmtClock, DAY_NAMES, DAY_SHORT, daysBetween } from './pa-schedule.js';
+import { addDays, dowOf, weekStartOf, fmtClock, minToMs, DAY_NAMES, DAY_SHORT, daysBetween } from './pa-schedule.js';
 
 export const OFFER_VERSION = 1;
 
@@ -99,6 +102,19 @@ export function offerDates(offer) {
  *  is no complete swap left to make. */
 export const expiresOnOf = offer => offerDates(offer)[0] || null;
 export const isExpired = (offer, today) => !!offer.expiresOn && offer.expiresOn < today;
+
+/** When the offered run starts, epoch ms, or null when its time is unknown.
+ *  reportMin counts from the run's schedule day, so a night liner filed
+ *  under Thursday starts Wednesday evening. */
+export const startsAtOf = give => (give && give.date && give.reportMin != null ? minToMs(give.date, give.reportMin) : null);
+
+/** The run has started and no swap was arranged: the offer is over and is
+ *  deleted (functions/lib/swap.js expireStarted; the app hides it at once). */
+export function hasStarted(offer, nowMs) {
+  if (!offer || offer.status === 'arranged') return false;
+  const at = offer.startsAtMs != null ? offer.startsAtMs : startsAtOf(offer.give);
+  return at != null && at <= nowMs;
+}
 
 // ---- runs -----------------------------------------------------------------
 
@@ -356,6 +372,8 @@ export function buildOffer(input, poster, today) {
     if (pd && pd.card) doc.posterBusy[d] = span(pd.card);
   }
   doc.expiresOn = expiresOnOf(doc);
+  const at = startsAtOf(doc.give);
+  if (at != null) doc.startsAtMs = at;
   return { doc };
 }
 

@@ -176,3 +176,16 @@ test('shifts by report time', () => {
   assert.equal(shiftOf(900), 'late');
   assert.equal(shiftOf(1434), 'night');
 });
+
+test('an offer knows when its run starts, a night liner the evening before its date', async () => {
+  const { startsAtOf, hasStarted } = await import('../pa-swap.js');
+  const { minToMs } = await import('../pa-schedule.js');
+  const owl = card(THU, 51, -6, 553, ['L1 OWL'], { owl: true });
+  assert.equal(startsAtOf(owl), minToMs(WED, 1434));                 // Wed 11:54 PM
+  const offer = { status: 'open', give: owl };
+  assert.equal(hasStarted(offer, minToMs(WED, 1433)), false);
+  assert.equal(hasStarted(offer, minToMs(WED, 1434)), true);
+  assert.equal(hasStarted({ ...offer, status: 'arranged' }, minToMs(THU, 600)), false);
+  const { doc } = buildOffer({ kind: 'give', give: owl, wants: [{ type: 'day', date: FRI }] }, who('me', {}), TODAY);
+  assert.equal(doc.startsAtMs, minToMs(WED, 1434));
+});
