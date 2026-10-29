@@ -803,7 +803,11 @@ async function refreshLeader() {
     ctx.leadersOpen = ctx.leadersOpen || new Set();
     show(leaders.map(({ f, model }, i) => {
       let html = C.busCardHtml(model, { rec: recs[i], leadersOpen: ctx.leadersOpen.has(f.block) });
-      if (model._scheduledOnly) html += lineHtml(model.VehicleID
+      // Before its pull-out a block is simply not out yet; only once that
+      // time has passed does missing live data mean it may not be running.
+      if (model._scheduledOnly) html += lineHtml(model._notOutYet
+        ? 'Not in service yet — ' + (model._outIsPullOut ? 'pulls out at ' : 'first trip at ') + S.fmtClock(model._outAtMin) + '.'
+        : model.VehicleID
         ? 'Bus ' + model.VehicleID + ' isn’t sending live data right now — likely between trips at the terminal.'
         : 'No live data for block ' + f.block + ' — it may not be in service.');
       return '<div class="bt leader-card" data-block="' + esc(f.block) + '">' + html + '</div>';
