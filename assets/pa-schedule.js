@@ -589,6 +589,42 @@ export function pullInMap(blockPaddles) {
   return m;
 }
 
+/** loadBlockPaddles() table -> Map block -> first pull-out (minutes of the
+ *  service day). A bus seen on a block before that is the day before's. */
+export function pullOutMap(blockPaddles) {
+  const m = new Map();
+  if (!blockPaddles) return m;
+  for (const [b, rec] of blockPaddles) {
+    const k = rec && rec.poTime ? clockToMin(rec.poTime) : null;
+    if (k != null) m.set(String(b), k);
+  }
+  return m;
+}
+
+/**
+ * Since when a bus seen on a block counts as the bus it is out with now, in
+ * epoch ms, on the real clock (no service-day guessing around midnight):
+ * the block's most recent pull-out (the pick's, from pullOutMap), less
+ * `slackMin` for logging in at the depot. Infinity when the block has pulled
+ * in (pullInMap) since then and not left again: no bus. 0 when the pick has
+ * no pull-out for it. A bus first seen on a block yesterday afternoon is
+ * still inside its 14-hour log-in window the next morning; this is what
+ * stops it showing on today's block (9112 showed Wednesday's 3398 on Thursday
+ * before its 6:08 AM pull-out). Same rule in block-tracker.html.
+ */
+export function blockOutSince(poMin, piMin, nowMs = Date.now(), slackMin = 30) {
+  if (poMin == null) return 0;
+  // The latest moment at this clock time that is not after `notAfter`.
+  const latest = (min, notAfter) => {
+    const d = new Date(notAfter);
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() + (((min % 1440) + 1440) % 1440) * 60000;
+    return t <= notAfter ? t : t - 86400000;
+  };
+  const out = latest(poMin, nowMs + slackMin * 60000);
+  if (piMin != null && latest(piMin, nowMs) > out) return Infinity;
+  return out - slackMin * 60000;
+}
+
 /** A trip is phantom if it starts at or after its block's pick pull-in. */
 export function isPhantomTrip(t, pullIns) {
   if (!pullIns || !t) return false;

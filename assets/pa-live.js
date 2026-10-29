@@ -249,10 +249,11 @@ export async function learnPairs(routes, buses, block) {
  * `busyAt(ts)` says this route's block was mid-trip then — a block number can
  * be two buses at once on two routes (weekday 9110 on 42 and 21).
  */
-export function knownBus(block, route, busyAt = () => false) {
+export function knownBus(block, route, busyAt = () => false, sinceTs = 0) {
   const rows = readPairs().filter(r => r[0] === String(block));
   let best = null;
   for (const [, r, vid, ts, first] of rows) {
+    if (ts < sinceTs) continue;              // last seen before today's pull-out: yesterday's bus
     // Log-in = earliest sighting of this bus on the block on any route.
     const login = Math.min(first, ...rows.filter(o => o[2] === vid).map(o => o[4]));
     if (!pairFresh(login, ts)) continue;

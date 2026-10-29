@@ -14,7 +14,7 @@
 // scheduled countdown.
 // ==========================================================================
 
-import { blockStatus, isPhantomTrip } from './pa-schedule.js';
+import { blockStatus, isPhantomTrip, blockOutSince } from './pa-schedule.js';
 
 const LATE_BAD = 6;
 
@@ -89,7 +89,7 @@ export function leaderForTrip(allTrips, block, trip, pullIns) {
  * that isn't in the live feed right now — e.g. resting at a terminal — so the
  * card keeps its number instead of "pending".
  */
-export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute = {}, pullIns = null, knownBus = null }) {
+export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute = {}, pullIns = null, pullOuts = null, knownBus = null }) {
   const dirName = t => (dirNamesByRoute[t.route] || {})[t.dir];
   const blk = String(block);
   // This block's real trips only: a trip after its pick pull-in never runs.
@@ -106,7 +106,11 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
       const m = nowMin - (Date.now() - ts) / 60000;
       return own.some(t => m >= t.s + 2 && m <= t.e - 2);
     };
-    return knownBus(b, route, busyAt);
+    // Only a bus seen since this block last pulled out (pa-schedule
+    // blockOutSince): never yesterday's bus on today's block.
+    const since = pullOuts ? blockOutSince(pullOuts.get(b), pullIns && pullIns.get(b)) : 0;
+    if (since > Date.now()) return '';
+    return knownBus(b, route, busyAt, since);
   };
   let bus;
 

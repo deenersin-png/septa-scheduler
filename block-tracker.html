@@ -1083,12 +1083,39 @@ function blockBusyHereAt(blk, ts) {
   });
 }
 
+// Since when a bus seen on this block counts as the bus it is out with now,
+// in epoch ms, on the real clock (no service-day guessing around midnight):
+// the block's most recent pick pull-out, less PAIR_LOGIN_SLACK_MIN for
+// logging in at the depot. Infinity when it has pulled in since then and not
+// left again: no bus. 0 when the pick has no pull-out for it. A bus first
+// seen on a block yesterday afternoon is still inside its 14-hour log-in
+// window the next morning; this stops it showing on today's block (9112
+// showed Wednesday's 3398 on Thursday before its 6:08 AM pull-out). Same rule
+// as assets/pa-schedule.js blockOutSince.
+const PAIR_LOGIN_SLACK_MIN = 30;
+function blockLoginFromMs(blk, nowMs = Date.now()) {
+  const rec = paddle.byBlock.get(String(blk));
+  const po = rec && rec.poTime ? clockToMin(rec.poTime) : null;
+  if (po == null) return 0;
+  const pi = rec.piTime ? clockToMin(rec.piTime) : null;
+  const latest = (min, notAfter) => {
+    const d = new Date(notAfter);
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() + min * 60000;
+    return t <= notAfter ? t : t - 86400000;
+  };
+  const out = latest(po, nowMs + PAIR_LOGIN_SLACK_MIN * 60000);
+  if (pi != null && latest(pi, nowMs) > out) return Infinity;
+  return out - PAIR_LOGIN_SLACK_MIN * 60000;
+}
+
 // Today's bus for a block on the current route, or '' (→ "pending").
 function knownVehicleFor(blk) {
   let best = null;
+  const since = blockLoginFromMs(blk);
+  if (since > Date.now()) return '';                  // in for the day, not out again yet
   const byRoute = blockPairs.get(String(blk)) || new Map();
   for (const [routeId, p] of byRoute) {
-    if (!isPairFresh(byRoute, p)) continue;
+    if (!isPairFresh(byRoute, p) || p.ts < since) continue;
     if (!isSameRoute(routeId, state.route) && blockBusyHereAt(blk, p.ts)) continue;
     if (!best || p.ts > best.ts) best = p;
   }
@@ -1100,8 +1127,9 @@ function knownVehicleFor(blk) {
 function knownBlockFor(vid) {
   let best = null;
   for (const [blk, byRoute] of blockPairs) {
+    const since = blockLoginFromMs(blk);
     for (const [routeId, p] of byRoute) {
-      if (p.vehicleId !== vid || !isPairFresh(byRoute, p)) continue;
+      if (p.vehicleId !== vid || !isPairFresh(byRoute, p) || p.ts < since) continue;
       if ([...byRoute.values()].some(o => o.vehicleId !== vid && o.ts > p.ts)) continue;
       if (!best || p.ts > best.ts) best = { block: blk, route: routeId, ts: p.ts };
     }
