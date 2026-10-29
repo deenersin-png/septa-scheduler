@@ -71,6 +71,8 @@
 .bt .seat-tag.few{background:var(--yellow-dim);color:var(--yellow)}
 .bt .seat-tag.standing,.bt .seat-tag.full{background:var(--red-dim);color:var(--red)}
 .bt .leader-tl{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px}
+/* My Run: one status line at the very bottom of a leader card. */
+.bt .node-note{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:12px;line-height:1.45;color:var(--text-dim)}
 .bt .leader-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:3px 0}
 .bt .lead-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-weight:800;color:var(--accent);font-size:13px;text-transform:uppercase;letter-spacing:.03em;touch-action:manipulation;user-select:none}
 .bt .lead-toggle .arrow{font-size:22px;line-height:1;display:inline-block;transition:transform .2s}

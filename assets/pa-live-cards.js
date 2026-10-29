@@ -249,8 +249,12 @@ function leaderTimelineHtml(bus, rec, open) {
          '</div>';
 }
 
-/** One tracker scorecard. `rec` = block paddle record (PO/PI, run chips). */
-export function busCardHtml(bus, { rec = null, leadersOpen = false } = {}) {
+/** One tracker scorecard. `rec` = block paddle record (PO/PI, run chips).
+ *  `note`: one line of status text at the very bottom of the card, under the
+ *  RUN chips and the Leaders button (My Run: "Not in service yet - pulls out
+ *  at 4:28 AM"). */
+export function busCardHtml(bus, { rec = null, leadersOpen = false, note = '' } = {}) {
+  const end = (note ? '<div class="node-note">' + esc(note) + '</div>' : '') + '</div></div>';
   const late = parseInt(bus.late) || 0;
   let lateClass, lateText;
   if (late === 0)          { lateClass = 'ontime'; lateText = 'On Time'; }
@@ -284,7 +288,7 @@ export function busCardHtml(bus, { rec = null, leadersOpen = false } = {}) {
       h += '<div class="sched-only-row"><span class="sched-only-badge">DONE FOR DAY</span></div>';
       h += paddleRowHtml(rec);
       h += leaderTimelineHtml(bus, rec, leadersOpen);
-      return h + '</div></div>';
+      return h + end;
     }
     const served = bus._schedState === 'layover_expected';
     let badgeCls = 'sched-only-badge';
@@ -296,14 +300,14 @@ export function busCardHtml(bus, { rec = null, leadersOpen = false } = {}) {
     h += depArrLineHtml(bus, false);
     h += paddleRowHtml(rec);
     h += leaderTimelineHtml(bus, rec, leadersOpen);
-    return h + '</div></div>';
+    return h + end;
   }
 
   h += depArrLineHtml(bus, true);
   if (stop) h += '<div class="node-bottom"><span class="stop-name">→ ' + esc(stop) + '</span></div>';
   h += paddleRowHtml(rec);
   h += leaderTimelineHtml(bus, rec, leadersOpen);
-  return h + '</div></div>';
+  return h + end;
 }
 
 // ---- detour cards (detours.html renderDetours) --------------------------------
