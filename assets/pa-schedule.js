@@ -589,6 +589,18 @@ export function pullInMap(blockPaddles) {
   return m;
 }
 
+/** loadBlockPaddles() table -> Map block -> first pull-out (minutes of the
+ *  service day). A bus seen on a block before that is the day before's. */
+export function pullOutMap(blockPaddles) {
+  const m = new Map();
+  if (!blockPaddles) return m;
+  for (const [b, rec] of blockPaddles) {
+    const k = rec && rec.poTime ? clockToMin(rec.poTime) : null;
+    if (k != null) m.set(String(b), k);
+  }
+  return m;
+}
+
 /** A trip is phantom if it starts at or after its block's pick pull-in. */
 export function isPhantomTrip(t, pullIns) {
   if (!pullIns || !t) return false;

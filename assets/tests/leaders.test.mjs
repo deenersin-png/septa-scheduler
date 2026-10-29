@@ -31,3 +31,31 @@ test('a block that has already pulled in never leads', () => {
   const pullIns = new Map([['9104', 270]]);
   assert.equal(leaderForTrip(ALL, '9102', ALL[2], pullIns).block, '9101');
 });
+
+// ---- a leader's bus number: today's only -----------------------------------
+
+import { buildBusModel } from '../pa-live-cards.js';
+
+const B9112 = [trip('9112', 377, PINE), trip('9112', 430, '38th Parellel Pl', 1)];   // 6:17 AM first trip
+const PULLOUTS = new Map([['9112', 354]]);                                           // pulls out 5:54 AM
+// The pairing store as knownBus sees it: bus 3398 last seen on 9112 at `seenMs`.
+const store = seenMs => (block, route, busyAt, sinceTs = 0) => (seenMs >= sinceTs ? '3398' : '');
+const model = (nowMin, seenMs) => buildBusModel({ block: '9112', allTrips: B9112, buses: [], nowMin, pullOuts: PULLOUTS, knownBus: store(seenMs) });
+
+test('before the block pulls out today it has no bus, whatever was seen on it yesterday', () => {
+  assert.equal(model(300, Date.now() - 60000).VehicleID, '');            // 5:00 AM
+});
+
+test('after the pull-out, a bus last seen before it (yesterday) does not count', () => {
+  const yesterday = Date.now() - 10 * 3600000;
+  assert.equal(model(380, yesterday).VehicleID, '');                     // 6:20 AM
+});
+
+test('a bus seen since the pull-out keeps its number between trips', () => {
+  assert.equal(model(380, Date.now() - 5 * 60000).VehicleID, '3398');
+});
+
+test('without pull-out times the old rule stands', () => {
+  const m = buildBusModel({ block: '9112', allTrips: B9112, buses: [], nowMin: 300, knownBus: store(Date.now() - 10 * 3600000) });
+  assert.equal(m.VehicleID, '3398');
+});

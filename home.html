@@ -761,7 +761,8 @@ async function refreshLeader() {
   try {
     // Every district's pull-in times ride along, so a block that has already
     // pulled in (its later GTFS trips are phantom) is never chosen as leader.
-    const pullIns = S.pullInMap(await allBlockPaddles(c).catch(() => null));
+    const table = await allBlockPaddles(c).catch(() => null);
+    const pullIns = S.pullInMap(table), pullOuts = S.pullOutMap(table);
     const found = new Map();      // block -> { piece, all, nowMin, active, late:Set(tripId) }
     for (const p of pieces) {
       const mine = (byBlock.get(p.block) || []).filter(t => p.startMin == null || (t.s >= p.startMin - 5 && t.s <= p.endMin + 5));
@@ -793,7 +794,7 @@ async function refreshLeader() {
       for (const rt of routes) if (!namesFor.has(rt)) namesFor.set(rt, S.routeDirectionNames(rt).catch(() => ({})));
       const names = Object.fromEntries(await Promise.all(routes.map(async rt => [rt, await namesFor.get(rt)])));
       await L.learnPairs(f.piece.routes, buses, f.block); // keep its bus number between trips
-      const model = C.buildBusModel({ block: f.block, allTrips: f.all, buses, nowMin: f.nowMin, dirNamesByRoute: names, pullIns, knownBus: L.knownBus });
+      const model = C.buildBusModel({ block: f.block, allTrips: f.all, buses, nowMin: f.nowMin, dirNamesByRoute: names, pullIns, pullOuts, knownBus: L.knownBus });
       if (model._doneForDay) continue;                  // pulled in, or out of service
       leaders.push({ f, model });
     }
