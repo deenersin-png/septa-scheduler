@@ -3,13 +3,15 @@
 //
 // Every phone the person registered (assets/pa-push.js) has a doc in
 // users/{uid}/devices with its fcmToken. A token Google says is dead is
-// deleted, so one lost phone does not cost a failed send forever.
+// deleted, so one lost phone does not cost a failed send forever. Only the
+// two codes that mean the TOKEN is bad: 'invalid-argument' can be a fault in
+// the message itself, and deleting a good phone for that silently ended its
+// alerts until the operator turned them on again.
 // ==========================================================================
 
 const DEAD_TOKEN = new Set([
   'messaging/registration-token-not-registered',
-  'messaging/invalid-registration-token',
-  'messaging/invalid-argument'
+  'messaging/invalid-registration-token'
 ]);
 
 /**
@@ -27,7 +29,9 @@ export async function notify(deps, uids, msg) {
       const dev = d.data();
       if (!dev.fcmToken) continue;
       try {
-        await sendPush(dev.fcmToken, { title: msg.title, body: msg.body, url: msg.url || appUrl, tag: msg.tag || 'pa' });
+        // Cloud Messaging data values must all be strings.
+        await sendPush(dev.fcmToken, { title: String(msg.title || 'Paddle App'), body: String(msg.body || ''),
+                                       url: String(msg.url || appUrl), tag: String(msg.tag || 'pa') });
         sent++;
       } catch (e) {
         const code = e && (e.code || (e.errorInfo && e.errorInfo.code));

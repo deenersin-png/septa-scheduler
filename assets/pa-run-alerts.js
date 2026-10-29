@@ -39,7 +39,7 @@ export const PLAN_DAYS = 14;
 export const DEP_DAYS = 8;
 export const DEFAULTS = { report1On: true, report1Lead: 30, report2On: true, report2Lead: 1, depOn: true, depLead: 0 };
 
-const LS_PREFIX = 'pa_run_alerts_v2_';
+const LS_PREFIX = 'pa_run_alerts_v3_';   // v3: { rev, a }; v2 copies are dropped and re-read once
 const FIRESTORE = 'https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js';
 const BATCH_MAX = 400;
 
@@ -75,10 +75,12 @@ export async function runDepartures(run, tripsOf) {
 
 /**
  * The operator's working days from `from` for `n` days, as
- * [{ date, runNo, reportMin, routeLabel, departures? }]. resolve(date) and
- * runFor(resolved, date) are pa-assignments / pa-edit-sheet's; tripsOf(piece,
- * dayType) is pa-schedule pieceTrips. Departures are looked up for the first
- * `depDays` days only.
+ * [{ date, runNo, reportMin, routeLabel, departures?, partial? }]. resolve(date)
+ * and runFor(resolved, date) are pa-assignments / pa-edit-sheet's;
+ * tripsOf(piece, dayType) is pa-schedule pieceTrips. Departures are looked up
+ * for the first `depDays` days only. partial: the paddle or the trips did not
+ * load (weak signal), so the departures are not known - syncRunAlerts then
+ * keeps the ones already saved instead of deleting them.
  */
 export async function upcomingRuns({ resolve, runFor, tripsOf, from, n = PLAN_DAYS, depDays = DEP_DAYS }) {
   const out = [];
@@ -93,7 +95,12 @@ export async function upcomingRuns({ resolve, runFor, tripsOf, from, n = PLAN_DA
     const labels = run && run.pieces ? [...new Set(run.pieces.map(p => p.routeLabel).filter(Boolean))] : [];
     const day = { date, runNo: String(r.runNo), reportMin, routeLabel: labels.join(' / ') };
     if (i < depDays && run && run.pieces && run.pieces.length) {
-      day.departures = await runDepartures(run, tripsOf ? p => tripsOf(p, run.dayType) : null);
+      let missed = false;
+      const tf = tripsOf ? p => Promise.resolve().then(() => tripsOf(p, run.dayType)).catch(e => { missed = true; throw e; }) : null;
+      day.departures = await runDepartures(run, tf);
+      if (missed) day.partial = true;
+    } else if (i < depDays && !run) {
+      day.partial = true;
     }
     out.push(day);
   }
@@ -142,15 +149,25 @@ function writeKnown(uid, m) { try { localStorage.setItem(LS_PREFIX + uid, JSON.s
  * Make runAlerts/ match this operator's schedule. Writes only what changed,
  * so an unchanged week costs nothing. enabled false clears them all.
  * Resolves { count, next, through, writes, reports, departures }.
+ *
+ * Each phone keeps a copy of what the server holds, so it can skip unchanged
+ * alerts. Another phone or computer on the same account can change the server
+ * behind its back, and the copy then said "saved" for alerts that were gone.
+ * So every write also stamps users/{uid}/alertSync/state with a new rev; a
+ * phone that sees a rev it did not write reads the server again (one read
+ * per sync otherwise).
  */
-export async function syncRunAlerts({ db, uid, enabled, settings, days, now = Date.now() }) {
-  const F = await import(FIRESTORE);
+export async function syncRunAlerts({ db, uid, enabled, settings, days, now = Date.now(), firestore }) {
+  const F = firestore || await import(FIRESTORE);      // firestore: a stand-in, for the tests
   const col = F.collection(db, 'runAlerts');
+  const stateRef = F.doc(db, 'users', uid, 'alertSync', 'state');
+  const serverRev = await F.getDoc(stateRef).then(s => (s.exists() && s.data().rev) || null);
   // known: { id: { s: signature, at: sendAtMs } } of what the server holds.
-  let known = readKnown(uid);
+  const local = readKnown(uid);
+  let known = local && local.rev === serverRev ? local.a : null;
   if (!known) {
-    // First sync on this phone: learn what another phone (or the older app,
-    // one alert a day under {uid}_{date}) left there.
+    // First sync on this phone, or another device changed them: learn what is
+    // there (also the older app's one alert a day under {uid}_{date}).
     known = {};
     const snap = await F.getDocs(F.query(col, F.where('uid', '==', uid)));
     snap.forEach(d => { const x = d.data(); if (x.date !== 'test') known[d.id] = { s: sigOf(x), at: x.sendAtMs }; });
@@ -159,6 +176,8 @@ export async function syncRunAlerts({ db, uid, enabled, settings, days, now = Da
   Object.keys(known).forEach(id => { if (known[id].at <= now) delete known[id]; });
 
   const want = enabled ? planRunAlerts(days || [], settings, now) : [];
+  // Days whose departures could not be worked out: keep what was saved for the same run.
+  const partial = new Map((enabled ? days || [] : []).filter(d => d.partial).map(d => [d.date, '|Run ' + d.runNo + ' · ']));
   const ops = [];
   const ids = new Set();
   for (const a of want) {
@@ -170,18 +189,26 @@ export async function syncRunAlerts({ db, uid, enabled, settings, days, now = Da
   }
   for (const id of Object.keys(known)) {
     if (ids.has(id)) continue;
+    const date = id.slice(uid.length + 1, uid.length + 11), key = id.slice(uid.length + 12);
+    if (key.startsWith('d') && partial.has(date) && known[id].s.includes(partial.get(date))) continue;
     ops.push(['delete', id]);
     delete known[id];
+  }
+  let rev = serverRev;
+  if (ops.length) {
+    rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    ops.push(['state']);
   }
   for (let i = 0; i < ops.length; i += BATCH_MAX) {
     const batch = F.writeBatch(db);
     for (const [op, id, data] of ops.slice(i, i + BATCH_MAX)) {
       if (op === 'set') batch.set(F.doc(col, id), { ...data, updatedAt: F.serverTimestamp() });
+      else if (op === 'state') batch.set(stateRef, { rev, updatedAt: F.serverTimestamp() });
       else batch.delete(F.doc(col, id));
     }
     await batch.commit();
   }
-  writeKnown(uid, known);
+  writeKnown(uid, { rev, a: known });
   return {
     count: want.length, next: want[0] || null, through: want.length ? want[want.length - 1].date : null, writes: ops.length,
     reports: want.filter(a => a.key.startsWith('rep')).length, departures: want.filter(a => a.key.startsWith('d')).length
