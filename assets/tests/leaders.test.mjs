@@ -77,3 +77,21 @@ test('the leader card shows no bus before the pull-out, and keeps the bus seen s
   assert.equal(card(nowMin - 60, nowMin + 600, Date.now() - 10 * 3600000), '');
   assert.equal(card(nowMin - 60, nowMin + 600, Date.now() - 5 * 60000), '3398');
 });
+
+test('a block before its pull-out is "not out yet", with no bus; after it, missing data is just missing', () => {
+  // 9104: pulls out 4:28 AM, first trip 4:35 AM; at 2:00 AM it is not out yet
+  const B = [trip('9104', 275, PINE), trip('9104', 324, '38th Parellel Pl', 1)];
+  const paired = () => '3398';
+  const m = nowMin => buildBusModel({ block: '9104', allTrips: B, buses: [], nowMin, pullOuts: new Map([['9104', 268]]), knownBus: paired });
+  const early = m(120);
+  assert.equal(early._notOutYet, true);
+  assert.equal(early._outAtMin, 268);
+  assert.equal(early.VehicleID, '');
+  const late = m(270);                                   // 4:30 AM: pulled out, first trip not yet run
+  assert.equal(late._notOutYet, false);
+  // no pick pull-out: the first trip decides
+  const noPick = buildBusModel({ block: '9104', allTrips: B, buses: [], nowMin: 120, knownBus: paired });
+  assert.equal(noPick._notOutYet, true);
+  assert.equal(noPick._outAtMin, 275);
+  assert.equal(noPick._outIsPullOut, false);
+});

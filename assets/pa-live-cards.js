@@ -125,8 +125,14 @@ export function buildBusModel({ block, allTrips, buses, nowMin, dirNamesByRoute 
     const st = blockStatus(trips, nowMin);
     if (!st || st.state === 'done') return { BlockID: blk, _scheduledOnly: true, _schedState: 'done', _doneForDay: true, _leaderTimeline: timeline() };
     const trip = st.state === 'in_service' ? st.trip : st.next;
+    // Not out yet: none of its trips has run and its pull-out (the pick's, else
+    // its first trip) is still ahead. Then no bus can be today's, and the card
+    // says so instead of "may not be in service".
+    const outAt = pullOuts && pullOuts.get(blk) != null ? pullOuts.get(blk) : trip.s;
+    const notOutYet = st.state === 'not_started' && nowMin < outAt;
     bus = {
-      BlockID: blk, VehicleID: pairedBus(blk, trip.route), late: '0',
+      BlockID: blk, VehicleID: notOutYet ? '' : pairedBus(blk, trip.route), late: '0',
+      _notOutYet: notOutYet, _outAtMin: outAt, _outIsPullOut: !!(pullOuts && pullOuts.get(blk) != null),
       Direction: dirName(trip) || ('Direction ' + trip.dir),
       _scheduledOnly: true,
       _schedState: st.state === 'in_service' ? 'in_service_expected' : st.state === 'layover' ? 'layover_expected' : 'not_started',
