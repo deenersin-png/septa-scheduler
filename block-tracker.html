@@ -480,10 +480,15 @@ function localISODate() {
     String(d.getDate()).padStart(2, '0');
 }
 
-function getDayType() {
-  const ov = calendarOverrides[localISODate()];
+function getDayType() { return dayTypeOfDate(serviceDate()); }
+
+// Day type of a calendar date: a GTFS calendar exception first, else the
+// day of the week.
+function dayTypeOfDate(date) {
+  const iso = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  const ov = calendarOverrides[iso];
   if (ov) return ov;
-  const d = serviceDate().getDay();
+  const d = date.getDay();
   if (d === 0) return 'sunday';
   if (d === 6) return 'saturday';
   return 'weekday';
@@ -556,6 +561,27 @@ function dayTrips(data, day) {
   return own.length ? own : list;
 }
 
+// The trips of the current service day. GTFS writes after-midnight trips two
+// ways: a late regular trip as 24:xx on the day before (route 52 block 9517),
+// but a night liner's block under its OWN day at 00:xx (route 52 block 9501
+// at 00:23, L1 OWL 9901 at 00:15) - the paddle files those runs under the
+// next day too. In owl hours we run on yesterday's clock (24:00+), so today's
+// early trips join it 24 h on: 00:23 becomes 24:23. Without this a night
+// liner had no timetable here between midnight and 4 AM. Yesterday's own
+// copy of the same early trip (same trip_id, long done) is dropped, so a live
+// bus's trip id finds tonight's.
+function serviceDayTrips(data) {
+  const trips = dayTrips(data, getDayType());
+  if (!inOwlWindow(new Date())) return trips;
+  const owlEnd = SERVICE_DAY_START_HR * 60;
+  const plus24 = t => String(t).replace(/^(\d+)/, h => String(parseInt(h, 10) + 24));
+  const early = dayTrips(data, dayTypeOfDate(new Date()))
+    .filter(t => (timeStrToMin(t.start) ?? Infinity) < owlEnd)
+    .map(t => ({ ...t, start: plus24(t.start), end: plus24(t.end) }));
+  const ids = new Set(early.map(t => String(t.trip_id)));
+  return trips.filter(t => !(ids.has(String(t.trip_id)) && timeStrToMin(t.start) < owlEnd)).concat(early);
+}
+
 async function loadScheduleData(route) {
   const reqId = ++schedRequestId;
   sched.loaded = false;
@@ -570,7 +596,7 @@ async function loadScheduleData(route) {
     }
     if (!data || reqId !== schedRequestId) return;
 
-    const trips = dayTrips(data, getDayType());
+    const trips = serviceDayTrips(data);
     const blockTrips = new Map();
     const order = [];
     for (const t of trips) {
@@ -1142,14 +1168,13 @@ function knownBlockFor(vid) {
 // bus was last seen on — whenever the block still has trips there. Returns
 // `own` when no route has anything left today.
 async function routeForBlockNow(blk, own, routes, nowMin = serviceNowMin()) {
-  const day = getDayType();
   const score = async route => {
     for (const name of getAliases(route)) {
       try {
         const res = await fetch(GTFS_BASE + '/' + encodeURIComponent(name) + '.json');
         if (!res.ok) continue;
         let best = Infinity;
-        for (const t of dayTrips(await res.json(), day)) {
+        for (const t of serviceDayTrips(await res.json())) {
           if (String(t.block_id) !== blk) continue;
           const s = timeStrToMin(t.start), e = timeStrToMin(t.end);
           if (s == null || e == null || isPhantomTrip(blk, s)) continue;
@@ -1243,9 +1268,16 @@ function pullInKey(t) {
 }
 
 // This block's final pull-in (service-day minutes), or null if the pick has none.
+// In owl hours a night liner's block (out after midnight, e.g. 12:05 AM, in
+// during the morning) is running tonight's trips 24 h on (serviceDayTrips),
+// so its pull-in moves with them; otherwise it would count as pulled in.
 function blockPullInMin(blk) {
   const rec = paddle.byBlock.get(String(blk));
-  return rec && rec.piTime ? pullInKey(rec.piTime) : null;
+  if (!rec || !rec.piTime) return null;
+  const pi = pullInKey(rec.piTime);
+  const po = rec.poTime ? clockToMin(rec.poTime) : null;
+  if (pi != null && pi < 1440 && po != null && po < SERVICE_DAY_START_HR * 60 && inOwlWindow(new Date())) return pi + 1440;
+  return pi;
 }
 
 function blockPulledIn(blk) {
