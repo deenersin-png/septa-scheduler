@@ -17,7 +17,7 @@
 //     served only when the network fails - a depot parking lot with one bar
 //     still gets the paddle viewer it loaded this morning.
 
-const VERSION = 'pa-sw-4';
+const VERSION = 'pa-sw-5';
 const CACHE = 'pa-cache-v2';
 
 // What the worker hands the PAGE is marked no-store. The browser's in-memory
@@ -79,16 +79,27 @@ self.addEventListener('notificationclick', e => {
 // Server-sent push (Tier 2). Payload: { title, body, url, tag }, either
 // bare or as Cloud Messaging wraps it ({ data: {...} } for the Swap board's
 // data-only messages, { notification: {...} } for console test sends).
+//
+// EVERY push must end in a shown notification, whatever goes wrong: iPhone
+// counts a push it did not see shown against the site and, after a few,
+// cancels the site's push subscription without a word - alerts then stop
+// until they are turned off and on. So nothing here may throw before
+// showNotification, and a failed show falls back to a plain one.
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
-  if (d && d.data && (d.data.title || d.data.body)) d = d.data;
-  else if (d && d.notification) d = { ...d.notification, url: (d.data && d.data.url) || d.fcmOptions && d.fcmOptions.link };
-  e.waitUntil(self.registration.showNotification(d.title || 'Paddle App', {
-    body: d.body || '',
-    tag: d.tag || undefined,
-    icon: new URL('assets/icon-192.png', self.registration.scope).href,
-    badge: new URL('assets/icon-192.png', self.registration.scope).href,
-    data: { url: d.url || new URL('home.html', self.registration.scope).href }
-  }));
+  try {
+    try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
+    if (d && d.data && (d.data.title || d.data.body)) d = d.data;
+    else if (d && d.notification) d = { ...d.notification, url: (d.data && d.data.url) || (d.fcmOptions && d.fcmOptions.link) };
+    if (!d || typeof d !== 'object') d = {};
+  } catch (_) { d = {}; }
+  const scope = self.registration.scope;
+  const show = self.registration.showNotification(String(d.title || 'Paddle App'), {
+    body: String(d.body || ''),
+    tag: d.tag ? String(d.tag) : undefined,
+    icon: scope + 'assets/icon-192.png',
+    badge: scope + 'assets/icon-192.png',
+    data: { url: d.url || scope + 'home.html' }
+  }).catch(() => self.registration.showNotification(String(d.title || 'Paddle App'), { body: String(d.body || '') }));
+  e.waitUntil(show);
 });

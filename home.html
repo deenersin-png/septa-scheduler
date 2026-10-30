@@ -460,7 +460,7 @@ async function boot() {
   renderSyncLine();
   N.attach(ctx.user.uid).catch(() => {});
   N.registerSW();
-  P.refreshPush(ctx.user.uid);           // a changed or dropped push token, sent again
+  checkPush();                           // a changed or dropped push registration, mended
   ctx.drawnVersion = A.getState().version;
   await refreshToday();
   requireRuns();
@@ -635,8 +635,18 @@ async function wakeLock(on) {
   } catch (_) {}
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { recompute(); refreshToday(); refreshLeader(); }
+  if (document.visibilityState === 'visible') { recompute(); refreshToday(); refreshLeader(); checkPush(); }
 });
+
+// The phone's push registration and its saved alerts, checked on every open
+// and every return to the app (an iPhone keeps the app alive in the
+// background, so "opening" it is often just this). At most every 5 minutes.
+function checkPush() {
+  if (!ctx.user || Date.now() - (ctx.pushCheckedAt || 0) < 5 * 60000) return;
+  ctx.pushCheckedAt = Date.now();
+  P.refreshPush(ctx.user.uid).then(r => { if (r === 'reconnected' && ctx.view === 'alerts') renderAlerts(); });
+  syncPhoneAlerts();
+}
 
 function renderToday() {
   const c = ctx.current, body = $('today-body');
