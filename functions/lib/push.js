@@ -35,7 +35,11 @@ export async function notify(deps, uids, msg) {
         sent++;
       } catch (e) {
         const code = e && (e.code || (e.errorInfo && e.errorInfo.code));
-        if (DEAD_TOKEN.has(code)) { await d.ref.delete().catch(() => {}); }
+        if (DEAD_TOKEN.has(code)) {
+          await d.ref.delete().catch(() => {});
+          // Logged: an iPhone that cancels its own subscription shows up here.
+          if (log && log.warn) log.warn('phone dropped', { uid, device: d.id, platform: String(dev.platform || '').slice(0, 60), code });
+        }
         else if (log) log.error('push failed', { uid, code: code || String(e) });
       }
     }

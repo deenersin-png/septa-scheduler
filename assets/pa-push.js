@@ -25,7 +25,6 @@ export const pushConfigured = () => !FCM_VAPID_KEY.includes('REPLACE_ME');
 
 const LS_DEVICE = 'pa_push_device';
 const MESSAGING = 'https://www.gstatic.com/firebasejs/12.17.0/firebase-messaging.js';
-const DAY_MS = 864e5;
 
 // { uid, id, token?, checkedAt? } of this phone's registration.
 function readDevice() { try { return JSON.parse(localStorage.getItem(LS_DEVICE) || 'null'); } catch (_) { return null; } }
@@ -83,37 +82,50 @@ export async function registerPush(uid) {
 }
 
 /**
- * Keep this phone's registration alive; call on every app open, no tap
- * needed. A phone's push token changes from time to time (browser updates,
- * the push service rotating it), and the server deletes one Google calls
- * dead. Either way the phone silently stopped getting alerts while every
- * screen still said they were on. This sends the current token when it
- * changed, and once a day checks the server still has it - a fresh token
- * when it does not. Costs nothing on most opens (no read, no write).
+ * Keep this phone's registration alive; call on every app open and every
+ * return to the app, no tap needed. Resolves 'ok' | 'reconnected' | 'skip'.
+ *
+ * iPhone cancels a site's push subscription on its own (Safari's rule: a
+ * push it did not see shown counts against the site), and the push token
+ * changes from time to time. The server then hears "dead token" and deletes
+ * this phone, while the browser still has the old token cached and every
+ * screen still says alerts are on - only turning them off and on brought
+ * them back. So on EVERY open this checks that the phone still has a push
+ * subscription and the server still has this phone (one read), and quietly
+ * gets a fresh token when either is gone.
  */
 export async function refreshPush(uid) {
-  if (!pushConfigured() || !registeredHere(uid) || !('serviceWorker' in navigator)) return;
+  if (!pushConfigured() || !registeredHere(uid) || !('serviceWorker' in navigator)) return 'skip';
   try {
     const M = await import(MESSAGING);
-    if (!(await M.isSupported())) return;
+    if (!(await M.isSupported())) return 'skip';
     const fb = initFirebase();
     const d = readDevice();
-    let token = await tokenFor(fb, M);
-    if (!token) return;
-    if (token === d.token) {
-      if (Date.now() - (d.checkedAt || 0) < DAY_MS) return;
+    const reg = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href);
+    const sub = await reg.pushManager.getSubscription();
+    let fresh = !sub;                         // the phone itself dropped the subscription
+    let token = fresh ? null : await tokenFor(fb, M);
+    if (!fresh) {
       const snap = await getDoc(doc(fb.db, 'users', uid, 'devices', d.id));
-      if (snap.exists() && snap.data().fcmToken === token) { writeDevice({ ...d, checkedAt: Date.now() }); return; }
-      if (!snap.exists()) {
-        // The server dropped it as dead; the browser still had it cached.
-        await M.deleteToken(M.getMessaging(fb.app)).catch(() => {});
-        token = await tokenFor(fb, M);
-        if (!token) return;
+      if (snap.exists() && snap.data().fcmToken === token && token === d.token) {
+        writeDevice({ ...d, checkedAt: Date.now() });
+        return 'ok';
       }
+      fresh = !snap.exists();                 // the server dropped it as dead
     }
+    if (fresh) {
+      // The browser's cached token is the dead one: throw it away, subscribe again.
+      await M.deleteToken(M.getMessaging(fb.app)).catch(() => {});
+      if (sub) await sub.unsubscribe().catch(() => {});
+      token = await tokenFor(fb, M);
+    }
+    if (!token) return 'skip';
     await saveDevice(fb, uid, token, d.id);
+    console.info('[pa] push reconnected');
+    return 'reconnected';
   } catch (e) {
     console.warn('[pa] push refresh', e.code || e.message);
+    return 'skip';
   }
 }
 
