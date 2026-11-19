@@ -39,6 +39,24 @@ jobs:
             --exclude-dir=node_modules -F "deenersin-png.github.io/septa-scheduler" . \
             | xargs -r sed -i "s#https://deenersin-png.github.io/septa-scheduler#https://${NEW_OWNER}.github.io#g"
 
+      # analytics.js is per site (each has its own GA id): never copy ours,
+      # always keep the one already in the new repo. Fails if it is missing.
+      - name: Keep the new repo's own analytics.js
+        env:
+          TOKEN: ${{ secrets.MIRROR_PAT }}
+        run: |
+          set -e
+          rm -f analytics.js
+          git clone -q --depth 1 "https://x-access-token:${TOKEN}@github.com/${NEW_OWNER}/${NEW_REPO}.git" "$RUNNER_TEMP/mirror-current"
+          if [ ! -f "$RUNNER_TEMP/mirror-current/analytics.js" ]; then
+            echo "::error::analytics.js is missing in ${NEW_OWNER}/${NEW_REPO}; add it there first"; exit 1
+          fi
+          cp "$RUNNER_TEMP/mirror-current/analytics.js" analytics.js
+          if grep -q "G-QXEKGF4DXT" analytics.js; then
+            echo "::error::new repo's analytics.js has the old site's GA id"; exit 1
+          fi
+          rm -rf "$RUNNER_TEMP/mirror-current"
+
       - name: Force-sync to new repo
         env:
           TOKEN: ${{ secrets.MIRROR_PAT }}
