@@ -40,18 +40,22 @@ jobs:
             | xargs -r sed -i "s#https://deenersin-png.github.io/septa-scheduler#https://${NEW_OWNER}.github.io#g"
 
       # analytics.js is per site (each has its own GA id): never copy ours,
-      # always keep the one already in the new repo. Fails if it is missing.
+      # always keep the one already in the new repo. Only if the new repo has
+      # none yet, create it once from ours with NEW_GA_ID.
       - name: Keep the new repo's own analytics.js
         env:
           TOKEN: ${{ secrets.MIRROR_PAT }}
+          NEW_GA_ID: G-BCQDXDG961
         run: |
           set -e
-          rm -f analytics.js
           git clone -q --depth 1 "https://x-access-token:${TOKEN}@github.com/${NEW_OWNER}/${NEW_REPO}.git" "$RUNNER_TEMP/mirror-current"
-          if [ ! -f "$RUNNER_TEMP/mirror-current/analytics.js" ]; then
-            echo "::error::analytics.js is missing in ${NEW_OWNER}/${NEW_REPO}; add it there first"; exit 1
+          if [ -f "$RUNNER_TEMP/mirror-current/analytics.js" ]; then
+            cp "$RUNNER_TEMP/mirror-current/analytics.js" analytics.js
+          else
+            echo "analytics.js missing in ${NEW_OWNER}/${NEW_REPO}: creating it with ${NEW_GA_ID}"
+            sed -i "s/G-QXEKGF4DXT/${NEW_GA_ID}/g" analytics.js
           fi
-          cp "$RUNNER_TEMP/mirror-current/analytics.js" analytics.js
+          grep -q "${NEW_GA_ID}" analytics.js || { echo "::error::analytics.js lacks ${NEW_GA_ID}"; exit 1; }
           if grep -q "G-QXEKGF4DXT" analytics.js; then
             echo "::error::new repo's analytics.js has the old site's GA id"; exit 1
           fi
