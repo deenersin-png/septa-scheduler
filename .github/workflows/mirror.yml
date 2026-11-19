@@ -1,0 +1,55 @@
+# Mirrors every push to main onto the new Pages repo (force-sync).
+# Undo everything: delete this file.
+name: Mirror to new repo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+env:
+  # >>> EDIT THESE TWO LINES <<<
+  NEW_OWNER: paddleapp
+  NEW_REPO: paddleapp.github.io
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rewrite old site address to new one (copy only)
+        run: |
+          NEW_URL="https://${NEW_OWNER}.github.io/"
+          OLD_URL="https://deenersin-png.github.io/septa-scheduler/"
+          grep -rIl --include='*.html' --include='*.js' --include='*.json' \
+            --exclude-dir=.git --exclude-dir=tests --exclude-dir=functions \
+            --exclude-dir=node_modules -F "$OLD_URL" . \
+            | xargs -r sed -i "s#${OLD_URL}#${NEW_URL}#g"
+          # old form without trailing slash, e.g. .../septa-scheduler/block-tracker or .../septa-scheduler/data
+          grep -rIl --include='*.html' --include='*.js' \
+            --exclude-dir=.git --exclude-dir=tests --exclude-dir=functions \
+            --exclude-dir=node_modules -F "deenersin-png.github.io/septa-scheduler" . \
+            | xargs -r sed -i "s#https://deenersin-png.github.io/septa-scheduler#https://${NEW_OWNER}.github.io#g"
+
+      - name: Force-sync to new repo
+        env:
+          TOKEN: ${{ secrets.MIRROR_PAT }}
+        run: |
+          set -e
+          rm -rf .github            # never copy workflows to the mirror
+          rm -rf .git
+          git init -q -b main
+          git config user.name  "mirror-bot"
+          git config user.email "mirror-bot@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Mirror of ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          git remote add mirror "https://x-access-token:${TOKEN}@github.com/${NEW_OWNER}/${NEW_REPO}.git"
+          git push --force mirror main
