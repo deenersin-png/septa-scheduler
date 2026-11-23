@@ -244,6 +244,27 @@
   st.textContent = '.pam-open .pam-scrim{opacity:1;pointer-events:auto}.pam-open .pam-drawer{transform:none;visibility:visible}';
   document.head.appendChild(st);
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  // "Paddle App is moving" banner, on the old address only. The mirror copies
+  // this file to paddleapp.github.io, so it checks the host at run time
+  // (host and path kept apart so the mirror's address rewrite leaves them).
+  // ?movebanner=1 shows it anywhere, for testing.
+  function moveBanner() {
+    var old = location.hostname === 'deenersin-png.github.io' &&
+      /^\/septa-scheduler(\/|$)/.test(location.pathname);
+    if (!old && !/[?&]movebanner=1(&|#|$)/.test(location.search)) return;
+    if (document.getElementById('pa-move')) return;
+    var b = document.createElement('div');
+    b.id = 'pa-move';
+    b.setAttribute('role', 'status');
+    b.style.cssText = 'background:#fff4c2;color:#3a2e00;border-bottom:2px solid #e0b400;' +
+      'padding:10px 14px;text-align:center;font:600 16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;';
+    b.innerHTML = 'ℹ️ Paddle App is moving to ' +
+      '<a href="https://paddleapp.github.io/?utm_source=dk" style="color:#0b4ea2;text-decoration:underline;font-weight:700">paddleapp.github.io</a>. ' +
+      'Please update your bookmarks.';
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+
+  function start() { init(); moveBanner(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
