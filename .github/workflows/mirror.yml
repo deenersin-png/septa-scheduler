@@ -61,6 +61,15 @@ jobs:
           fi
           rm -rf "$RUNNER_TEMP/mirror-current"
 
+      # The "Paddle App is moving" banner is for the old site only: the new
+      # repo gets an empty assets/pa-move.js (pa-menu.js still loads it).
+      - name: Leave out the old-site moving banner
+        run: |
+          printf '%s\n' '// Old-site-only "moving" banner: intentionally empty on this site.' > assets/pa-move.js
+          if grep -q "pa-move'" assets/pa-move.js || grep -q "update your bookmarks" assets/pa-move.js; then
+            echo "::error::moving banner still in assets/pa-move.js"; exit 1
+          fi
+
       - name: Force-sync to new repo
         env:
           TOKEN: ${{ secrets.MIRROR_PAT }}
